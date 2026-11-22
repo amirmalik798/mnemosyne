@@ -9,6 +9,15 @@ import { Plugin } from "@tiptap/pm/state";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { ImageLightbox } from "@/components/image-lightbox";
+import {
+  DEFAULT_HIGHLIGHT_COLOR,
+  DEFAULT_TEXT_COLOR,
+  NOTE_FONT_OPTIONS,
+  safeFontFamily,
+  safeTextColor,
+  TextHighlightMark,
+  TextStyleMark,
+} from "@/lib/note-formatting";
 import { detectTextLanguage, getBidiAttributes } from "@/lib/bidi";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -189,6 +198,9 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [imageSelected, setImageSelected] = useState(false);
+  const textColorInputRef = useRef<HTMLInputElement>(null);
+  const highlightColorInputRef = useRef<HTMLInputElement>(null);
+  const fontFamilySelectRef = useRef<HTMLSelectElement>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [isImageDragActive, setIsImageDragActive] = useState(false);
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
@@ -259,9 +271,27 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     scheduleLocalRecovery();
   }, [scheduleLocalRecovery]);
 
+  const syncFormattingControls = useCallback((current: TiptapEditor) => {
+    const textStyle = current.getAttributes("textStyle") as {
+      color?: unknown;
+      fontFamily?: unknown;
+    };
+    const highlight = current.getAttributes("textHighlight") as { color?: unknown };
+
+    if (textColorInputRef.current) {
+      textColorInputRef.current.value = safeTextColor(textStyle.color) ?? DEFAULT_TEXT_COLOR;
+    }
+    if (highlightColorInputRef.current) {
+      highlightColorInputRef.current.value = safeTextColor(highlight.color) ?? DEFAULT_HIGHLIGHT_COLOR;
+    }
+    if (fontFamilySelectRef.current) {
+      fontFamilySelectRef.current.value = safeFontFamily(textStyle.fontFamily) ?? "";
+    }
+  }, []);
+
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [StarterKit, BidiDirection, Image.configure({ inline: false, allowBase64: false }), Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." })],
+    extensions: [StarterKit, TextStyleMark, TextHighlightMark, BidiDirection, Image.configure({ inline: false, allowBase64: false }), Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." })],
     content: initialNote?.content ?? EMPTY_DOC,
     editorProps: {
       attributes: { class: "rich-editor", spellcheck: "true", "aria-label": "Note content", dir: "ltr" },
@@ -272,11 +302,13 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       current.view.dispatch(current.state.tr.setMeta("bidi-initial-normalization", true));
       editorRef.current = current;
       contentRef.current = current.getJSON();
+      syncFormattingControls(current);
     },
     onUpdate: ({ editor: current, transaction }) => {
       // Do not serialize the entire document on every keystroke. Create JSON
       // snapshots only when a save or recovery checkpoint is due.
       editorRef.current = current;
+      syncFormattingControls(current);
       if (transaction.getMeta("bidi-normalization")) return;
 
       markDirty();
@@ -294,6 +326,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       setImageSelected(current.isActive("image"));
       const currentSelection = current.state.selection;
       selectionRef.current = { from: currentSelection.from, to: currentSelection.to };
+      syncFormattingControls(current);
     },
   });
 
@@ -787,6 +820,85 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   return <main className="page"><div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:25 }}><Link href={noteId ? `/notes/${noteId}` : "/notes"} className="breadcrumb"><ArrowLeft size={14}/> {noteId ? "Back to note" : "All notes"}</Link><div style={{ display:"flex", gap:8 }}><span style={{ fontSize:10, color:"var(--muted)", alignSelf:"center" }}>{status}</span><button className="primary-btn" onClick={() => void save(false)} disabled={busy || imageUploading || !title.trim()} title={!title.trim() ? "Enter a note title before saving." : "Save note"}><Save size={14}/>{busy ? "Saving…" : "Save note"}</button></div></div>
     <div className="note-layout"><section className="editor-main"><div className="eyebrow">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} placeholder="Untitled note" maxLength={180} disabled={busy || imageUploading} aria-label="Note title"/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); markDirty(); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy || imageUploading} aria-label="Note subject"/>
       <div className="editor-toolbar" role="toolbar" aria-label="Text formatting"><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("bold") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleBold().run()} title="Bold"><Bold/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("italic") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleItalic().run()} title="Italic"><Italic/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("strike") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleStrike().run()} title="Strikethrough"><Strikethrough/></button><span className="tool-divider"/><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("heading",{level:1})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:1}).run()} title="Heading 1"><Heading1/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("heading",{level:2})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:2}).run()} title="Heading 2"><Heading2/></button><span className="tool-divider"/><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("bulletList")?"active":""}`} onClick={() => editor?.chain().focus().toggleBulletList().run()} title="Bulleted list"><List/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("orderedList")?"active":""}`} onClick={() => editor?.chain().focus().toggleOrderedList().run()} title="Numbered list"><ListOrdered/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("blockquote")?"active":""}`} onClick={() => editor?.chain().focus().toggleBlockquote().run()} title="Quote"><Quote/></button><button disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Divider"><Minus/></button><span className="tool-divider"/><input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const files=Array.from(e.currentTarget.files ?? []); e.currentTarget.value=""; if(files.length)void uploadImages(files); }}/><button disabled={!editor || busy || imageUploading} className="tool-btn" onClick={() => imageRef.current?.click()} title={imageUploading ? "Uploading images…" : "Add images"}><ImagePlus/></button><button disabled={busy || imageUploading || !imageSelected} className="tool-btn" onClick={() => void removeSelectedImage()} title="Remove selected image"><Trash2/></button><span className="tool-divider"/><button disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().undo().run()} title="Undo"><Undo2/></button><button disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().redo().run()} title="Redo"><Redo2/></button></div>
+      <div className="editor-formatting-controls" role="group" aria-label="Text appearance">
+        <label className="inline-format-control">
+          <span>Font</span>
+          <select
+            ref={fontFamilySelectRef}
+            aria-label="Selected text font"
+            defaultValue=""
+            disabled={!editor || busy || imageUploading}
+            onChange={(event) => {
+              if (!editor) return;
+              const current = editor.getAttributes("textStyle") as { color?: unknown; fontFamily?: unknown };
+              editor.chain().focus().setMark("textStyle", {
+                ...current,
+                fontFamily: event.currentTarget.value || null,
+              }).run();
+              markDirty();
+              syncFormattingControls(editor);
+            }}
+          >
+            <option value="">Default font</option>
+            {NOTE_FONT_OPTIONS.map((font) => (
+              <option key={font.value} value={font.value}>{font.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="inline-format-control">
+          <span>Text color</span>
+          <input
+            ref={textColorInputRef}
+            type="color"
+            aria-label="Text color"
+            defaultValue={DEFAULT_TEXT_COLOR}
+            disabled={!editor || busy || imageUploading}
+            onChange={(event) => {
+              if (!editor) return;
+              const current = editor.getAttributes("textStyle") as { color?: unknown; fontFamily?: unknown };
+              editor.chain().focus().setMark("textStyle", {
+                ...current,
+                color: event.currentTarget.value,
+              }).run();
+              markDirty();
+              syncFormattingControls(editor);
+            }}
+          />
+        </label>
+        <label className="inline-format-control">
+          <span>Highlight</span>
+          <input
+            ref={highlightColorInputRef}
+            type="color"
+            aria-label="Highlight color"
+            defaultValue={DEFAULT_HIGHLIGHT_COLOR}
+            disabled={!editor || busy || imageUploading}
+            onChange={(event) => {
+              if (!editor) return;
+              editor.chain().focus().setMark("textHighlight", {
+                color: event.currentTarget.value,
+              }).run();
+              markDirty();
+              syncFormattingControls(editor);
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          className="format-reset-btn"
+          disabled={!editor || busy || imageUploading}
+          onClick={() => {
+            editor?.chain().focus().unsetMark("textStyle").unsetMark("textHighlight").run();
+            if (editor) {
+              markDirty();
+              syncFormattingControls(editor);
+            }
+          }}
+          title="Remove text color, font and highlight from the selection"
+        >
+          Clear formatting
+        </button>
+      </div>
       <div
         className={isImageDragActive ? "note-image-dropzone note-image-dropzone-active" : "note-image-dropzone"}
         onDragEnterCapture={handleEditorDragEnter}
