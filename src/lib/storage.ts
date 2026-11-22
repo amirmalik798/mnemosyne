@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { decryptBytes, decryptText, encryptBytes, encryptText } from "@/lib/crypto";
@@ -7,6 +7,13 @@ import { db } from "@/lib/db";
 
 function storageRoot(): string {
   return resolve(process.env.STORAGE_DIR || join(process.cwd(), "storage"));
+}
+
+async function ensurePrivateStorageRoot(root: string): Promise<void> {
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  // File mode 0600 and directory mode 0700 prevent other local OS users from
+  // reading encrypted assets or enumerating the vault's attachment metadata.
+  if (process.platform !== "win32") await chmod(root, 0o700);
 }
 
 export function detectImageMime(buffer: Buffer): string | null {
@@ -29,7 +36,7 @@ export async function saveEncryptedAsset(input: {
   const id = randomUUID();
   const storageKey = `${id}.enc`;
   const root = storageRoot();
-  await mkdir(root, { recursive: true });
+  await ensurePrivateStorageRoot(root);
   await writeFile(join(root, storageKey), encryptBytes(input.bytes, input.key), { mode: 0o600 });
   try {
     await db.query(
@@ -46,7 +53,9 @@ export async function saveEncryptedAsset(input: {
 
 export async function readEncryptedAsset(storageKey: string, key: Buffer): Promise<Buffer> {
   if (!/^[a-f0-9-]+\.enc$/i.test(storageKey)) throw new Error("Invalid storage key.");
-  const filePath = resolve(storageRoot(), storageKey);
+  const root = storageRoot();
+  await ensurePrivateStorageRoot(root);
+  const filePath = resolve(root, storageKey);
   if (!filePath.startsWith(`${storageRoot()}${process.platform === "win32" ? "\\" : "/"}`)) throw new Error("Invalid storage path.");
   return decryptBytes(await readFile(filePath), key);
 }
@@ -135,7 +144,7 @@ export async function cloneEncryptedNoteAsset(input: {
     throw new Error("Invalid storage path.");
   }
 
-  await mkdir(root, { recursive: true });
+  await ensurePrivateStorageRoot(root);
   const plainBytes = await readVerifiedImageAsset({
     storageKey: input.asset.storage_key,
     key: input.key,
