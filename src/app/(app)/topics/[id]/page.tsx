@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, Edit3, FilePlus, FileText } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, FilePlus, FileText } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
 import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { NoteRow, EmptyState, type NoteItem } from "@/components/archive-ui";
 import { detectTextLanguage } from "@/lib/bidi";
 import { TopicImageDownload } from "@/components/topic-image-download";
+import { TopicEditDialog } from "@/components/topic-edit-dialog";
 import { ARCHIVE_PAGE_SIZE, ArchivePagination, parseArchivePage } from "@/components/archive-pagination";
 import { ArchiveSortControl } from "@/components/archive-sort-control";
 import { compareArchiveTitles, isAlphabeticalArchiveSort, parseArchiveSort } from "@/lib/archive-sort";
@@ -114,7 +115,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
           <p className="page-subtitle" dir="auto" lang={detectTextLanguage(description)} style={{ margin:0 }}>{description || "A dedicated space for the notes and references in this collection."}</p>
           <div className="topic-detail-actions" style={{ display:"flex",gap:8,flexShrink:0,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end" }}>
             <TopicImageDownload topicId={id} imageCount={imageCount}/>
-            <Link href={`/topics/${id}/edit`} className="secondary-btn topic-action-button" aria-label="Edit topic" title="Edit topic"><Edit3 size={16}/><span>Edit topic</span></Link>
+            <TopicEditDialog topic={{ id, title, subject, description, category, coverUrl: cover, noteCount: totalNotes }} />
             <Link href={`/notes/new?topicId=${id}`} className="primary-btn topic-action-button" aria-label="Create a note in this topic" title="Create a note in this topic"><FilePlus size={16}/><span>New note</span></Link>
           </div>
         </div>
