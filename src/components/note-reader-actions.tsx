@@ -57,11 +57,9 @@ export function NoteReaderActions({
       await navigator.clipboard.writeText(markdown());
       setMessageKind("success");
       setMessage("Markdown copied to clipboard.");
-      notifyOperation("success", "Markdown copied to clipboard.");
     } catch {
       setMessageKind("failure");
       setMessage("Clipboard access was denied. Check your browser permissions and try again.");
-      notifyOperation("failure", "Could not copy Markdown. Check your browser clipboard permissions.");
     }
   }
 
@@ -76,11 +74,9 @@ export function NoteReaderActions({
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessageKind("success");
       setMessage("Markdown export started.");
-      notifyOperation("success", "Markdown export started.");
     } catch {
       setMessageKind("failure");
       setMessage("The Markdown file could not be exported. Please try again.");
-      notifyOperation("failure", "Could not export this note.");
     }
   }
 
@@ -99,7 +95,6 @@ export function NoteReaderActions({
       const errorMessage = cause instanceof Error ? cause.message : "Could not delete note.";
       setMessageKind("failure");
       setMessage(errorMessage);
-      notifyOperation("failure", errorMessage);
     } finally {
       setBusy(false);
     }
