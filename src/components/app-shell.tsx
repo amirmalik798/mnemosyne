@@ -67,6 +67,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     const guardedFetch: typeof window.fetch = async (input, init) => {
       const response = await nativeFetch(input, init);
+      if (response.status !== 401) return response;
+
       let requestPath = "";
       try {
         const requestUrl = input instanceof Request ? input.url : String(input);
@@ -77,7 +79,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
 
       if (
-        response.status === 401 &&
         requestPath.startsWith("/api/") &&
         requestPath !== "/api/vault/unlock"
       ) {
