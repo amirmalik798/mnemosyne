@@ -36,6 +36,7 @@ function openRecoveryDatabase(): Promise<IDBDatabase> {
   if (recoveryDatabasePromise) return recoveryDatabasePromise;
 
   recoveryDatabasePromise = new Promise((resolve, reject) => {
+    let blocked = false;
     if (typeof window === "undefined" || !("indexedDB" in window)) {
       reject(new Error("Local recovery storage is unavailable in this browser."));
       return;
@@ -53,6 +54,10 @@ function openRecoveryDatabase(): Promise<IDBDatabase> {
     };
     request.onsuccess = () => {
       const database = request.result;
+      if (blocked) {
+        database.close();
+        return;
+      }
       database.onversionchange = () => {
         database.close();
         recoveryDatabasePromise = null;
@@ -60,7 +65,10 @@ function openRecoveryDatabase(): Promise<IDBDatabase> {
       resolve(database);
     };
     request.onerror = () => reject(request.error ?? new Error("Could not open local recovery storage."));
-    request.onblocked = () => reject(new Error("Local recovery storage is blocked by another browser tab."));
+    request.onblocked = () => {
+      blocked = true;
+      reject(new Error("Local recovery storage is blocked by another browser tab."));
+    };
   }).catch((error) => {
     recoveryDatabasePromise = null;
     throw error;
