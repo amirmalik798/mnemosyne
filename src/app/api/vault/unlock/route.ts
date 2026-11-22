@@ -6,12 +6,14 @@ import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 export const runtime = "nodejs";
 
+const UNLOCK_ADVISORY_LOCK_ID = 7_249_182_374_41;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 10;
 const MAX_PASSWORD_REQUEST_BYTES = 8 * 1024;
 
 export async function POST(request: Request) {
   let client: Awaited<ReturnType<typeof db.connect>> | undefined;
+  let advisoryLockAcquired = false;
   let vaultKey: Buffer | null = null;
 
   try {
@@ -23,6 +25,17 @@ export async function POST(request: Request) {
     // lock, parallel requests can all read the same failed_attempts value and
     // overwrite one another, weakening the lockout and amplifying Argon2 load.
     client = await db.connect();
+    const lockResult = await client.query(
+      "SELECT pg_try_advisory_lock($1::bigint) AS acquired",
+      [UNLOCK_ADVISORY_LOCK_ID],
+    );
+    if (!lockResult.rows[0]?.acquired) {
+      return NextResponse.json(
+        { error: "Another unlock attempt is being verified. Please wait a moment." },
+        { status: 429, headers: { "Retry-After": "2" } },
+      );
+    }
+    advisoryLockAcquired = true;
     await client.query("BEGIN");
 
     const result = await client.query(
@@ -77,6 +90,9 @@ export async function POST(request: Request) {
     if (client) await client.query("ROLLBACK").catch(() => undefined);
     return apiError(error);
   } finally {
+    if (client && advisoryLockAcquired) {
+      await client.query("SELECT pg_advisory_unlock($1::bigint)", [UNLOCK_ADVISORY_LOCK_ID]).catch(() => undefined);
+    }
     client?.release();
   }
 
