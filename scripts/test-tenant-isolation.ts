@@ -28,6 +28,7 @@ async function main() {
     const topicA = randomUUID();
     const topicB = randomUUID();
     const noteA = randomUUID();
+    const lifecycleNote = randomUUID();
     const assetA = randomUUID();
     const assetAWithoutBlob = randomUUID();
 
@@ -62,6 +63,106 @@ async function main() {
       "INSERT INTO assets (id,owner_type,owner_id,original_name_enc,mime_type,byte_size) VALUES ($1,'topic',$2,$3,'image/png',1)",
       [assetAWithoutBlob, topicA, randomBytes(48)],
     );
+
+    // Note lifecycle mutations must keep the parent topic's modified date in
+    // sync with the note, so the topic archive's modified sort is reliable.
+    const resetTopicTimestamp = async () => {
+      await client.query(
+        "UPDATE topics SET updated_at=TIMESTAMPTZ '2000-01-01 00:00:00+00' WHERE id=$1",
+        [topicA],
+      );
+    };
+    const assertTopicTimestampTouched = async (operation: string) => {
+      const timestamp = await client.query("SELECT updated_at FROM topics WHERE id=$1", [topicA]);
+      assert.ok(
+        new Date(timestamp.rows[0].updated_at).getTime() > Date.parse("2020-01-01T00:00:00Z"),
+        "note " + operation + " must update its parent topic timestamp",
+      );
+    };
+
+    const createdLifecycleNote = await client.query(
+      `WITH inserted AS (
+         INSERT INTO notes (id, topic_id, title_enc, subject_enc, content_enc, tags_enc)
+         SELECT $2, t.id, $3, $3, $3, $3
+         FROM topics t
+         WHERE t.id=$1
+         RETURNING id, topic_id
+       ),
+       touched_topic AS (
+         UPDATE topics t
+         SET updated_at=NOW()
+         FROM inserted i
+         WHERE t.id=i.topic_id
+         RETURNING t.id
+       )
+       SELECT i.id FROM inserted i JOIN touched_topic t ON t.id=i.topic_id`,
+      [topicA, lifecycleNote, randomBytes(48)],
+    );
+    assert.equal(createdLifecycleNote.rowCount, 1, "note creation should also touch its topic");
+    await assertTopicTimestampTouched("creation");
+
+    await resetTopicTimestamp();
+    const pinnedLifecycleNote = await client.query(
+      `WITH updated_note AS (
+         UPDATE notes SET pinned=TRUE, updated_at=NOW()
+         WHERE id=$1 AND deleted_at IS NULL
+         RETURNING id, topic_id
+       ),
+       touched_topic AS (
+         UPDATE topics t SET updated_at=NOW()
+         FROM updated_note n WHERE t.id=n.topic_id
+         RETURNING t.id
+       )
+       SELECT n.id FROM updated_note n JOIN touched_topic t ON t.id=n.topic_id`,
+      [lifecycleNote],
+    );
+    assert.equal(pinnedLifecycleNote.rowCount, 1, "pinning should update the note and its topic");
+    await assertTopicTimestampTouched("pinning");
+
+    await resetTopicTimestamp();
+    const trashedLifecycleNote = await client.query(
+      `WITH deleted_note AS (
+         UPDATE notes SET deleted_at=NOW(), updated_at=NOW()
+         WHERE id=$1 AND deleted_at IS NULL
+         RETURNING id, topic_id
+       ),
+       touched_topic AS (
+         UPDATE topics t SET updated_at=NOW()
+         FROM deleted_note n WHERE t.id=n.topic_id
+         RETURNING t.id
+       )
+       SELECT n.id FROM deleted_note n JOIN touched_topic t ON t.id=n.topic_id`,
+      [lifecycleNote],
+    );
+    assert.equal(trashedLifecycleNote.rowCount, 1, "moving a note to trash should touch its topic");
+    await assertTopicTimestampTouched("trash");
+
+    await resetTopicTimestamp();
+    const restoredLifecycleNote = await client.query(
+      `WITH restored_note AS (
+         UPDATE notes SET deleted_at=NULL, updated_at=NOW()
+         WHERE id=$1 AND deleted_at IS NOT NULL
+         RETURNING id, topic_id
+       ),
+       touched_topic AS (
+         UPDATE topics t SET updated_at=NOW()
+         FROM restored_note n WHERE t.id=n.topic_id
+         RETURNING t.id
+       )
+       SELECT n.id FROM restored_note n JOIN touched_topic t ON t.id=n.topic_id`,
+      [lifecycleNote],
+    );
+    assert.equal(restoredLifecycleNote.rowCount, 1, "restoring a note should touch its topic");
+    await assertTopicTimestampTouched("restore");
+
+    await resetTopicTimestamp();
+    const lifecycleParent = await client.query(
+      "SELECT id, topic_id FROM notes WHERE id=$1 AND deleted_at IS NULL FOR UPDATE",
+      [lifecycleNote],
+    );
+    await client.query("UPDATE topics SET updated_at=NOW() WHERE id=$1", [lifecycleParent.rows[0].topic_id]);
+    await client.query("DELETE FROM notes WHERE id=$1 AND deleted_at IS NULL", [lifecycleNote]);
+    await assertTopicTimestampTouched("permanent deletion");
 
     await setAccount(client, userB);
     await client.query(

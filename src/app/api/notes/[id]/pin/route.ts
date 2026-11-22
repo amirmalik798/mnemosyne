@@ -20,7 +20,22 @@ export async function PATCH(request: Request, context: Context) {
 
     const result = await queryAsUser(
       session.userId,
-      "UPDATE notes SET pinned=$1, updated_at=NOW() WHERE id=$2 AND deleted_at IS NULL RETURNING id, pinned",
+      `WITH updated_note AS (
+         UPDATE notes
+         SET pinned=$1, updated_at=NOW()
+         WHERE id=$2 AND deleted_at IS NULL
+         RETURNING id, topic_id, pinned
+       ),
+       touched_topic AS (
+         UPDATE topics t
+         SET updated_at=NOW()
+         FROM updated_note n
+         WHERE t.id=n.topic_id
+         RETURNING t.id
+       )
+       SELECT n.id, n.pinned
+       FROM updated_note n
+       JOIN touched_topic t ON t.id=n.topic_id`,
       [body.pinned, id],
     );
     if (!result.rows[0]) throw new Error("NOT_FOUND");

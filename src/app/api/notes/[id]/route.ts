@@ -61,7 +61,25 @@ export async function DELETE(request: Request, context: Context) {
     assertSameOrigin(request);
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const result = await queryAsUser(session.userId, "UPDATE notes SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL RETURNING id", [id]);
+    const result = await queryAsUser(session.userId,
+      `WITH deleted_note AS (
+         UPDATE notes
+         SET deleted_at=NOW(), updated_at=NOW()
+         WHERE id=$1 AND deleted_at IS NULL
+         RETURNING id, topic_id
+       ),
+       touched_topic AS (
+         UPDATE topics t
+         SET updated_at=NOW()
+         FROM deleted_note n
+         WHERE t.id=n.topic_id
+         RETURNING t.id
+       )
+       SELECT n.id
+       FROM deleted_note n
+       JOIN touched_topic t ON t.id=n.topic_id`,
+      [id],
+    );
     if (!result.rows[0]) throw new Error("NOT_FOUND");
     return NextResponse.json({ success: true });
   } catch (error) { return apiError(error); }

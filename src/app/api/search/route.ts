@@ -131,7 +131,7 @@ async function searchNotesInBatches(
               : matchIndex >= 0
                 ? contextualPreview
                 : contentText.slice(0, 220),
-          matchType: titleMatch ? "title" : tagMatch ? "tag" : "content",
+          matchType: scope === "tags" ? "tag" : titleMatch ? "title" : tagMatch ? "tag" : "content",
           updatedAt: row.updated_at,
         });
         if (notes.length === 40) break;

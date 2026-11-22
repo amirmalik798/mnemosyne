@@ -82,13 +82,27 @@ export async function POST(request: Request) {
     if (content.length > 2_000_000) throw new Error("VALIDATION:This note is too large.");
     const tags = Array.isArray(body.tags) ? body.tags.filter((tag): tag is string => typeof tag === "string").slice(0, 30) : [];
     const pinned = typeof body.pinned === "boolean" ? body.pinned : false;
-    const topic = await queryAsUser(session.userId, "SELECT id FROM topics WHERE id=$1", [topicId]);
-    if (!topic.rows[0]) throw new Error("VALIDATION:Choose a valid topic.");
-    const result = await queryAsUser(session.userId, 
-      `INSERT INTO notes (topic_id, title_enc, subject_enc, content_enc, tags_enc, pinned)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, created_at, updated_at`,
+    const result = await queryAsUser(session.userId,
+      `WITH inserted AS (
+         INSERT INTO notes (topic_id, title_enc, subject_enc, content_enc, tags_enc, pinned)
+         SELECT t.id, $2, $3, $4, $5, $6
+         FROM topics t
+         WHERE t.id = $1
+         RETURNING id, topic_id, created_at, updated_at
+       ),
+       touched_topic AS (
+         UPDATE topics t
+         SET updated_at = NOW()
+         FROM inserted i
+         WHERE t.id = i.topic_id
+         RETURNING t.id
+       )
+       SELECT i.id, i.created_at, i.updated_at
+       FROM inserted i
+       JOIN touched_topic t ON t.id = i.topic_id`,
       [topicId, encryptText(title, session.key), encryptText(subject, session.key), encryptText(content, session.key), encryptText(JSON.stringify(tags), session.key), pinned],
     );
+    if (!result.rows[0]) throw new Error("VALIDATION:Choose a valid topic.");
     return NextResponse.json({ note: { id: result.rows[0].id, topicId, title, subject, content: JSON.parse(content), tags, pinned, createdAt: result.rows[0].created_at, updatedAt: result.rows[0].updated_at } }, { status: 201 });
   } catch (error) {
     return apiError(error);

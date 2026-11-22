@@ -69,8 +69,23 @@ export async function POST(request: Request) {
     const id = stringField(body, "id", 64, true);
     const action = stringField(body, "action", 20, true);
     if (action === "restore") {
-      const restored = await queryAsUser(session.userId, 
-        "UPDATE notes SET deleted_at = NULL, updated_at = NOW() WHERE id = $1 AND deleted_at IS NOT NULL RETURNING id",
+      const restored = await queryAsUser(session.userId,
+        `WITH restored_note AS (
+           UPDATE notes
+           SET deleted_at=NULL, updated_at=NOW()
+           WHERE id=$1 AND deleted_at IS NOT NULL
+           RETURNING id, topic_id
+         ),
+         touched_topic AS (
+           UPDATE topics t
+           SET updated_at=NOW()
+           FROM restored_note n
+           WHERE t.id=n.topic_id
+           RETURNING t.id
+         )
+         SELECT n.id
+         FROM restored_note n
+         JOIN touched_topic t ON t.id=n.topic_id`,
         [id],
       );
       if (!restored.rows[0]) throw new Error("NOT_FOUND");

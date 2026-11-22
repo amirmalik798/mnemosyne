@@ -227,7 +227,7 @@ export async function deleteAssetById(id: string, key: Buffer, userId: string): 
 
     if (existing.rows[0].owner_type === "topic") {
       await client.query(
-        "UPDATE topics SET cover_asset_id = NULL WHERE id = $1 AND cover_asset_id = $2",
+        "UPDATE topics SET cover_asset_id = NULL, updated_at = NOW() WHERE id = $1 AND cover_asset_id = $2",
         [existing.rows[0].owner_id, id],
       );
     }
@@ -244,10 +244,12 @@ export async function deleteAssetById(id: string, key: Buffer, userId: string): 
 export async function deleteTrashedNoteWithAssets(noteId: string, userId: string): Promise<void> {
   const legacyStorageKeys = await withTransaction(userId, async (client) => {
     const note = await client.query(
-      "SELECT id FROM notes WHERE id = $1 AND deleted_at IS NOT NULL FOR UPDATE",
+      "SELECT id, topic_id FROM notes WHERE id = $1 AND deleted_at IS NOT NULL FOR UPDATE",
       [noteId],
     );
     if (!note.rows[0]) throw new Error("NOT_FOUND");
+
+    await client.query("UPDATE topics SET updated_at = NOW() WHERE id = $1", [note.rows[0].topic_id]);
 
     const assets = await client.query(
       "DELETE FROM assets WHERE owner_type = 'note' AND owner_id = $1 RETURNING storage_key",
@@ -337,7 +339,7 @@ export async function updateNoteAndCleanupAssets(input: {
 
   const legacyStorageKeys = await withTransaction(input.userId, async (client) => {
     const note = await client.query(
-      "SELECT id FROM notes WHERE id = $1 AND deleted_at IS NULL FOR UPDATE",
+      "SELECT id, topic_id FROM notes WHERE id = $1 AND deleted_at IS NULL FOR UPDATE",
       [input.noteId],
     );
     if (!note.rows[0]) throw new Error("NOT_FOUND");
@@ -362,6 +364,11 @@ export async function updateNoteAndCleanupAssets(input: {
         input.pinned,
         input.noteId,
       ],
+    );
+
+    await client.query(
+      "UPDATE topics SET updated_at = NOW() WHERE id = ANY($1::uuid[])",
+      [[note.rows[0].topic_id, input.topicId]],
     );
 
     const removed = await client.query(
