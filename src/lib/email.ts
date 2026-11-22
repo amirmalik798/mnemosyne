@@ -36,7 +36,7 @@ export async function sendVerificationEmail(email: string, token: string): Promi
   }
 
   const verificationUrl = new URL("/verify-email", baseUrl);
-  verificationUrl.searchParams.set("token", token);
+  verificationUrl.hash = "token=" + encodeURIComponent(token);
   const safeEmail = escapeHtml(email);
   const safeUrl = escapeHtml(verificationUrl.toString());
   const subject = "Verify your Mnemosyne account";

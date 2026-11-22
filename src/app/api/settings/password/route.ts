@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
+import { randomBytes } from "node:crypto";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { derivePasswordKey, decryptBytes, encryptBytes, hashPassword, verifyPassword } from "@/lib/crypto";
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The active session key does not match the account key." }, { status: 401 });
     }
 
-    const salt = Buffer.from(await import("node:crypto").then(({ randomBytes }) => randomBytes(16)));
+    const salt = randomBytes(16);
     newWrappingKey = await derivePasswordKey(newPassword, salt);
     const wrappedKey = encryptBytes(session.key, newWrappingKey);
     const passwordHash = await hashPassword(newPassword);

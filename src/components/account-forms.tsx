@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AtSign, Eye, EyeOff, LoaderCircle, ShieldCheck, UserRound, KeyRound, MailCheck } from "lucide-react";
@@ -211,8 +211,19 @@ export function AccountLogin() {
   );
 }
 
-export function VerifyEmailForm({ token }: { token: string }) {
+export function VerifyEmailForm() {
   const router = useRouter();
+  const [token, setToken] = useState("");
+  const [linkLoaded, setLinkLoaded] = useState(false);
+
+  useEffect(() => {
+    const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const value = fragment.get("token") ?? "";
+    setToken(value);
+    // Remove the bearer token from the address bar and subsequent browser history.
+    window.history.replaceState(null, "", window.location.pathname);
+    setLinkLoaded(true);
+  }, []);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -240,7 +251,7 @@ export function VerifyEmailForm({ token }: { token: string }) {
   return (
     <AuthFrame kicker="Account confirmation" title="Verify your email" description="Confirm that you own this email address to activate your account.">
       {!token ? (
-        <OperationStatus kind="failure" message="The verification link does not contain a token. Open the complete link from your email." />
+        {linkLoaded ? <OperationStatus kind="failure" message="The verification link does not contain a valid token. Open the complete link from your email or request a new one." /> : <OperationStatus kind="loading" message="Reading your secure confirmation link…" />}
       ) : (
         <div className="auth-form">
           <p className="form-hint">This link can be used once and expires after 24 hours. Verification only activates the account; sign in afterward to unlock your archive.</p>
