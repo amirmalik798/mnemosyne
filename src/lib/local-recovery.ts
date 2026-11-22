@@ -260,7 +260,12 @@ export function saveLocalNoteRevision(noteId: string, revision: LocalNoteRevisio
   });
 }
 
-export async function loadLocalNoteRevisions(noteId: string): Promise<LocalNoteRevision[]> {
+export type LocalNoteRevisionLoadResult = {
+  revisions: LocalNoteRevision[];
+  skippedCount: number;
+};
+
+export async function loadLocalNoteRevisions(noteId: string): Promise<LocalNoteRevisionLoadResult> {
   const pending = revisionWrites.get(noteId);
   if (pending) await pending.catch(() => undefined);
   const database = await openRecoveryDatabase();
@@ -273,6 +278,7 @@ export async function loadLocalNoteRevisions(noteId: string): Promise<LocalNoteR
   await transactionComplete(transaction);
   const key = await getCachedDeviceKey(database);
   const revisions: LocalNoteRevision[] = [];
+  let skippedCount = 0;
   for (const record of records.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_LOCAL_REVISIONS)) {
     try {
       const plaintext = await window.crypto.subtle.decrypt(
@@ -283,12 +289,15 @@ export async function loadLocalNoteRevisions(noteId: string): Promise<LocalNoteR
       const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as LocalNoteRevision;
       if (parsed.version === 1 && parsed.noteId === noteId && typeof parsed.savedAt === "number") {
         revisions.push(parsed);
+      } else {
+        skippedCount += 1;
       }
     } catch {
-      // Ignore a damaged local snapshot; other revisions remain usable.
+      // Preserve healthy revisions, but report damaged snapshots to the editor.
+      skippedCount += 1;
     }
   }
-  return revisions;
+  return { revisions, skippedCount };
 }
 
 export async function removeLocalNoteRevisions(noteId: string): Promise<void> {
