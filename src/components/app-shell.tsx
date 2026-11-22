@@ -119,8 +119,11 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       // No logout request is sent here; the server has already rejected the session.
       saveResumeLocation(user.id);
       window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
-      void flushPendingLocalDraftWrites();
-      window.location.replace("/login");
+      // Wait for the editor's final encrypted recovery write before leaving.
+      // The sign-in screen explains when the device could not confirm the save.
+      void flushPendingLocalDraftWrites()
+        .then(() => window.location.replace("/login"))
+        .catch(() => window.location.replace("/login?recovery=warning"));
     };
 
     const guardedFetch: typeof window.fetch = async (input, init) => {
@@ -319,12 +322,29 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     saveResumeLocation(user.id);
     window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
     try {
-      await flushPendingLocalDraftWrites();
+      try {
+        await flushPendingLocalDraftWrites();
+      } catch {
+        notifyOperation(
+          "failure",
+          "Your latest draft could not be confirmed in local recovery. The vault remains unlocked; check browser storage and try again.",
+        );
+        return;
+      }
+
       const response = await fetch("/api/vault/lock", { method: "POST" });
-      if (!response.ok) throw new Error("The server did not confirm the lock request.");
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+        throw new Error(typeof payload?.error === "string" ? payload.error : "The server did not confirm the lock request.");
+      }
       window.location.replace("/login");
-    } catch {
-      notifyOperation("failure", "The vault could not be locked. Check your connection and try again.");
+    } catch (cause) {
+      notifyOperation(
+        "failure",
+        cause instanceof Error
+          ? "The vault could not be locked: " + cause.message
+          : "The vault could not be locked. Check your connection and try again.",
+      );
     } finally {
       setLocking(false);
     }
