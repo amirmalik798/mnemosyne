@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from "react";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { detectTextDirection, detectTextLanguage } from "@/lib/bidi";
+import { safeFontFamily, safeTextColor } from "@/lib/note-formatting";
 
 type RichNode = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: Array<{ type: string; attrs?: Record<string, unknown> }>; content?: RichNode[] };
 
@@ -42,6 +43,27 @@ function renderText(node: RichNode, key: React.Key): React.ReactNode {
     else if (mark.type === "underline") result = <u key={`${key}-u`}>{result}</u>;
     else if (mark.type === "strike") result = <s key={`${key}-s`}>{result}</s>;
     else if (mark.type === "code") result = <code key={`${key}-c`}>{result}</code>;
+    else if (mark.type === "textStyle") {
+      const color = safeTextColor(mark.attrs?.color);
+      const fontFamily = safeFontFamily(mark.attrs?.fontFamily);
+      const style: React.CSSProperties = {};
+      if (color) style.color = color;
+      if (fontFamily) style.fontFamily = fontFamily;
+      if (color || fontFamily) {
+        result = <span key={`${key}-style`} style={style}>{result}</span>;
+      }
+    }
+    else if (mark.type === "textHighlight") {
+      const color = safeTextColor(mark.attrs?.color) ?? "#fff1a8";
+      result = (
+        <mark
+          key={`${key}-highlight`}
+          style={{ backgroundColor: color, borderRadius: "0.15em", padding: "0.02em 0.12em" }}
+        >
+          {result}
+        </mark>
+      );
+    }
     else if (mark.type === "link") { const href = String(mark.attrs?.href ?? ""); if (/^https?:\/\//i.test(href)) result = <a key={`${key}-a`} href={href} target="_blank" rel="noreferrer">{result}</a>; }
   }
   return result;
