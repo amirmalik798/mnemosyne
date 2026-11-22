@@ -276,7 +276,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
     : "Create topic";
 
   return <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) requestClose(); }}><section ref={modalRef} className="modal topic-create-modal" role="dialog" aria-modal="true" aria-labelledby="topic-modal-title" aria-describedby="topic-modal-description" aria-busy={busy}>
-    <div className="modal-head"><div><div className="eyebrow">Add to your archive</div><h2 className="modal-title" id="topic-modal-title">Create a topic</h2><p className="modal-subtitle" id="topic-modal-description">Start with a title. Add a subject, category, description or cover now or later.</p></div><button type="button" className="icon-button icon-only-btn" onClick={requestClose} aria-label="Close dialog" title="Close dialog" disabled={busy}><X /></button></div>
+    <div className="modal-head"><div><div className="eyebrow">Add to your archive</div><h2 className="modal-title" id="topic-modal-title">Create a topic</h2><p className="modal-subtitle" id="topic-modal-description">Start with a title. Add a subject, category, description or cover now or later.</p></div><button type="button" className="icon-button icon-only-btn" onClick={requestClose} aria-label="Close dialog" disabled={busy}><X /></button></div>
     <form onSubmit={submit}>
       <p className="topic-dialog-guidance">Only the topic title is required. You can change the other details later.</p>
       <div className="form-grid" aria-busy={busy}>
