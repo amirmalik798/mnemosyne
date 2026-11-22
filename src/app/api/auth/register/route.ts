@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError } from "@/lib/http";
 import type { PoolClient } from "pg";
 import { randomBytes } from "node:crypto";
 import { assertSameOrigin } from "@/lib/auth";
@@ -86,8 +87,7 @@ export async function POST(request: Request) {
     if (message === "RATE_LIMITED") return NextResponse.json({ error: "Too many account requests. Please try again later." }, { status: 429 });
     if (message.startsWith("VALIDATION:")) return NextResponse.json({ error: message.slice(11) }, { status: 400 });
     if (message === "FORBIDDEN_ORIGIN") return NextResponse.json({ error: "Request origin was rejected." }, { status: 403 });
-    console.error("Account registration failed.", { code: databaseCode(error) });
-    return NextResponse.json({ error: "Your account could not be created. Please try again." }, { status: 500 });
+    return apiError(error);
   } finally {
     client?.release();
     wrappingKey?.fill(0);
