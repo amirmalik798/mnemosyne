@@ -74,7 +74,9 @@ export function TopicArchive({
           aria-label={`Show all categories (${allTopicsCount} topics)`}
           title={`All categories · ${allTopicsCount} topics`}
         >
-          <Layers3 size={16} />
+          <Layers3 size={16} aria-hidden="true" />
+          <strong>All topics</strong>
+          <span aria-hidden="true">{allTopicsCount}</span>
         </button>
 
         {categories.map((category) => {
@@ -84,13 +86,15 @@ export function TopicArchive({
             <button
               type="button"
               key={category.toLocaleLowerCase()}
-              className={active ? "topic-filter-chip icon-only-btn active" : "topic-filter-chip icon-only-btn"}
+              className={active ? "topic-filter-chip active" : "topic-filter-chip"}
               onClick={() => chooseCategory(category)}
               aria-pressed={active}
               aria-label={`Show ${category} topics (${count})`}
               title={`${category} · ${count} topics`}
             >
               <CategoryIcon category={category} />
+              <strong>{category}</strong>
+              <span aria-hidden="true">{count}</span>
             </button>
           );
         })}
@@ -98,13 +102,15 @@ export function TopicArchive({
         {uncategorizedCount > 0 && (
           <button
             type="button"
-            className={selectedCategory === UNCATEGORIZED ? "topic-filter-chip icon-only-btn active" : "topic-filter-chip icon-only-btn"}
+            className={selectedCategory === UNCATEGORIZED ? "topic-filter-chip active" : "topic-filter-chip"}
             onClick={() => chooseCategory(UNCATEGORIZED)}
             aria-pressed={selectedCategory === UNCATEGORIZED}
             aria-label={`Show uncategorized topics (${uncategorizedCount})`}
             title={`Uncategorized · ${uncategorizedCount} topics`}
           >
             <Folder size={16} aria-hidden="true" />
+            <strong>Uncategorized</strong>
+            <span aria-hidden="true">{uncategorizedCount}</span>
           </button>
         )}
       </div>
