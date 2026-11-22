@@ -14,6 +14,8 @@ export function NoteImageNodeView({ node, deleteNode }: NodeViewProps) {
         src={src}
         alt={alt}
         draggable={false}
+        loading="lazy"
+        decoding="async"
       />
       <button
         type="button"
