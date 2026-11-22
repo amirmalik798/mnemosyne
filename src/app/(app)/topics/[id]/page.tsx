@@ -8,20 +8,24 @@ import { NoteRow, EmptyState, type NoteItem } from "@/components/archive-ui";
 import { detectTextLanguage } from "@/lib/bidi";
 import { TopicImageDownload } from "@/components/topic-image-download";
 import { ARCHIVE_PAGE_SIZE, ArchivePagination, parseArchivePage } from "@/components/archive-pagination";
+import { ArchiveSortControl } from "@/components/archive-sort-control";
+import { compareArchiveTitles, isAlphabeticalArchiveSort, parseArchiveSort } from "@/lib/archive-sort";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string | string[] }>;
+  searchParams: Promise<{ page?: string | string[]; sort?: string | string[] }>;
 };
 export const dynamic = "force-dynamic";
 
 export default async function TopicPage({ params, searchParams }: Props) {
-  const [{ id }, { page: requestedPage }, session] = await Promise.all([
+  const [{ id }, { page: requestedPage, sort: requestedSort }, session] = await Promise.all([
     params,
     searchParams,
     requireVaultSession(),
   ]);
   const requestedPageNumber = parseArchivePage(requestedPage);
+  const sort = parseArchiveSort(requestedSort);
+  const alphabetical = isAlphabeticalArchiveSort(sort);
   const result = await queryAsUser(session.userId, 
     "SELECT id,title_enc,subject_enc,description_enc,category_enc,cover_asset_id,created_at,updated_at FROM topics WHERE id=$1",
     [id],
@@ -38,16 +42,25 @@ export default async function TopicPage({ params, searchParams }: Props) {
   const totalNotes = Number(countResult.rows[0]?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(totalNotes / ARCHIVE_PAGE_SIZE));
   const currentPage = Math.min(requestedPageNumber, totalPages);
-  const notesResult = await queryAsUser(session.userId, 
-    `SELECT id,title_enc,subject_enc,pinned,updated_at
-     FROM notes
-     WHERE topic_id=$1 AND deleted_at IS NULL
-     ORDER BY pinned DESC,updated_at DESC,id DESC
-     LIMIT $2 OFFSET $3`,
-    [id, ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
-  );
+  const orderColumn = sort === "modified-desc" ? "updated_at" : "created_at";
+  const notesResult = alphabetical
+    ? await queryAsUser(session.userId,
+        `SELECT id,title_enc,subject_enc,pinned,created_at,updated_at
+         FROM notes
+         WHERE topic_id=$1 AND deleted_at IS NULL
+         ORDER BY created_at DESC,id DESC`,
+        [id],
+      )
+    : await queryAsUser(session.userId,
+        `SELECT id,title_enc,subject_enc,pinned,created_at,updated_at
+         FROM notes
+         WHERE topic_id=$1 AND deleted_at IS NULL
+         ORDER BY ${orderColumn} DESC,id DESC
+         LIMIT $2 OFFSET $3`,
+        [id, ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
+      );
   const topicTitle = decryptText(row.title_enc, session.key);
-  const notes: NoteItem[] = notesResult.rows.map((note) => ({
+  const decryptedNotes: NoteItem[] = notesResult.rows.map((note) => ({
     id: note.id,
     topicId: id,
     topicTitle,
@@ -56,6 +69,10 @@ export default async function TopicPage({ params, searchParams }: Props) {
     pinned: note.pinned,
     updatedAt: note.updated_at,
   }));
+  if (alphabetical) decryptedNotes.sort((a, b) => compareArchiveTitles(a, b, sort));
+  const notes = alphabetical
+    ? decryptedNotes.slice((currentPage - 1) * ARCHIVE_PAGE_SIZE, currentPage * ARCHIVE_PAGE_SIZE)
+    : decryptedNotes;
 
   const imageAssetsResult = await queryAsUser(session.userId, 
     `SELECT COUNT(*)::int AS total
@@ -102,14 +119,17 @@ export default async function TopicPage({ params, searchParams }: Props) {
       </section>
       <div className="toolbar">
         <div><div className="eyebrow">Collection entries</div><h2 className="panel-title" style={{ margin:"7px 0 0" }}>{totalNotes} {totalNotes===1?"note":"notes"}</h2></div>
-        <Link href="/notes" className="secondary-btn icon-only-btn" aria-label="Browse all notes" title="Browse all notes"><FileText size={17}/></Link>
+        <div className="archive-toolbar-actions">
+          <ArchiveSortControl basePath={`/topics/${id}`} currentSort={sort} />
+          <Link href="/notes" className="secondary-btn icon-only-btn" aria-label="Browse all notes" title="Browse all notes"><FileText size={17}/></Link>
+        </div>
       </div>
       <section className="panel">
         <div className="note-list">
           {notes.length ? notes.map((note)=><NoteRow key={note.id} note={note}/>) : <EmptyState title="An open page" copy="This topic has no notes yet. Begin with a thought, a passage or a question you want to explore." action={<Link href={`/notes/new?topicId=${id}`} className="primary-btn icon-only-btn" aria-label="Write the first note" title="Write the first note"><FilePlus size={17}/></Link>} />}
         </div>
       </section>
-      <ArchivePagination currentPage={currentPage} totalItems={totalNotes} basePath={`/topics/${id}`} />
+      <ArchivePagination currentPage={currentPage} totalItems={totalNotes} basePath={`/topics/${id}`} query={sort === "created-desc" ? undefined : `sort=${sort}`} />
     </main>
   );
 }
