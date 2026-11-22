@@ -189,7 +189,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
 
     const interval = window.setInterval(() => {
       void verifySession();
-    }, 15_000);
+    }, 60_000);
     window.addEventListener("focus", verifyWhenVisible);
     document.addEventListener("visibilitychange", verifyWhenVisible);
     void verifySession();
