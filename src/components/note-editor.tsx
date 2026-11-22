@@ -703,7 +703,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     const showBusyState = !quiet;
     savingRef.current = true;
     if (showBusyState) setBusy(true);
-    if (!quiet) setError("");
+    setError("");
     setStatus(quiet ? "Saving in background…" : "Saving…");
     try {
       const currentContent = editorRef.current?.getJSON() ?? contentRef.current;
@@ -786,10 +786,10 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       if (message === "Please sign in to your account.") {
         setStatus("Your session ended. Returning to sign in…");
       } else {
-        if (!quiet) {
-          setError(message);
-        }
-        setStatus(quiet ? "Autosave failed; local recovery is retained" : "Save failed");
+        // Quiet autosaves still need a visible error. The recovery status in
+        // the editor footer separately reports whether the device copy exists.
+        setError(message);
+        setStatus(quiet ? "Autosave failed; your changes remain in this editor" : "Save failed");
       }
       // Do not clear dirty state on failure: the latest version remains
       // eligible for local recovery and can be retried.
