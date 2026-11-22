@@ -1,5 +1,5 @@
 import React from "react";
-import { detectTextLanguage } from "@/lib/bidi";
+import { detectTextDirection, detectTextLanguage } from "@/lib/bidi";
 
 type RichNode = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: Array<{ type: string; attrs?: Record<string, unknown> }>; content?: RichNode[] };
 
@@ -8,7 +8,7 @@ function getNodeText(node: RichNode): string {
 }
 
 function blockBidiProps(node: RichNode) {
-  return { dir: "auto" as const, lang: detectTextLanguage(getNodeText(node)) };
+  const text = getNodeText(node);\n  const dir = detectTextDirection(text);\n  return { dir, lang: detectTextLanguage(text), style: { direction: dir, textAlign: dir === "rtl" ? "right" as const : "left" as const, unicodeBidi: "plaintext" as const } };
 }
 
 function renderText(node: RichNode, key: React.Key): React.ReactNode {
@@ -36,8 +36,8 @@ function renderNode(node: RichNode, index: React.Key): React.ReactNode {
     return <h3 key={index} {...bidi}>{children}</h3>;
   }
   if (node.type === "blockquote") return <blockquote key={index} {...bidi}>{children}</blockquote>;
-  if (node.type === "bulletList") return <ul key={index} dir="auto">{children}</ul>;
-  if (node.type === "orderedList") return <ol key={index} dir="auto">{children}</ol>;
+  if (node.type === "bulletList") return <ul key={index} dir={detectTextDirection(getNodeText(node))}>{children}</ul>;
+  if (node.type === "orderedList") return <ol key={index} dir={detectTextDirection(getNodeText(node))}>{children}</ol>;
   if (node.type === "listItem") return <li key={index} {...bidi}>{children}</li>;
   if (node.type === "hardBreak") return <br key={index} />;
   if (node.type === "horizontalRule") return <hr key={index} />;
@@ -51,7 +51,7 @@ function renderNode(node: RichNode, index: React.Key): React.ReactNode {
 
 export function RichContent({ content }: { content: unknown }) {
   const root = content && typeof content === "object" ? content as RichNode : { type: "doc", content: [] };
-  return <div className="reader-content" dir="auto">{(root.content ?? []).map((node, index) => renderNode(node, index))}</div>;
+  return <div className="reader-content" dir="ltr">{(root.content ?? []).map((node, index) => renderNode(node, index))}</div>;
 }
 
 export function extractText(content: unknown): string {
