@@ -1,0 +1,119 @@
+import { loadEnvConfig } from "@next/env";
+loadEnvConfig(process.cwd());
+import { randomBytes, randomUUID } from "node:crypto";
+import assert from "node:assert/strict";
+import { Pool, type PoolClient } from "pg";
+import { createDatabasePoolConfig } from "../src/lib/db-config";
+
+function sqlState(error: unknown): string | undefined {
+  return error && typeof error === "object" && "code" in error
+    ? String((error as { code: unknown }).code)
+    : undefined;
+}
+
+async function setAccount(client: PoolClient, userId: string) {
+  await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
+}
+
+async function main() {
+  const appUrl = process.env.APP_DATABASE_URL;
+  if (!appUrl) throw new Error("APP_DATABASE_URL is required. Use the restricted Mnemosyne runtime role.");
+
+  const pool = new Pool(createDatabasePoolConfig({ ...process.env, DATABASE_URL: appUrl }, { max: 1 }));
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const userA = randomUUID();
+    const userB = randomUUID();
+    const topicA = randomUUID();
+    const topicB = randomUUID();
+    const noteA = randomUUID();
+    const assetA = randomUUID();
+
+    for (const [id, suffix] of [[userA, "a"], [userB, "b"]] as const) {
+      await client.query(
+        "INSERT INTO users (id,email,display_name,password_hash,password_salt,wrapped_key) VALUES ($1,$2,$3,$4,$5,$6)",
+        [id, "tenant-test-" + randomUUID() + "@" + suffix + ".example.test", "Isolation test", "not-a-real-password-hash", randomBytes(16), randomBytes(64)],
+      );
+    }
+
+    await setAccount(client, userA);
+    await client.query(
+      "INSERT INTO topics (id,title_enc,subject_enc,description_enc,category_enc) VALUES ($1,$2,$2,$2,$2)",
+      [topicA, randomBytes(48)],
+    );
+    await client.query(
+      "INSERT INTO notes (id,topic_id,title_enc,subject_enc,content_enc,tags_enc) VALUES ($1,$2,$3,$3,$3,$3)",
+      [noteA, topicA, randomBytes(48)],
+    );
+    await client.query(
+      "INSERT INTO assets (id,owner_type,owner_id,original_name_enc,mime_type,byte_size) VALUES ($1,'topic',$2,$3,'image/png',1)",
+      [assetA, topicA, randomBytes(48)],
+    );
+    await client.query(
+      "INSERT INTO asset_blobs (asset_id,encrypted_bytes) VALUES ($1,$2)",
+      [assetA, randomBytes(29)],
+    );
+
+    await setAccount(client, userB);
+    await client.query(
+      "INSERT INTO topics (id,title_enc,subject_enc,description_enc,category_enc) VALUES ($1,$2,$2,$2,$2)",
+      [topicB, randomBytes(48)],
+    );
+
+    assert.equal((await client.query("SELECT id FROM topics WHERE id=$1", [topicA])).rowCount, 0, "account B must not see account A topics");
+    assert.equal((await client.query("SELECT id FROM notes WHERE id=$1", [noteA])).rowCount, 0, "account B must not see account A notes");
+    assert.equal((await client.query("SELECT id FROM assets WHERE id=$1", [assetA])).rowCount, 0, "account B must not see account A image metadata");
+    assert.equal((await client.query("SELECT asset_id FROM asset_blobs WHERE asset_id=$1", [assetA])).rowCount, 0, "account B must not see account A image blobs");
+
+    await client.query("SAVEPOINT cross_account_note");
+    let noteRelationCode: string | undefined;
+    try {
+      await client.query(
+        "INSERT INTO notes (topic_id,title_enc,subject_enc,content_enc,tags_enc) VALUES ($1,$2,$2,$2,$2)",
+        [topicA, randomBytes(48)],
+      );
+    } catch (error) {
+      noteRelationCode = sqlState(error);
+      await client.query("ROLLBACK TO SAVEPOINT cross_account_note");
+    }
+    assert.equal(noteRelationCode, "23503", "a note must not reference another account's topic");
+
+    await client.query("SAVEPOINT cross_account_asset");
+    let assetRelationCode: string | undefined;
+    try {
+      await client.query(
+        "INSERT INTO assets (owner_type,owner_id,original_name_enc,mime_type,byte_size) VALUES ('topic',$1,$2,'image/png',1)",
+        [topicA, randomBytes(48)],
+      );
+    } catch (error) {
+      assetRelationCode = sqlState(error);
+      await client.query("ROLLBACK TO SAVEPOINT cross_account_asset");
+    }
+    assert.equal(assetRelationCode, "23503", "an image must not reference another account's topic");
+
+    await client.query("SAVEPOINT cross_account_blob");
+    let blobOwnershipCode: string | undefined;
+    try {
+      await client.query(
+        "INSERT INTO asset_blobs (asset_id,user_id,encrypted_bytes) VALUES ($1,$2,$3)",
+        [assetA, userB, randomBytes(29)],
+      );
+    } catch (error) {
+      blobOwnershipCode = sqlState(error);
+      await client.query("ROLLBACK TO SAVEPOINT cross_account_blob");
+    }
+    assert.ok(blobOwnershipCode === "42501" || blobOwnershipCode === "23503", "an image blob must share its metadata owner's account");
+
+    console.log("Tenant-isolation checks passed: cross-account reads are hidden and cross-account relationships are rejected.");
+  } finally {
+    await client.query("ROLLBACK").catch(() => undefined);
+    client.release();
+    await pool.end();
+  }
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : "Tenant-isolation test failed.");
+  process.exit(1);
+});
