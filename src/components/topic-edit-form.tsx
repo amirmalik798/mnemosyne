@@ -3,16 +3,202 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, ImagePlus, LoaderCircle, Save, Trash2 } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
+import { OperationStatus, notifyOperation } from "@/components/operation-status";
 
-type Topic = { id:string; title:string; subject:string; description:string; category:string; coverUrl:string|null; noteCount:number };
+type Topic = {
+  id: string;
+  title: string;
+  subject: string;
+  description: string;
+  category: string;
+  coverUrl: string | null;
+  noteCount: number;
+};
+
 export function TopicEditForm({ topic, categories = [] }: { topic: Topic; categories?: string[] }) {
-  const router = useRouter(); const fileRef = useRef<HTMLInputElement>(null);
-  const [title,setTitle]=useState(topic.title); const [subject,setSubject]=useState(topic.subject); const [description,setDescription]=useState(topic.description); const [category,setCategory]=useState(topic.category || "Personal"); const [file,setFile]=useState<File|null>(null); const [preview,setPreview]=useState(topic.coverUrl ?? ""); const [error,setError]=useState(""); const [busy,setBusy]=useState(false);
-  async function save(event:React.FormEvent){event.preventDefault();setBusy(true);setError("");try{const res=await fetch(`/api/topics/${topic.id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,subject,description,category:category.trim()})});const data=await res.json();if(!res.ok)throw new Error(data.error);if(file){const form=new FormData();form.append("file",file);const cover=await fetch(`/api/topics/${topic.id}/cover`,{method:"POST",body:form});const coverData=await cover.json();if(!cover.ok)throw new Error(coverData.error);}router.push(`/topics/${topic.id}`);router.refresh();}catch(e){setError(e instanceof Error?e.message:"Could not save topic.");}finally{setBusy(false);}}
-  async function remove(){if(!confirm("Delete this topic? Topics with notes cannot be deleted. This action cannot be undone."))return;setBusy(true);try{const res=await fetch(`/api/topics/${topic.id}`,{method:"DELETE"});const data=await res.json();if(!res.ok)throw new Error(data.error);router.push("/topics");router.refresh();}catch(e){setError(e instanceof Error?e.message:"Could not delete topic.");}finally{setBusy(false);}}
-  async function removeCover(){setBusy(true);setError("");try{const res=await fetch(`/api/topics/${topic.id}/cover`,{method:"DELETE"});const data=await res.json();if(!res.ok)throw new Error(data.error);setFile(null);setPreview("");}catch(e){setError(e instanceof Error?e.message:"Could not remove cover.");}finally{setBusy(false);}}
-  return <main className="page"><div style={{marginBottom:18}}><Link className="breadcrumb" href={`/topics/${topic.id}`}><ArrowLeft size={14}/> Back to topic</Link></div><div className="page-heading"><div><div className="eyebrow">Collection settings</div><h1 className="page-title">Edit topic</h1><p className="page-subtitle">Refine the identity and details of this collection.</p></div></div>
-    <section className="panel" style={{maxWidth:760}}><form onSubmit={save}><div className="form-grid"><div className="form-field full"><label className="form-label">Topic title *</label><input dir="auto" lang={detectTextLanguage(title)} className="field" value={title} onChange={e=>setTitle(e.target.value)} required maxLength={120}/></div><div className="form-field"><label className="form-label">Subject</label><input dir="auto" lang={detectTextLanguage(subject)} className="field" value={subject} onChange={e=>setSubject(e.target.value)} maxLength={120}/></div><div className="form-field"><label className="form-label" htmlFor="edit-topic-category">Category</label><input id="edit-topic-category" list="edit-topic-category-suggestions" className="field" value={category} onChange={e=>setCategory(e.target.value)} placeholder="Choose or create a category" maxLength={60}/><datalist id="edit-topic-category-suggestions">{Array.from(new Map<string,string>(["Personal","Philosophy","Science","Technology","Research","Reading","Work","Other",...categories,topic.category].filter(Boolean).map((value):[string,string]=>[value.toLocaleLowerCase(),value])).values()).map(value=><option key={value} value={value}/>)}</datalist><span className="form-hint">Choose an existing category or type a new one. Your category will appear in the All topics filter when saved.</span></div><div className="form-field full"><label className="form-label">Description</label><textarea dir="auto" lang={detectTextLanguage(description)} className="textarea-field" rows={4} value={description} onChange={e=>setDescription(e.target.value)} maxLength={1000}/></div><div className="form-field full"><label className="form-label">Topic thumbnail</label><input hidden ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(f){if(f.size>8*1024*1024){setError("The cover image must be 8 MB or smaller.");return;}setFile(f);setPreview(URL.createObjectURL(f));}}}/><button type="button" className="cover-upload" onClick={()=>fileRef.current?.click()}>{preview?<><img src={preview} alt="Topic cover"/><span className="cover-upload-text">{file?.name??"Current cover"}<br/>Click to replace · 8 MB maximum</span></>:<><ImagePlus/><span className="cover-upload-text">Choose a custom thumbnail</span></>}</button>{preview&&<button type="button" className="secondary-btn" onClick={removeCover} disabled={busy}>Remove current cover</button>}</div></div>{error&&<p className="error-text">{error}</p>}<div className="form-actions" style={{justifyContent:"space-between"}}><button type="button" className="danger-btn" onClick={remove} disabled={busy}><Trash2 size={14}/> Delete topic</button><div style={{display:"flex",gap:8}}><Link className="secondary-btn" href={`/topics/${topic.id}`}>Cancel</Link><button className="primary-btn" type="submit" disabled={busy}><Save size={14}/>{busy?"Saving…":"Save changes"}</button></div></div><p className="form-hint" style={{marginTop:13}}>This topic contains {topic.noteCount} notes. To delete it, move or delete its notes first.</p></form></section></main>;
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [title, setTitle] = useState(topic.title);
+  const [subject, setSubject] = useState(topic.subject);
+  const [description, setDescription] = useState(topic.description);
+  const [category, setCategory] = useState(topic.category || "Personal");
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState(topic.coverUrl ?? "");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState("");
+
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    setProcessingMessage("Saving topic details…");
+
+    try {
+      const response = await fetch(`/api/topics/${topic.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, subject, description, category: category.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save topic details.");
+
+      if (file) {
+        setProcessingMessage("Uploading the new topic cover…");
+        const form = new FormData();
+        form.append("file", file);
+        const coverResponse = await fetch(`/api/topics/${topic.id}/cover`, { method: "POST", body: form });
+        const coverData = await coverResponse.json();
+        if (!coverResponse.ok) {
+          throw new Error(coverData.error || "Topic details were saved, but the cover image could not be uploaded.");
+        }
+      }
+
+      notifyOperation("success", file ? "Topic details and cover image saved." : "Topic details saved successfully.");
+      router.push(`/topics/${topic.id}`);
+      router.refresh();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Could not save topic.";
+      setError(message);
+      notifyOperation("failure", message);
+    } finally {
+      setBusy(false);
+      setProcessingMessage("");
+    }
+  }
+
+  async function remove() {
+    if (busy || !confirm("Delete this topic? Topics with notes cannot be deleted. This action cannot be undone.")) return;
+    setBusy(true);
+    setError("");
+    setProcessingMessage("Deleting topic…");
+
+    try {
+      const response = await fetch(`/api/topics/${topic.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not delete topic.");
+
+      notifyOperation("success", "Topic deleted successfully.");
+      router.push("/topics");
+      router.refresh();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Could not delete topic.";
+      setError(message);
+      notifyOperation("failure", message);
+    } finally {
+      setBusy(false);
+      setProcessingMessage("");
+    }
+  }
+
+  async function removeCover() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    setProcessingMessage("Removing topic cover…");
+
+    try {
+      const response = await fetch(`/api/topics/${topic.id}/cover`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not remove topic cover.");
+
+      setFile(null);
+      setPreview("");
+      notifyOperation("success", "Topic cover removed.");
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Could not remove cover.";
+      setError(message);
+      notifyOperation("failure", message);
+    } finally {
+      setBusy(false);
+      setProcessingMessage("");
+    }
+  }
+
+  function chooseCover(next: File | undefined) {
+    if (!next) return;
+    if (next.size > 8 * 1024 * 1024) {
+      setError("The cover image must be 8 MB or smaller.");
+      return;
+    }
+    setError("");
+    setFile(next);
+    setPreview(URL.createObjectURL(next));
+  }
+
+  return (
+    <main className="page">
+      <div style={{ marginBottom: 18 }}>
+        <Link className="breadcrumb" href={`/topics/${topic.id}`}><ArrowLeft size={14} /> Back to topic</Link>
+      </div>
+
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">Collection settings</div>
+          <h1 className="page-title">Edit topic</h1>
+          <p className="page-subtitle">Refine the identity and details of this collection.</p>
+        </div>
+      </div>
+
+      <section className="panel" style={{ maxWidth: 760 }}>
+        <form onSubmit={save}>
+          <div className="form-grid">
+            <div className="form-field full">
+              <label className="form-label" htmlFor="edit-topic-title">Topic title *</label>
+              <input id="edit-topic-title" dir="auto" lang={detectTextLanguage(title)} className="field" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={120} disabled={busy} />
+            </div>
+            <div className="form-field">
+              <label className="form-label" htmlFor="edit-topic-subject">Subject</label>
+              <input id="edit-topic-subject" dir="auto" lang={detectTextLanguage(subject)} className="field" value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={120} disabled={busy} />
+            </div>
+            <div className="form-field">
+              <label className="form-label" htmlFor="edit-topic-category">Category</label>
+              <input id="edit-topic-category" list="edit-topic-category-suggestions" className="field" value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Choose or create a category" maxLength={60} disabled={busy} />
+              <datalist id="edit-topic-category-suggestions">
+                {Array.from(new Map<string, string>(["Personal", "Philosophy", "Science", "Technology", "Research", "Reading", "Work", "Other", ...categories, topic.category].filter(Boolean).map((value): [string, string] => [value.toLocaleLowerCase(), value])).values()).map((value) => <option key={value} value={value} />)}
+              </datalist>
+              <span className="form-hint">Choose an existing category or type a new one. Your category will appear in the All topics filter when saved.</span>
+            </div>
+            <div className="form-field full">
+              <label className="form-label" htmlFor="edit-topic-description">Description</label>
+              <textarea id="edit-topic-description" dir="auto" lang={detectTextLanguage(description)} className="textarea-field" rows={4} value={description} onChange={(event) => setDescription(event.target.value)} maxLength={1000} disabled={busy} />
+            </div>
+            <div className="form-field full">
+              <label className="form-label">Topic thumbnail</label>
+              <input hidden ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={(event) => chooseCover(event.target.files?.[0])} />
+              <button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy}>
+                {preview ? (
+                  <><img src={preview} alt="Topic cover preview" /><span className="cover-upload-text">{file?.name ?? "Current cover"}<br />Click to replace · 8 MB maximum</span></>
+                ) : (
+                  <><ImagePlus /><span className="cover-upload-text">Choose a custom thumbnail</span></>
+                )}
+              </button>
+              {preview && <button type="button" className="secondary-btn" onClick={removeCover} disabled={busy}>Remove current cover</button>}
+            </div>
+          </div>
+
+          {busy && <div style={{ marginTop: 15 }}><OperationStatus kind="loading" message={processingMessage} /></div>}
+          {error && <div style={{ marginTop: 12 }}><OperationStatus kind="failure" message={error} /></div>}
+
+          <div className="form-actions" style={{ justifyContent: "space-between" }}>
+            <button type="button" className="danger-btn" onClick={() => void remove()} disabled={busy}>
+              {busy && processingMessage === "Deleting topic…" ? <LoaderCircle className="operation-spinner" size={14} /> : <Trash2 size={14} />}
+              Delete topic
+            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link className="secondary-btn" href={`/topics/${topic.id}`} aria-disabled={busy} onClick={(event) => { if (busy) event.preventDefault(); }}>Cancel</Link>
+              <button className="primary-btn" type="submit" disabled={busy}>
+                {busy ? <LoaderCircle className="operation-spinner" size={14} /> : <Save size={14} />}
+                {busy ? "Working…" : "Save changes"}
+              </button>
+            </div>
+          </div>
+          <p className="form-hint" style={{ marginTop: 13 }}>This topic contains {topic.noteCount} notes. To delete it, move or delete its notes first.</p>
+        </form>
+      </section>
+    </main>
+  );
 }
