@@ -85,6 +85,8 @@ export default async function LibraryPage() {
   }
 
   const stats = totalResult.rows[0];
+  const topicDecryptionFailed = decryptionIssues.some((issue) => issue.type === "topic");
+  const noteDecryptionFailed = decryptionIssues.some((issue) => issue.type === "note");
 
   return <main className="page">
     <div className="page-heading"><div><div className="eyebrow">A personal athenaeum</div><h1 className="page-title">Your knowledge, <em>well kept.</em></h1><p className="page-subtitle">A considered space for your research, reflections and the ideas worth returning to.</p></div><div className="stats"><div className="stat"><strong>{stats.topics}</strong><span>Topics</span></div><div className="stat"><strong>{stats.notes}</strong><span>Notes</span></div><div className="stat"><strong>{stats.assets}</strong><span>Images</span></div></div></div>
@@ -107,8 +109,8 @@ export default async function LibraryPage() {
     )}
 
     <div className="toolbar"><div className="eyebrow">Your collections</div><Link className="secondary-btn" href="/topics">View all topics <ArrowUpRight size={14} /></Link></div>
-    {topics.length ? <div className="topic-grid">{topics.map((topic) => <TopicCard key={topic.id} topic={topic} />)}<Link href="/topics" className="create-card"><span className="plus"><Plus /></span><strong>Explore your topics</strong><p>Open the full archive or create a new collection from the top bar.</p></Link></div> : <EmptyState title="Your archive begins here" copy="Create a topic for a subject you want to explore. Add notes, references and images as your thinking develops." action={<Link href="/topics" className="primary-btn"><Plus size={15}/> Create your first topic</Link>} />}
+    {topics.length ? <div className="topic-grid">{topics.map((topic) => <TopicCard key={topic.id} topic={topic} />)}<Link href="/topics" className="create-card"><span className="plus"><Plus /></span><strong>Explore your topics</strong><p>Open the full archive or create a new collection from the top bar.</p></Link></div> : topicDecryptionFailed ? <EmptyState title="Some topics are unavailable" copy="Their encrypted data could not be authenticated. The original records remain untouched; investigate the warning above before creating replacement topics." /> : <EmptyState title="Your archive begins here" copy="Create a topic for a subject you want to explore. Add notes, references and images as your thinking develops." action={<Link href="/topics" className="primary-btn"><Plus size={15}/> Create your first topic</Link>} />}
     <div className="toolbar" style={{ marginTop: 43 }}><div><div className="eyebrow">Recently touched</div><h2 className="panel-title" style={{ margin: "7px 0 0" }}>Continue thinking</h2></div><Link className="secondary-btn" href="/notes">All notes <ArrowUpRight size={14}/></Link></div>
-    <section className="panel"><div className="note-list">{notes.length ? notes.map((note) => <NoteRow key={note.id} note={note}/>) : <EmptyState title="No notes yet" copy="Your notes will appear here as soon as you create the first one." action={<Link href="/notes/new" className="secondary-btn"><FileText size={14}/> Write a note</Link>} />}</div></section>
+    <section className="panel"><div className="note-list">{notes.length ? notes.map((note) => <NoteRow key={note.id} note={note}/>) : noteDecryptionFailed ? <EmptyState title="Some notes are unavailable" copy="Their encrypted data could not be authenticated. The original records remain untouched; investigate the warning above before creating replacement notes." /> : <EmptyState title="No notes yet" copy="Your notes will appear here as soon as you create the first one." action={<Link href="/notes/new" className="secondary-btn"><FileText size={14}/> Write a note</Link>} />}</div></section>
   </main>;
 }
