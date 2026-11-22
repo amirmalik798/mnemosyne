@@ -1104,8 +1104,15 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not move this note to Recently deleted.");
 
-      void removeLocalNoteDraft(`user:${userId}:note:${noteId}`).catch(() => undefined);
-      notifyOperation("success", "Note moved to Recently deleted.");
+      try {
+        await removeLocalNoteDraft(`user:${userId}:note:${noteId}`);
+        notifyOperation("success", "Note moved to Recently deleted.");
+      } catch {
+        notifyOperation(
+          "failure",
+          "The note was moved to Recently deleted, but its local recovery copy could not be cleared from this device.",
+        );
+      }
       router.push("/notes");
       router.refresh();
     } catch (cause) {
