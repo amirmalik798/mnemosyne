@@ -1,178 +1,156 @@
 # Mnemosyne — The Private Knowledge Archive
 
-Mnemosyne is a single-user, password-protected knowledge archive for topics, rich-text notes, images and full-archive search. It uses a quiet Obsidian-and-gold editorial interface with a complete light theme.
+Mnemosyne is a multi-user private knowledge archive. People create separate accounts, confirm their email addresses, and store encrypted topics, rich-text notes and images in PostgreSQL. Each account has its own randomly generated vault key and isolated archive.
+
+## Security model
+
+- **Per-account vault keys:** each user receives a cryptographically random 256-bit key. Topic fields, note fields, tags, image bytes and original image filenames are encrypted using AES-256-GCM with that account's key.
+- **Password protection:** Argon2id authenticates passwords and derives a separate wrapping key for the user's vault key. The account password hash and wrapped vault key are stored separately.
+- **Email confirmation:** no authenticated session is issued until the user's email is verified. Tokens are random, stored as hashes, single-use and expire after 24 hours.
+- **Database tenant isolation:** topics, notes, assets and image blobs have a non-null `user_id`. PostgreSQL row-level security is enabled and forced on these four tables. Composite foreign keys and triggers enforce same-owner note/topic, image/owner, image/blob and topic-cover relationships.
+- **Least-privileged runtime role:** Next.js uses `APP_DATABASE_URL`, which must be non-superuser, `NOBYPASSRLS`, not the owner of protected tables, and unable to create objects in the application schema. `DATABASE_URL` is reserved for migrations and administration.
+- **Transaction-scoped account context:** every archive query sets the authenticated account ID locally inside its transaction. Queries without that context see no archive rows.
+- **Sessions:** random 256-bit tokens are stored as SHA-256 hashes. Cookies are HttpOnly, SameSite=Strict, host-only and Secure in production. Server sessions expire after 12 hours or 20 minutes idle.
+- **Abuse protection:** registration, login, verification and resend endpoints have database-backed rate limits. Five failed password attempts trigger a temporary lockout.
+- **Request protection:** mutating endpoints validate same-origin requests and enforce request-size limits. New images are encrypted in PostgreSQL.
+
+**Important limitation:** Mnemosyne uses server-side encryption at rest, not zero-knowledge end-to-end encryption. The application server can decrypt content while a user is authenticated. A compromised application server, its secrets, or a privileged database administrator could expose data. No system can promise an absolute zero-leakage probability. These controls reduce accidental cross-account access and increase the difficulty of compromise, but secure hosting, patching, monitoring, backups and secret management remain essential.
 
 ## Features
 
-- First-run vault setup and master-password unlock.
-- Argon2id password-based key derivation and AES-256-GCM encryption for topic fields, note fields, tags, image bytes and original image names.
-- A random vault key wrapped by the master-password-derived key.
-- HttpOnly, SameSite=Strict session cookies; server-side session records; 12-hour absolute session expiry; 20-minute inactivity expiry; failed-password lockout.
-- PostgreSQL storage for encrypted content, metadata and image blobs. Large image payloads live in a separate table so ordinary note and topic queries do not load them.
-- Encrypted topic covers and note image attachments.
-- Rich-text editing with headings, lists, quotations, formatting, inline images, tags and pinning.
-- Topic management, note reading and editing, trash, restore and permanent deletion.
-- Move notes between topics without changing their identity or attachments.
-- Copy notes into another topic, creating independent encrypted copies of embedded image attachments.
-- Global search across topic and note fields. Search decrypts records on the server for matching and does not persist a plaintext search index.
-- Responsive navigation, pagination and dark/light themes.
-- Urdu and Arabic right-to-left writing support, including mixed-direction content.
+- Individual accounts with email-confirmation and account-password sign-in.
+- Separate encrypted vaults for every user.
+- Topic collections, category filters, rich-text notes, tags, pinned notes and search.
+- Encrypted topic covers and note image attachments stored as PostgreSQL blobs.
+- Move notes between topics; copy notes with independent encrypted image copies.
+- Trash, restore, permanent deletion and archive pagination.
+- Responsive interface, dark/light themes, Urdu and Arabic right-to-left support.
 
 ## Requirements
 
 - Node.js 22 LTS recommended.
 - PostgreSQL 18 or another supported PostgreSQL release.
 - npm.
+- A Google account to deploy the Google Apps Script email gateway.
 
-## Local setup
+## Environment variables
 
-1. Install dependencies:
+Copy `.env.example` to `.env.local`.
 
-   ~~~bash
+- `DATABASE_URL`: privileged migration/administration connection. Do not use it for the app runtime.
+- `APP_DATABASE_URL`: dedicated restricted application role. Required by the app and `npm run db:check`.
+- `SESSION_ENCRYPTION_SECRET`: 64 hexadecimal characters. Keep it stable and backed up; it protects vault keys in server-side sessions.
+- `APP_BASE_URL`: canonical app origin, for example `https://archive.example.com`.
+- `GOOGLE_APPS_SCRIPT_URL`: deployed Apps Script Web App URL ending in `/exec`.
+- `GOOGLE_APPS_SCRIPT_SECRET`: high-entropy shared secret known only to the app server and Apps Script.
+- `MNEMOSYNE_LEGACY_OWNER_EMAIL`: existing single-user installations only; see migration section.
+
+Use HTTPS for the app and Apps Script in production. Remote PostgreSQL requires `PGSSLMODE=verify-full`.
+
+## One-time PostgreSQL runtime-role setup
+
+Do not run Next.js as `postgres` or another superuser. A superuser bypasses RLS. The application role must not own protected tables or have schema-creation privileges.
+
+Run `npm run db:migrate` using `DATABASE_URL` with a database superuser or a dedicated migration role that has `BYPASSRLS`. The schema forces row-level security even for table owners; legacy backfills and cross-account image-maintenance scripts must use a trusted administrative connection that can bypass those policies. Never put this privileged connection in the running Next.js app. The first migration requires `MNEMOSYNE_LEGACY_OWNER_EMAIL` whenever the old `vault_settings` record exists, even if the old archive is currently empty. A one-row `legacy_archive_owner` marker records the assignment so future migrations remain repeatable without reassigning data. Then connect as a database administrator and create the restricted runtime role. Replace the password and database name:
+
+```sql
+CREATE ROLE mnemosyne_app
+  LOGIN PASSWORD 'REPLACE_WITH_A_LONG_RANDOM_PASSWORD'
+  NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOINHERIT;
+
+GRANT CONNECT ON DATABASE mnemosyne TO mnemosyne_app;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO mnemosyne_app;
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON ALL TABLES IN SCHEMA public TO mnemosyne_app;
+GRANT USAGE, SELECT
+  ON ALL SEQUENCES IN SCHEMA public TO mnemosyne_app;
+
+-- Replace postgres with the role used by DATABASE_URL for migrations.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO mnemosyne_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO mnemosyne_app;
+```
+
+If your migration role is not named `postgres`, use its actual name in both `ALTER DEFAULT PRIVILEGES` statements. Keep table ownership with the migration role; do not transfer protected tables to `mnemosyne_app`. Configure `APP_DATABASE_URL` to use the new role. The database checker verifies role flags, ownership, schema privileges, table permissions and forced RLS.
+
+## Google Apps Script email gateway
+
+1. Open [Google Apps Script](https://script.google.com/) and create a standalone project.
+2. Paste the source from `scripts/google-apps-script-email-gateway.gs` into its editor and save.
+3. In **Project Settings → Script Properties**, create `MNEMOSYNE_EMAIL_SECRET` with exactly the same random value configured as `GOOGLE_APPS_SCRIPT_SECRET` on the server. Generate it with `openssl rand -hex 32`. Never expose this secret in client code or commit it.
+4. Choose **Deploy → New deployment → Web app**.
+5. Set **Execute as** to your Google account and **Who has access** to **Anyone**. The endpoint must be reachable by the server; the shared secret is checked on every request.
+6. Copy the Web App URL ending in `/exec` into `GOOGLE_APPS_SCRIPT_URL`.
+7. Set `APP_BASE_URL` to the public app origin and restart/redeploy Mnemosyne.
+
+The script sends mail through Google's `MailApp` and is subject to Google account quotas and policies. It is suitable for initial use; a transactional email provider may be preferable at scale. Rotate both copies of the secret together if exposed.
+
+The verification token is placed in a URL fragment, not a query string. The browser reads the fragment, removes it from the address bar, and then posts it once to the verification endpoint.
+
+## Fresh local installation
+
+1. Start PostgreSQL and create an empty database named `mnemosyne`.
+2. Copy `.env.example` to `.env.local`. Generate `SESSION_ENCRYPTION_SECRET` and `GOOGLE_APPS_SCRIPT_SECRET`, and configure the Apps Script gateway.
+3. Set `DATABASE_URL` to your privileged migration connection.
+4. Install and migrate:
+
+   ```bash
    npm install
-   ~~~
-
-2. Start PostgreSQL with Docker Compose, or create an empty PostgreSQL database named **mnemosyne**:
-
-   ~~~bash
-   docker compose up -d postgres
-   ~~~
-
-3. Create the local environment file and generate a stable session-encryption secret:
-
-   ~~~bash
-   cp .env.example .env.local
-   openssl rand -hex 32
-   ~~~
-
-   Put the generated 64-character hexadecimal value in **SESSION_ENCRYPTION_SECRET**. Keep it private and stable. Set **DATABASE_URL** to your PostgreSQL connection string. Do not set **PGSSLMODE** for ordinary local loopback PostgreSQL.
-
-4. Apply the schema:
-
-   ~~~bash
    npm run db:migrate
-   ~~~
+   ```
 
-5. Verify the database schema:
+5. Create the restricted `mnemosyne_app` role using the SQL above and set `APP_DATABASE_URL`.
+6. Verify the runtime role and schema:
 
-   ~~~bash
+   ```bash
    npm run db:check
-   ~~~
+   ```
 
-6. For an existing installation that has image files in **STORAGE_DIR**, stop all older application instances (or put them in maintenance mode) and import the files into PostgreSQL. Older application versions cannot read database-backed blobs:
+7. Start Next.js with `npm run dev`, open `http://localhost:3000/register`, create an account, confirm the email and sign in.
 
-   ~~~bash
-   npm run assets:migrate-to-db
-   ~~~
+## Migration from the former single-user vault
 
-   New installations have no legacy files to import, so this step is not needed.
+**Back up first.** Stop the app and create a full PostgreSQL backup. Preserve `.env.local` (especially the existing `SESSION_ENCRYPTION_SECRET`) and the old `STORAGE_DIR` until image integrity is verified.
 
-7. Verify that every image has a valid encrypted database blob:
+1. Choose the email address that should own the old archive.
+2. Set `MNEMOSYNE_LEGACY_OWNER_EMAIL` to that exact address before the first multi-user migration.
+3. Run `npm run db:migrate` using the migration-owner `DATABASE_URL`.
+4. The migration creates the legacy owner from the original `vault_settings.password_salt` and `wrapped_key`, then assigns every old topic, note, asset and image blob to that account. It does not decrypt, re-encrypt, delete or rewrite archive ciphertext. If the original vault settings are missing or ownership is ambiguous, migration stops instead of guessing.
+5. Create the restricted app role, configure `APP_DATABASE_URL`, and run `npm run db:check`.
+6. Open `/login` and use the **original archive email and original master password**. The first successful legacy login upgrades the password hash and sends the verification email. Confirm it, then sign in again.
+7. Confirm that all existing topics, notes and images are present. Keep backups until you have verified the data and made a fresh backup.
 
-   ~~~bash
-   npm run storage:check
-   ~~~
+Do not register another account using the legacy email; migration reserves that email for the old archive. Other users can register independently.
 
-8. Start Next.js:
+## Commands
 
-   ~~~bash
-   npm run dev
-   ~~~
-
-9. Open **http://localhost:3000**, create your vault and choose a strong master password.
-
-## Useful commands
-
-~~~bash
+```bash
 npm run dev
 npm run db:migrate
 npm run db:check
 npm run assets:migrate-to-db
 npm run storage:check
 npm run test:unit
+npm run test:tenant-isolation
 npm run typecheck
 npm run build
 npm run start
-~~~
+```
 
-- **db:migrate** applies the idempotent schema. It uses the same PostgreSQL connection and TLS validation rules as the application.
-- **db:check** verifies database connectivity and required tables/columns, including the **vault_sessions.last_active_at** session-hardening migration.
-- **assets:migrate-to-db** imports legacy **.enc** files into **asset_blobs** one asset at a time. It verifies path safety and encrypted size, commits the blob and clears its legacy file key in the same transaction, can be safely rerun, and never deletes the source files. Use **--dry-run** to validate legacy files without changing the database.
-- **storage:check** is read-only. It verifies that every asset has an encrypted database blob of the expected size and reports assets still relying on legacy files. It never modifies or deletes files.
-- **test:unit** runs fast, database-independent tests for PostgreSQL connection and TLS validation.
+- `db:migrate` uses `DATABASE_URL` and applies the idempotent schema.
+- `db:check` uses `APP_DATABASE_URL` and verifies its role and RLS boundaries.
+- `assets:migrate-to-db` imports legacy encrypted filesystem images into PostgreSQL; it can be rerun and never deletes source files. Use `--dry-run` first.
+- `storage:check` checks that image metadata has a valid encrypted DB blob or legacy file.
+- `test:unit` runs database-independent tests.
+- `test:tenant-isolation` runs rollback-only database checks for cross-account reads and relationships using the restricted runtime role.
 
-## Note organization
+## Data and privacy
 
-On a note reader or editor screen, use **Move / copy**. Choose **Move note** or **Copy note**, then select a destination topic. Moving preserves the note ID and existing attachment records. Copying creates a separate note and duplicates embedded images as independent encrypted PostgreSQL blob and asset records. Either copy can then be edited or deleted independently.
-
-## Data and backups
-
-- PostgreSQL stores encrypted topic and note content, metadata, encrypted original image bytes and encrypted original upload filenames.
-- The **asset_blobs** table stores image ciphertext as PostgreSQL **BYTEA**. The separate **assets** table stores ownership and image metadata; normal note and topic queries do not fetch the large blob payloads.
-- For older installations, stop all older application instances (or put them in maintenance mode), take a database backup and preserve the complete **STORAGE_DIR** before running **npm run assets:migrate-to-db**. The importer copies each legacy encrypted file byte-for-byte into PostgreSQL and clears its legacy path pointer in the same transaction.
-- The importer is safe to rerun after interruption. It does not decrypt, recompress or resize images, and it never deletes the original files.
-- Run **npm run storage:check** after the import. Keep the old **STORAGE_DIR** until the database backup has been verified and image reads have been tested. You can then remove the old directory manually; the application no longer needs it for normal image uploads, reads or deletion.
-- Back up PostgreSQL and **SESSION_ENCRYPTION_SECRET** together. The database backup now contains the encrypted images as well as the encrypted notes and topics.
-- Test restoration periodically in an isolated environment. A backup that has never been restored is not a verified recovery plan.
-- Do not delete or casually rotate **SESSION_ENCRYPTION_SECRET**. Changing it invalidates active server sessions; it does not re-encrypt vault content.
-- Do not manually delete or recreate the **vault_settings** row to reset the password. That row contains the salt and wrapped vault key. Reinitializing setup creates a new vault key and does not make older records decryptable with the new vault.
-
-## Production deployment
-
-Mnemosyne uses Node.js APIs (including Argon2), so deploy it to a Node.js runtime. Image uploads, image reads and asset deletion use PostgreSQL; the application no longer requires a persistent filesystem volume for normal image storage. **STORAGE_DIR** is used only by the one-time importer for legacy file-backed images. Use a managed PostgreSQL database and serve the application over HTTPS.
-
-Configure these environment variables:
-
-| Variable | Requirement |
-| --- | --- |
-| **DATABASE_URL** | PostgreSQL URL containing the real database hostname. Do not add **host=...**, **sslmode=...** or other SSL/host overrides as query parameters. |
-| **SESSION_ENCRYPTION_SECRET** | Keep the existing 64-character hexadecimal secret unchanged across deployments and restarts. |
-| **PGSSLMODE** | Set to **verify-full** for remote production PostgreSQL. Certificate and hostname verification remain enabled. |
-| **VAULT_SETUP_TOKEN** | Set a separate random value of at least 32 characters before first-time production vault setup. |
-
-Generate a random 32-byte hexadecimal secret with:
-
-~~~bash
-openssl rand -hex 32
-~~~
-
-Use a different value for **SESSION_ENCRYPTION_SECRET** and **VAULT_SETUP_TOKEN**. Never paste real secrets into source control, issue reports or logs.
-
-For the one-time transition from filesystem storage, keep older application instances stopped until the importer and integrity check finish. Then start the new application version. The import command can be rerun safely if interrupted.
-
-Before deploying an application update:
-
-~~~bash
-git pull --ff-only origin main
-npm run db:migrate
-npm run db:check
-# One-time for existing file-backed assets; safe to rerun and does not delete source files.
-npm run assets:migrate-to-db
-npm run storage:check
-npm run test:unit
-npm run typecheck
-npm run build
-~~~
-
-After successfully initializing a new production vault, remove **VAULT_SETUP_TOKEN** from the server environment and restart the application. Existing sessions may need to authenticate again after session-cookie hardening. Do not change **SESSION_ENCRYPTION_SECRET** as part of routine deployment.
-
-## Security model and limitations
-
-This is **server-side encryption at rest**, not zero-knowledge end-to-end encryption. The application server decrypts data while a valid vault session is active so it can render notes and perform search. An operator who controls the running server and its secrets may be able to access data. Protect the host, database, storage volume, logs and environment secrets.
-
-The master password is currently the vault authentication factor. TOTP authenticator support and passkeys are not implemented. Multi-factor authentication, client-side end-to-end encryption and an independent recovery-key workflow remain future security milestones. Do not describe the current system as unbreakable or zero-knowledge.
-
-The schema leaves item identifiers, relations, timestamps, image MIME types and image byte sizes available as metadata. Search currently examines up to 500 topics and 2,000 notes per request; it is intended for a personal archive, not a multi-user or very large-scale search workload.
-
-There is no independent recovery key in this implementation. If the master password is forgotten and no valid copy of the original vault key can be recovered, the encrypted archive may be unrecoverable. Keep and test backups; do not treat a database backup as a password-reset mechanism.
-
-The app is single-user per deployment. It does not yet include multi-user accounts, sharing, collaboration, version history, offline sync or automatic cloud backup.
-
-## Themes and typography
-
-Mnemosyne includes two themes:
-
-- **Dark Obsidian** — midnight surfaces, parchment text and antique brass-gold accents.
-- **Light Papyrus** — alabaster canvas, warm vellum panels, literary ink and bronze accents.
-
-Urdu is displayed right-to-left in Noto Nastaliq Urdu; Arabic uses Noto Naskh Arabic for long-form reading. Latin/English text remains left-to-right, and mixed-language notes can switch direction per field and paragraph. Preferred typefaces are requested from Google Fonts at runtime; system fallbacks remain available offline. For an air-gapped deployment, host licensed font assets locally and replace the Google Fonts import.
+- PostgreSQL stores encrypted topic fields, note fields, tags, image bytes and original image filenames. Image ciphertext is in `asset_blobs`, separate from `assets` metadata.
+- Back up the database and `SESSION_ENCRYPTION_SECRET` together. Keep legacy encrypted image files until `storage:check` confirms they are unnecessary.
+- Each account's vault key is wrapped using a key derived from that account's password. Losing password and wrapped-key material can make the archive unrecoverable.
+- The server remains part of the trust boundary because it decrypts content during authenticated requests. This is not zero-knowledge end-to-end encryption.
+- Never log passwords, verification tokens, session tokens, plaintext archive content, vault keys or ciphertext payloads.

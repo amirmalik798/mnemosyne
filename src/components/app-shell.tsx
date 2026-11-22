@@ -19,7 +19,7 @@ const nav = [
   { label: "PERSONAL", items: [{ href: "/trash", label: "Recently deleted", icon: Trash2 }, { href: "/settings", label: "Settings", icon: Settings }] },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, user }: { children: React.ReactNode; user: { id: string; email: string; displayName: string } }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
@@ -29,6 +29,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [operationNotice, setOperationNotice] = useState<{ kind: OperationStatusKind; message: string } | null>(null);
   const operationNoticeTimerRef = useRef<number | null>(null);
   const redirectingToUnlockRef = useRef(false);
+  useEffect(() => {
+    const activeAccountKey = "mnemosyne:active-account";
+    const handleAccountChange = (event: StorageEvent) => {
+      if (
+        event.key === activeAccountKey &&
+        typeof event.newValue === "string" &&
+        event.newValue !== user.id
+      ) {
+        window.location.replace("/library");
+      }
+    };
+
+    window.addEventListener("storage", handleAccountChange);
+    try {
+      // The value is an opaque account UUID, not a credential.
+      window.localStorage.setItem(activeAccountKey, user.id);
+    } catch {
+      // The periodic server-side session identity check remains the fallback.
+    }
+
+    return () => window.removeEventListener("storage", handleAccountChange);
+  }, [user.id]);
+
   useEffect(() => {
     const showOperationNotice = (event: Event) => {
       const detail = (event as CustomEvent<{ kind?: unknown; message?: unknown }>).detail;
@@ -54,15 +77,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const nativeFetch = window.fetch.bind(window);
 
     const redirectToUnlock = () => {
-      if (redirectingToUnlockRef.current || window.location.pathname === "/unlock") return;
+      if (redirectingToUnlockRef.current || window.location.pathname === "/login") return;
       redirectingToUnlockRef.current = true;
 
       // Preserve the current workspace while the expired session is re-authenticated.
       // No logout request is sent here; the server has already rejected the session.
-      saveResumeLocation();
+      saveResumeLocation(user.id);
       window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
       void flushPendingLocalDraftWrites();
-      window.location.replace("/unlock");
+      window.location.replace("/login");
     };
 
     const guardedFetch: typeof window.fetch = async (input, init) => {
@@ -89,7 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         let sessionExpired = false;
         try {
           const payload = await response.clone().json() as { error?: unknown };
-          sessionExpired = payload.error === "Please unlock your vault.";
+          sessionExpired = payload.error === "Please sign in to your account.";
         } catch {
           // Unknown 401 response formats are not sufficient evidence to log out.
         }
@@ -108,7 +131,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           credentials: "same-origin",
           cache: "no-store",
         });
-        if (response.status === 401) redirectToUnlock();
+        if (response.status === 401) {
+          redirectToUnlock();
+          return;
+        }
+        if (response.ok) {
+          const sessionData = await response.json().catch(() => null) as { userId?: unknown } | null;
+          if (typeof sessionData?.userId === "string" && sessionData.userId !== user.id) {
+            // A different account became active in another tab. Force a full
+            // document reload so no prior account's decrypted UI remains.
+            window.location.replace("/library");
+          }
+        }
       } catch {
         // A temporary network failure is not proof that the vault session ended.
       }
@@ -165,22 +199,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // the vault lock screen, restore the same workspace view.
   useEffect(() => {
     const currentHref = window.location.pathname + window.location.search + window.location.hash;
-    const saved = readResumeLocation();
+    const saved = readResumeLocation(user.id);
 
     if (saved?.href === currentHref) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => window.scrollTo(saved.scrollX, saved.scrollY));
       });
     } else {
-      saveResumeLocation({ resetScroll: true });
+      saveResumeLocation(user.id, { resetScroll: true });
     }
 
     let scrollTimer: ReturnType<typeof setTimeout> | undefined;
     const persistScroll = () => {
       if (scrollTimer) clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(() => saveResumeLocation(), 220);
+      scrollTimer = setTimeout(() => saveResumeLocation(user.id), 220);
     };
-    const persistWhenHidden = () => saveResumeLocation();
+    const persistWhenHidden = () => saveResumeLocation(user.id);
     // A reload, full-page navigation, or closing one tab is not an explicit
     // vault-lock request. Persist navigation state only; the shared server
     // session expires by idle/absolute timeout or a deliberate Lock action.
@@ -205,14 +239,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [router]);
   async function lockVault() {
     setLocking(true);
-    saveResumeLocation();
+    saveResumeLocation(user.id);
     window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
     try {
       await flushPendingLocalDraftWrites();
       const response = await fetch("/api/vault/lock", { method: "POST" });
       if (!response.ok) throw new Error("The server did not confirm the lock request.");
-      router.replace("/unlock");
-      router.refresh();
+      window.location.replace("/login");
     } catch {
       notifyOperation("error", "The vault could not be locked. Check your connection and try again.");
     } finally {
@@ -225,8 +258,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Link href="/library" className="brand"><span className="brand-mark">M</span><span><span className="brand-name">Mnemosyne</span><span className="brand-sub">Private knowledge archive</span></span></Link>
       {nav.map((group) => <div key={group.label}><div className="nav-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const active = current?.href === item.href; return <Link href={item.href} key={item.href} className={`nav-link ${active ? "active" : ""}`}><Icon /><span>{item.label}</span></Link>; })}</div>)}
       <div className="sidebar-spacer" />
-      <div className="vault-status"><div className="status-row"><span className="dot" /> Vault encrypted</div><div className="vault-caption">Your private archive is unlocked for this session.</div></div>
-      <div className="sidebar-bottom"><div className="profile"><div className="avatar">M</div><div className="profile-copy"><div className="profile-name">Personal vault</div><div className="profile-sub">Local archive</div></div></div></div>
+      <div className="vault-status"><div className="status-row"><span className="dot" /> Vault encrypted</div><div className="vault-caption">Your personal archive is unlocked for this session.</div></div>
+      <div className="sidebar-bottom"><div className="profile"><div className="avatar">{(user.displayName.trim().charAt(0) || user.email.charAt(0)).toUpperCase()}</div><div className="profile-copy"><div className="profile-name">{user.displayName}</div><div className="profile-sub">{user.email}</div></div></div></div>
     </aside>
     <div className="main-area">
       <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{current?.label ?? (pathname.includes("/edit") ? "Edit note" : pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ?? "Overview")}</span></div>

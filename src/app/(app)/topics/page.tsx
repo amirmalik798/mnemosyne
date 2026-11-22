@@ -1,5 +1,5 @@
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { type TopicItem, ArchiveIntegrityNotice } from "@/components/archive-ui";
 import { TopicArchive } from "@/components/topic-archive";
@@ -45,7 +45,7 @@ export default async function TopicsPage({ searchParams }: Props) {
   // authenticated server-side decryption. Only the small category and id
   // columns are read for this filter; full topic records are fetched only
   // for the requested page.
-  const categoryResult = await db.query("SELECT id, category_enc FROM topics");
+  const categoryResult = await queryAsUser(session.userId, "SELECT id, category_enc FROM topics");
   const categoryLabels = new Map<string, string>();
   const categoryCounts = new Map<string, number>();
   const topicCategories: TopicCategory[] = [];
@@ -84,7 +84,7 @@ export default async function TopicsPage({ searchParams }: Props) {
 
   const pageResult = selectedCategory
     ? matchingTopicIds.length
-      ? await db.query(
+      ? await queryAsUser(session.userId, 
           `SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc,
                   t.cover_asset_id, t.updated_at,
                   (SELECT COUNT(*)::int FROM notes n
@@ -96,7 +96,7 @@ export default async function TopicsPage({ searchParams }: Props) {
           [matchingTopicIds, ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
         )
       : { rows: [] }
-    : await db.query(
+    : await queryAsUser(session.userId, 
         `SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc,
                 t.cover_asset_id, t.updated_at,
                 (SELECT COUNT(*)::int FROM notes n

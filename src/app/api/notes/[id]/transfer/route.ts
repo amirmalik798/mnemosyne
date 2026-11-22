@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, setUserContext } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { cloneEncryptedNoteAsset } from "@/lib/storage";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
@@ -74,6 +74,7 @@ export async function POST(request: Request, context: Context) {
 
     client = await db.connect();
     await client.query("BEGIN");
+    await setUserContext(client, session.userId);
     const sourceResult = await client.query(
       "SELECT topic_id, title_enc, subject_enc, content_enc, tags_enc, pinned FROM notes WHERE id=$1 AND deleted_at IS NULL FOR UPDATE",
       [id],
@@ -118,6 +119,7 @@ export async function POST(request: Request, context: Context) {
       for (const asset of assets) {
         const cloned = await cloneEncryptedNoteAsset({
           asset,
+          userId: session.userId,
           ownerId: newNoteId,
           key: session.key,
           query: (text, values) => client!.query(text, values),

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const hasPagination = params.has("limit") || params.has("offset");
     if (!hasPagination) {
       // Retain the historical full response for existing API consumers.
-      const result = await db.query(
+      const result = await queryAsUser(session.userId, 
         `SELECT n.*, t.title_enc AS topic_title_enc
          FROM notes n JOIN topics t ON t.id = n.topic_id
          WHERE n.deleted_at IS NULL
@@ -46,8 +46,8 @@ export async function GET(request: Request) {
     const limit = parseBoundedInteger(params.get("limit"), 50, 1, 100);
     const offset = parseBoundedInteger(params.get("offset"), 0, 0, 1_000_000);
     const [countResult, pageResult] = await Promise.all([
-      db.query("SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NULL"),
-      db.query(
+      queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NULL"),
+      queryAsUser(session.userId, 
         `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc,
                 n.pinned, n.created_at, n.updated_at, t.title_enc AS topic_title_enc
          FROM notes n JOIN topics t ON t.id = n.topic_id
@@ -82,9 +82,9 @@ export async function POST(request: Request) {
     if (content.length > 2_000_000) throw new Error("VALIDATION:This note is too large.");
     const tags = Array.isArray(body.tags) ? body.tags.filter((tag): tag is string => typeof tag === "string").slice(0, 30) : [];
     const pinned = typeof body.pinned === "boolean" ? body.pinned : false;
-    const topic = await db.query("SELECT id FROM topics WHERE id=$1", [topicId]);
+    const topic = await queryAsUser(session.userId, "SELECT id FROM topics WHERE id=$1", [topicId]);
     if (!topic.rows[0]) throw new Error("VALIDATION:Choose a valid topic.");
-    const result = await db.query(
+    const result = await queryAsUser(session.userId, 
       `INSERT INTO notes (topic_id, title_enc, subject_enc, content_enc, tags_enc, pinned)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, created_at, updated_at`,
       [topicId, encryptText(title, session.key), encryptText(subject, session.key), encryptText(content, session.key), encryptText(JSON.stringify(tags), session.key), pinned],

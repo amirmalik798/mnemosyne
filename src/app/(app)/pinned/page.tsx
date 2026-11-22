@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, FileText, Pin } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { EmptyState, NoteRow, type NoteItem } from "@/components/archive-ui";
 import { ARCHIVE_PAGE_SIZE, ArchivePagination, parseArchivePage } from "@/components/archive-pagination";
@@ -17,13 +17,13 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
   ]);
   const requestedPageNumber = parseArchivePage(requestedPage);
 
-  const countResult = await db.query(
+  const countResult = await queryAsUser(session.userId, 
     "SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NULL AND pinned = TRUE",
   );
   const totalNotes = Number(countResult.rows[0]?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(totalNotes / ARCHIVE_PAGE_SIZE));
   const currentPage = Math.min(requestedPageNumber, totalPages);
-  const result = await db.query(
+  const result = await queryAsUser(session.userId, 
     `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.updated_at,
             t.title_enc AS topic_title_enc
      FROM notes n

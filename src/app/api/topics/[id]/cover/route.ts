@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, setUserContext } from "@/lib/db";
 import { detectImageMime, removeEncryptedStorageFile, saveEncryptedAsset } from "@/lib/storage";
 import { apiError, readBoundedFormData } from "@/lib/http";
 
@@ -27,6 +27,7 @@ export async function POST(request: Request, context: Context) {
 
     client = await db.connect();
     await client.query("BEGIN");
+    await setUserContext(client, session.userId);
     const topic = await client.query(
       "SELECT cover_asset_id FROM topics WHERE id = $1 FOR NO KEY UPDATE",
       [id],
@@ -37,6 +38,7 @@ export async function POST(request: Request, context: Context) {
       bytes,
       name: file.name.slice(0, 200),
       mimeType: mime,
+      userId: session.userId,
       ownerType: "topic",
       ownerId: id,
       key: session.key,

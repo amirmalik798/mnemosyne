@@ -17,71 +17,46 @@ type SessionQueryExecutor = (
   values: Array<string | Buffer | Date>,
 ) => Promise<{ rows: unknown[] }>;
 
-export type VaultSession = { id: string; key: Buffer; expiresAt: Date };
+export type VaultSession = {
+  id: string;
+  userId: string;
+  email: string;
+  displayName: string;
+  key: Buffer;
+  expiresAt: Date;
+};
 
-export async function isVaultInitialized(): Promise<boolean> {
-  const result = await db.query("SELECT 1 FROM vault_settings WHERE id = 1");
-  return result.rowCount === 1;
-}
-
-/**
- * Insert a session record and return its one-time cookie token.
- * A caller may provide its active transaction so vault setup can commit the
- * vault settings and the first session together. Schema/insert errors then
- * roll back the entire first-run setup instead of leaving a locked vault.
- */
+/** Create a session row inside an optional caller-owned transaction. */
 export async function createSessionRecord(
+  userId: string,
   vaultKey: Buffer,
   query?: SessionQueryExecutor,
 ): Promise<string> {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000);
   const encryptedKey = encryptBytes(vaultKey, sessionEncryptionKey());
-  const values = [hashToken(token), encryptedKey, expiresAt];
+  const values = [userId, hashToken(token), encryptedKey, expiresAt];
+  const statement =
+    "INSERT INTO user_sessions (user_id, token_hash, encrypted_key, expires_at, last_active_at) " +
+    "VALUES ($1, $2, $3, $4, NOW())";
 
-  if (query) {
-    await query(
-      "INSERT INTO vault_sessions (token_hash, encrypted_key, expires_at, last_active_at) VALUES ($1, $2, $3, NOW())",
-      values,
-    );
-  } else {
-    await db.query(
-      "INSERT INTO vault_sessions (token_hash, encrypted_key, expires_at, last_active_at) VALUES ($1, $2, $3, NOW())",
-      values,
-    );
-  }
-
+  if (query) await query(statement, values);
+  else await db.query(statement, values);
   return token;
 }
 
 export async function setSessionCookie(token: string): Promise<void> {
   const store = await cookies();
-  if (process.env.NODE_ENV === "production") {
-    // __Host- cookies must be Secure, host-only and scoped to Path=/.
-    // Remove the older cookie name so it cannot shadow the hardened cookie.
-    store.delete(LEGACY_COOKIE_NAME);
-  }
+  if (process.env.NODE_ENV === "production") store.delete(LEGACY_COOKIE_NAME);
   store.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
     priority: "high",
-    // Browser-session cookie: closing the browser normally requires the
-    // master password again. The server also enforces absolute and idle expiry.
   });
 }
 
-export async function createSession(vaultKey: Buffer): Promise<void> {
-  const token = await createSessionRecord(vaultKey);
-  await setSessionCookie(token);
-}
-
-/**
- * The server enforces both the absolute session lifetime and the idle timeout.
- * Normal protected requests refresh last_active_at. The lightweight session
- * heartbeat explicitly opts out so an abandoned open tab cannot stay unlocked.
- */
 const getVaultSessionCached = cache(async (touch: boolean): Promise<VaultSession | null> => {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
@@ -90,44 +65,54 @@ const getVaultSessionCached = cache(async (touch: boolean): Promise<VaultSession
   const tokenHash = hashToken(token);
   const result = touch
     ? await db.query(
-        `UPDATE vault_sessions
+        `UPDATE user_sessions s
          SET last_active_at = NOW()
-         WHERE token_hash = $1
-           AND expires_at > NOW()
-           AND last_active_at > NOW() - ($2 * INTERVAL '1 minute')
-         RETURNING id, encrypted_key, expires_at`,
+         FROM users u
+         WHERE s.user_id = u.id
+           AND s.token_hash = $1
+           AND s.expires_at > NOW()
+           AND s.last_active_at > NOW() - ($2 * INTERVAL '1 minute')
+           AND u.email_verified_at IS NOT NULL
+         RETURNING s.id, s.user_id, s.encrypted_key, s.expires_at, u.email, u.display_name`,
         [tokenHash, SESSION_IDLE_MINUTES],
       )
     : await db.query(
-        `SELECT id, encrypted_key, expires_at
-         FROM vault_sessions
-         WHERE token_hash = $1
-           AND expires_at > NOW()
-           AND last_active_at > NOW() - ($2 * INTERVAL '1 minute')
+        `SELECT s.id, s.user_id, s.encrypted_key, s.expires_at, u.email, u.display_name
+         FROM user_sessions s
+         JOIN users u ON u.id = s.user_id
+         WHERE s.token_hash = $1
+           AND s.expires_at > NOW()
+           AND s.last_active_at > NOW() - ($2 * INTERVAL '1 minute')
+           AND u.email_verified_at IS NOT NULL
          LIMIT 1`,
         [tokenHash, SESSION_IDLE_MINUTES],
       );
 
-  if (!result.rows[0]) return null;
+  const row = result.rows[0] as {
+    id: string;
+    user_id: string;
+    encrypted_key: Buffer;
+    expires_at: Date;
+    email: string;
+    display_name: string;
+  } | undefined;
+  if (!row) return null;
+
   try {
     return {
-      id: result.rows[0].id as string,
-      key: decryptBytes(result.rows[0].encrypted_key as Buffer, sessionEncryptionKey()),
-      expiresAt: new Date(result.rows[0].expires_at),
+      id: row.id,
+      userId: row.user_id,
+      email: row.email,
+      displayName: row.display_name,
+      key: decryptBytes(row.encrypted_key, sessionEncryptionKey()),
+      expiresAt: new Date(row.expires_at),
     };
   } catch {
     return null;
   }
 });
 
-/**
- * Request-scoped memoization avoids repeating the same session database query
- * when the protected layout and its page both verify the same vault session.
- * The read-only heartbeat remains separate and never extends the idle lease.
- */
-export function getVaultSession(
-  options: { touch?: boolean } = {},
-): Promise<VaultSession | null> {
+export function getVaultSession(options: { touch?: boolean } = {}): Promise<VaultSession | null> {
   return getVaultSessionCached(options.touch !== false);
 }
 
@@ -148,7 +133,7 @@ export async function destroySession(): Promise<void> {
 
   if (tokens.length > 0) {
     await db.query(
-      "DELETE FROM vault_sessions WHERE token_hash = ANY($1::text[])",
+      "DELETE FROM user_sessions WHERE token_hash = ANY($1::text[])",
       [Array.from(new Set(tokens.map(hashToken)))],
     );
   }

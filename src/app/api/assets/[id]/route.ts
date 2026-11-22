@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession, assertSameOrigin } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { readVerifiedImageAsset, deleteAssetById } from "@/lib/storage";
 import { apiError } from "@/lib/http";
@@ -11,7 +11,7 @@ export async function GET(_request: Request, context: Context) {
   try {
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const result = await db.query(
+    const result = await queryAsUser(session.userId, 
       `SELECT a.id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size,
               b.encrypted_bytes
        FROM assets a
@@ -46,9 +46,9 @@ export async function DELETE(request: Request, context: Context) {
     assertSameOrigin(request);
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const result = await db.query("SELECT id FROM assets WHERE id=$1", [id]);
+    const result = await queryAsUser(session.userId, "SELECT id FROM assets WHERE id=$1", [id]);
     if (!result.rows[0]) throw new Error("NOT_FOUND");
-    await deleteAssetById(id, session.key);
+    await deleteAssetById(id, session.key, session.userId);
     return NextResponse.json({ success: true });
   } catch (error) { return apiError(error); }
 }

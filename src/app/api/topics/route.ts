@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession, assertSameOrigin } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const hasPagination = params.has("limit") || params.has("offset");
     if (!hasPagination) {
       // Keep the legacy unpaginated contract for existing clients.
-      const result = await db.query(
+      const result = await queryAsUser(session.userId, 
         `SELECT t.*, (SELECT COUNT(*)::int FROM notes n
          WHERE n.topic_id = t.id AND n.deleted_at IS NULL) AS note_count
          FROM topics t ORDER BY t.updated_at DESC, t.id DESC`,
@@ -40,8 +40,8 @@ export async function GET(request: Request) {
     const limit = parseBoundedInteger(params.get("limit"), 50, 1, 100);
     const offset = parseBoundedInteger(params.get("offset"), 0, 0, 1_000_000);
     const [countResult, pageResult] = await Promise.all([
-      db.query("SELECT COUNT(*)::int AS total FROM topics"),
-      db.query(
+      queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM topics"),
+      queryAsUser(session.userId, 
         `SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc,
                 t.cover_asset_id, t.created_at, t.updated_at,
                 (SELECT COUNT(*)::int FROM notes n
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     const subject = stringField(body, "subject", 120);
     const description = stringField(body, "description", 1000);
     const category = stringField(body, "category", 60);
-    const result = await db.query(
+    const result = await queryAsUser(session.userId, 
       `INSERT INTO topics (title_enc, subject_enc, description_enc, category_enc)
        VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`,
       [encryptText(title, session.key), encryptText(subject, session.key), encryptText(description, session.key), encryptText(category, session.key)],

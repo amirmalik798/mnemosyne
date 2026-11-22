@@ -16,7 +16,7 @@ async function main() {
 
   try {
     const pending = await pool.query(
-      `SELECT id, storage_key, byte_size
+      `SELECT id, user_id, storage_key, byte_size
        FROM assets
        WHERE storage_key IS NOT NULL
        ORDER BY created_at, id`,
@@ -70,7 +70,7 @@ async function main() {
       try {
         await client.query("BEGIN");
         const current = await client.query(
-          "SELECT storage_key, byte_size FROM assets WHERE id = $1 FOR UPDATE",
+          "SELECT user_id, storage_key, byte_size FROM assets WHERE id = $1 FOR UPDATE",
           [assetId],
         );
 
@@ -87,24 +87,28 @@ async function main() {
 
         if (
           current.rows[0].storage_key !== storageKey ||
+          String(current.rows[0].user_id) !== String(row.user_id) ||
           Number(current.rows[0].byte_size) !== byteSize
         ) {
           throw new Error("Asset metadata changed during migration for asset " + assetId + ".");
         }
 
         const existingBlob = await client.query(
-          "SELECT encrypted_bytes FROM asset_blobs WHERE asset_id = $1",
+          "SELECT user_id, encrypted_bytes FROM asset_blobs WHERE asset_id = $1",
           [assetId],
         );
         if (existingBlob.rows[0]) {
           const storedBytes = Buffer.from(existingBlob.rows[0].encrypted_bytes as Buffer);
+          if (String(existingBlob.rows[0].user_id) !== String(row.user_id)) {
+            throw new Error("Existing database blob ownership does not match its asset for asset " + assetId + ".");
+          }
           if (!storedBytes.equals(encryptedBytes)) {
             throw new Error("An existing database blob does not match the legacy file for asset " + assetId + ".");
           }
         } else {
           await client.query(
-            "INSERT INTO asset_blobs (asset_id, encrypted_bytes) VALUES ($1, $2)",
-            [assetId, encryptedBytes],
+            "INSERT INTO asset_blobs (asset_id, user_id, encrypted_bytes) VALUES ($1, $2, $3)",
+            [assetId, row.user_id, encryptedBytes],
           );
         }
 

@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { decryptBytes, decryptText, encryptBytes, encryptText } from "@/lib/crypto";
-import { db } from "@/lib/db";
+import { db, queryAsUser, setUserContext } from "@/lib/db";
 import { resolveStorageFilePath } from "@/lib/storage-path";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -45,10 +45,11 @@ async function removeLegacyStorageFiles(storageKeys: Array<string | null | undef
   }));
 }
 
-async function withTransaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+async function withTransaction<T>(userId: string, work: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    await setUserContext(client, userId);
     const result = await work(client);
     await client.query("COMMIT");
     return result;
@@ -77,6 +78,7 @@ export async function saveEncryptedAsset(input: {
   bytes: Buffer;
   name: string;
   mimeType: string;
+  userId: string;
   ownerType: "topic" | "note";
   ownerId: string;
   key: Buffer;
@@ -96,20 +98,20 @@ export async function saveEncryptedAsset(input: {
 
   const persist = async (query: QueryExecutor) => {
     await query(
-      `INSERT INTO assets (id, owner_type, owner_id, storage_key, original_name_enc, mime_type, byte_size)
-       VALUES ($1, $2, $3, NULL, $4, $5, $6)`,
-      [id, input.ownerType, input.ownerId, encryptedName, input.mimeType, input.bytes.byteLength],
+      `INSERT INTO assets (id, user_id, owner_type, owner_id, storage_key, original_name_enc, mime_type, byte_size)
+       VALUES ($1, $2, $3, $4, NULL, $5, $6, $7)`,
+      [id, input.userId, input.ownerType, input.ownerId, encryptedName, input.mimeType, input.bytes.byteLength],
     );
     await query(
-      "INSERT INTO asset_blobs (asset_id, encrypted_bytes) VALUES ($1, $2)",
-      [id, encryptedBytes],
+      "INSERT INTO asset_blobs (asset_id, user_id, encrypted_bytes) VALUES ($1, $2, $3)",
+      [id, input.userId, encryptedBytes],
     );
   };
 
   if (input.query) {
     await persist(input.query);
   } else {
-    await withTransaction((client) => persist((text, values) => client.query(text, values)));
+    await withTransaction(input.userId, (client) => persist((text, values) => client.query(text, values)));
   }
 
   return { id, mimeType: input.mimeType, byteSize: input.bytes.byteLength };
@@ -193,8 +195,8 @@ function noteContentReferencesAsset(content: unknown, assetId: string): boolean 
   return false;
 }
 
-export async function deleteAssetById(id: string, key: Buffer): Promise<void> {
-  const legacyStorageKeys = await withTransaction(async (client) => {
+export async function deleteAssetById(id: string, key: Buffer, userId: string): Promise<void> {
+  const legacyStorageKeys = await withTransaction(userId, async (client) => {
     const owner = await client.query(
       "SELECT owner_type, owner_id FROM assets WHERE id = $1",
       [id],
@@ -239,8 +241,8 @@ export async function deleteAssetById(id: string, key: Buffer): Promise<void> {
   await removeLegacyStorageFiles(legacyStorageKeys);
 }
 
-export async function deleteTrashedNoteWithAssets(noteId: string): Promise<void> {
-  const legacyStorageKeys = await withTransaction(async (client) => {
+export async function deleteTrashedNoteWithAssets(noteId: string, userId: string): Promise<void> {
+  const legacyStorageKeys = await withTransaction(userId, async (client) => {
     const note = await client.query(
       "SELECT id FROM notes WHERE id = $1 AND deleted_at IS NOT NULL FOR UPDATE",
       [noteId],
@@ -261,8 +263,8 @@ export async function deleteTrashedNoteWithAssets(noteId: string): Promise<void>
   await removeLegacyStorageFiles(legacyStorageKeys);
 }
 
-export async function deleteEmptyTopicWithAssets(topicId: string): Promise<void> {
-  const legacyStorageKeys = await withTransaction(async (client) => {
+export async function deleteEmptyTopicWithAssets(topicId: string, userId: string): Promise<void> {
+  const legacyStorageKeys = await withTransaction(userId, async (client) => {
     const topic = await client.query(
       "SELECT id FROM topics WHERE id = $1 FOR UPDATE",
       [topicId],
@@ -289,7 +291,7 @@ export async function deleteEmptyTopicWithAssets(topicId: string): Promise<void>
   await removeLegacyStorageFiles(legacyStorageKeys);
 }
 
-export async function deleteUnreferencedNoteAssets(noteId: string, content: unknown): Promise<void> {
+export async function deleteUnreferencedNoteAssets(noteId: string, content: unknown, userId: string): Promise<void> {
   const referenced = new Set<string>();
   const visit = (value: unknown) => {
     if (!value || typeof value !== "object") return;
@@ -306,7 +308,7 @@ export async function deleteUnreferencedNoteAssets(noteId: string, content: unkn
   };
   visit(content);
 
-  const result = await db.query(
+  const result = await queryAsUser(userId,
     `DELETE FROM assets
      WHERE owner_type = 'note'
        AND owner_id = $1
@@ -321,6 +323,7 @@ export async function deleteUnreferencedNoteAssets(noteId: string, content: unkn
 
 /** Duplicate an image using a fresh nonce and store its ciphertext in PostgreSQL. */
 export async function cloneEncryptedNoteAsset(input: {
+  userId: string;
   asset: {
     storage_key: string | null;
     encrypted_bytes: Buffer | null;
@@ -348,13 +351,13 @@ export async function cloneEncryptedNoteAsset(input: {
   );
 
   await input.query(
-    `INSERT INTO assets (id, owner_type, owner_id, storage_key, original_name_enc, mime_type, byte_size)
-     VALUES ($1, 'note', $2, NULL, $3, $4, $5)`,
-    [id, input.ownerId, encryptedName, input.asset.mime_type, plainBytes.byteLength],
+    `INSERT INTO assets (id, user_id, owner_type, owner_id, storage_key, original_name_enc, mime_type, byte_size)
+     VALUES ($1, $2, 'note', $3, NULL, $4, $5, $6)`,
+    [id, input.userId, input.ownerId, encryptedName, input.asset.mime_type, plainBytes.byteLength],
   );
   await input.query(
-    "INSERT INTO asset_blobs (asset_id, encrypted_bytes) VALUES ($1, $2)",
-    [id, encryptedBytes],
+    "INSERT INTO asset_blobs (asset_id, user_id, encrypted_bytes) VALUES ($1, $2, $3)",
+    [id, input.userId, encryptedBytes],
   );
 
   return { id };

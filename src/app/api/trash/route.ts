@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { deleteTrashedNoteWithAssets } from "@/lib/storage";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
@@ -17,8 +17,8 @@ export async function GET(request: Request) {
 
     const [countResult, pageResult] = paginated
       ? await Promise.all([
-          db.query("SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NOT NULL"),
-          db.query(
+          queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NOT NULL"),
+          queryAsUser(session.userId, 
             `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.deleted_at,
                     t.title_enc AS topic_title_enc
              FROM notes n
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
             [limit, offset],
           ),
         ])
-      : [null, await db.query(
+      : [null, await queryAsUser(session.userId, 
           `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.deleted_at,
                   t.title_enc AS topic_title_enc
            FROM notes n
@@ -64,18 +64,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    await requireVaultSession();
+    const session = await requireVaultSession();
     const body = await readJsonObject(request, 16 * 1024);
     const id = stringField(body, "id", 64, true);
     const action = stringField(body, "action", 20, true);
     if (action === "restore") {
-      const restored = await db.query(
+      const restored = await queryAsUser(session.userId, 
         "UPDATE notes SET deleted_at = NULL, updated_at = NOW() WHERE id = $1 AND deleted_at IS NOT NULL RETURNING id",
         [id],
       );
       if (!restored.rows[0]) throw new Error("NOT_FOUND");
     } else if (action === "delete") {
-      await deleteTrashedNoteWithAssets(id);
+      await deleteTrashedNoteWithAssets(id, session.userId);
     } else {
       throw new Error("VALIDATION:Choose a valid trash action.");
     }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Edit3 } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { RichContent } from "@/components/rich-content";
 import { NoteReaderActions } from "@/components/note-reader-actions";
@@ -12,7 +12,7 @@ export const dynamic="force-dynamic";
 export default async function NoteReaderPage({params}:{params:Promise<{id:string}>}){
   const {id}=await params;
   const session=await requireVaultSession();
-  const result = await db.query(
+  const result = await queryAsUser(session.userId, 
     `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.updated_at,
             t.title_enc AS topic_title_enc
      FROM notes n
@@ -43,7 +43,7 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
   };
   collectImageIds(content);
   const imageAssetsResult = imageIds.size
-    ? await db.query(
+    ? await queryAsUser(session.userId, 
         "SELECT id FROM assets WHERE owner_type='note' AND owner_id=$1 AND id=ANY($2::uuid[])",
         [id, Array.from(imageIds)],
       )

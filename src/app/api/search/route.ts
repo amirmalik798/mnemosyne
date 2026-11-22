@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 
 function searchableText(value: unknown): string {
@@ -39,13 +39,13 @@ export async function GET(request: Request) {
     const needle = query.toLocaleLowerCase();
 
     const [topicRows, noteRows] = await Promise.all([
-      db.query(
+      queryAsUser(session.userId, 
         `SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, updated_at
          FROM topics
          ORDER BY updated_at DESC, id DESC
          LIMIT 500`,
       ),
-      db.query(
+      queryAsUser(session.userId, 
         `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.updated_at,
                 t.title_enc AS topic_title_enc
          FROM notes n
