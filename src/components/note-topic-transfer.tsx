@@ -203,7 +203,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
               </p>
             </div>
 
-            {busy && <OperationStatus kind="loading" message={processingMessage || "Working…"} />}
+            {busy && <OperationStatus kind="processing" message={processingMessage || "Working…"} />}
             {error && <OperationStatus kind="failure" message={error} />}
             <footer className="transfer-dialog-actions">
               <button type="button" className="secondary-btn" onClick={() => { topicsRequestRef.current?.abort(); setOpen(false); }} disabled={busy || topicsLoading}>Cancel</button>

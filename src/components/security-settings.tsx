@@ -67,7 +67,7 @@ export function SecuritySettings() {
         </div>
       </div>
 
-      {busy && <div style={{ marginTop: 13 }}><OperationStatus kind="loading" message="Updating your account password securely…" /></div>}
+      {busy && <div style={{ marginTop: 13 }}><OperationStatus kind="processing" message="Updating your account password securely…" /></div>}
       {error && <div style={{ marginTop: 13 }}><OperationStatus kind="failure" message={error} /></div>}
       {success && <div style={{ marginTop: 13 }}><OperationStatus kind="success" message={success} /></div>}
 

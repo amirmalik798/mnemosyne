@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { BookOpen, Bookmark, Boxes, Command, FileText, FolderOpen, LoaderCircle, LockKeyhole, Pin, Plus, Search, Settings, ShieldCheck, Trash2, X } from "lucide-react";
 const TopicDialog = dynamic(
   () => import("@/components/topic-dialog").then((module) => module.TopicDialog),
-  { loading: () => null },
+  { loading: () => <OperationStatus kind="loading" message="Opening the topic editor…" /> },
 );
 import { FontSelector, ThemeToggle } from "@/components/theme-provider";
 import { readResumeLocation, saveResumeLocation } from "@/lib/resume-location";
@@ -55,15 +55,18 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   useEffect(() => {
     const showOperationNotice = (event: Event) => {
       const detail = (event as CustomEvent<{ kind?: unknown; message?: unknown }>).detail;
-      const allowedKinds: OperationStatusKind[] = ["loading", "waiting", "success", "error", "failure"];
+      const allowedKinds: OperationStatusKind[] = ["loading", "waiting", "busy", "processing", "success", "error", "failure"];
       if (!detail || typeof detail.message !== "string" || !allowedKinds.includes(detail.kind as OperationStatusKind)) return;
 
       setOperationNotice({ kind: detail.kind as OperationStatusKind, message: detail.message });
       if (operationNoticeTimerRef.current !== null) window.clearTimeout(operationNoticeTimerRef.current);
-      operationNoticeTimerRef.current = window.setTimeout(() => {
-        setOperationNotice(null);
-        operationNoticeTimerRef.current = null;
-      }, detail.kind === "error" || detail.kind === "failure" ? 7000 : 3800);
+      const isInProgress = detail.kind === "loading" || detail.kind === "waiting" || detail.kind === "busy" || detail.kind === "processing";
+      if (!isInProgress) {
+        operationNoticeTimerRef.current = window.setTimeout(() => {
+          setOperationNotice(null);
+          operationNoticeTimerRef.current = null;
+        }, detail.kind === "error" || detail.kind === "failure" ? 7000 : 3800);
+      }
     };
 
     window.addEventListener("mnemosyne:operation-status", showOperationNotice);
@@ -238,7 +241,9 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
   async function lockVault() {
+    if (locking) return;
     setLocking(true);
+    notifyOperation("processing", "Saving pending drafts and locking your vault…");
     saveResumeLocation(user.id);
     window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
     try {
@@ -247,7 +252,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       if (!response.ok) throw new Error("The server did not confirm the lock request.");
       window.location.replace("/login");
     } catch {
-      notifyOperation("error", "The vault could not be locked. Check your connection and try again.");
+      notifyOperation("failure", "The vault could not be locked. Check your connection and try again.");
     } finally {
       setLocking(false);
     }

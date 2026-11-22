@@ -66,7 +66,7 @@ export function SearchWorkspace() {
   const searching = waiting || busy;
 
   return (
-    <main className="page">
+    <main className="page" aria-busy={searching}>
       <div className="page-heading">
         <div>
           <div className="eyebrow">Find a thought</div>

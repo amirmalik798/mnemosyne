@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Download, LoaderCircle, Trash2 } from "lucide-react";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
-import { OperationStatus, notifyOperation } from "@/components/operation-status";
+import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 import { useConfirmation } from "@/components/confirmation-dialog";
 
 type Node = { type?: string; text?: string; attrs?: Record<string, unknown>; content?: Node[]; marks?: Array<{type:string;attrs?:Record<string,unknown>}> };
@@ -44,8 +44,9 @@ export function NoteReaderActions({
   const router = useRouter();
   const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
   const [message, setMessage] = useState("");
-  const [messageKind, setMessageKind] = useState<"success" | "failure">("success");
+  const [messageKind, setMessageKind] = useState<OperationStatusKind>("success");
   const [busy, setBusy] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   function markdown() {
     const root = content && typeof content === "object" ? content as Node : { content: [] };
@@ -53,6 +54,10 @@ export function NoteReaderActions({
   }
 
   async function copy() {
+    if (busy || copying) return;
+    setCopying(true);
+    setMessageKind("processing");
+    setMessage("Copying Markdown to the clipboard…");
     try {
       await navigator.clipboard.writeText(markdown());
       setMessageKind("success");
@@ -60,10 +65,13 @@ export function NoteReaderActions({
     } catch {
       setMessageKind("failure");
       setMessage("Clipboard access was denied. Check your browser permissions and try again.");
+    } finally {
+      setCopying(false);
     }
   }
 
   function exportNote() {
+    if (busy || copying) return;
     try {
       const blob = new Blob([markdown()], { type: "text/markdown;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -81,7 +89,7 @@ export function NoteReaderActions({
   }
 
   async function remove() {
-    if (busy) return;
+    if (busy || copying) return;
     const accepted = await requestConfirmation({
       eyebrow: "Move note to trash",
       title: "Move this note to Recently deleted?",
@@ -91,6 +99,8 @@ export function NoteReaderActions({
     });
     if (!accepted) return;
     setBusy(true);
+    setMessageKind("processing");
+    setMessage("Moving note to Recently deleted…");
     try {
       const response = await fetch(`/api/notes/${id}`, { method: "DELETE" });
       const data = await response.json();
@@ -111,17 +121,18 @@ export function NoteReaderActions({
   return (
     <>
       <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} />
-      <button type="button" className="secondary-btn" onClick={() => void copy()} disabled={busy}>
-        <Copy size={14} /> Copy
+      <button type="button" className="secondary-btn" onClick={() => void copy()} disabled={busy || copying} aria-busy={copying}>
+        {copying ? <LoaderCircle className="operation-spinner" size={14} /> : <Copy size={14} />} {copying ? "Copying…" : "Copy"}
       </button>
-      <button type="button" className="secondary-btn" onClick={exportNote} disabled={busy}>
+      <button type="button" className="secondary-btn" onClick={exportNote} disabled={busy || copying}>
         <Download size={14} /> Export
       </button>
       <button
         type="button"
         className="icon-button"
         onClick={() => void remove()}
-        disabled={busy}
+        disabled={busy || copying}
+        aria-busy={busy}
         title={busy ? "Moving note to Recently deleted…" : "Move to trash"}
         aria-label={busy ? "Moving note to Recently deleted" : "Move to trash"}
       >

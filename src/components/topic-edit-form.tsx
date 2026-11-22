@@ -222,7 +222,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
             </div>
           </div>
 
-          {busy && <div style={{ marginTop: 15 }}><OperationStatus kind="loading" message={processingMessage} /></div>}
+          {busy && <div style={{ marginTop: 15 }}><OperationStatus kind="processing" message={processingMessage} /></div>}
           {error && <div style={{ marginTop: 12 }}><OperationStatus kind="failure" message={error} /></div>}
 
           <div className="form-actions" style={{ justifyContent: "space-between" }}>

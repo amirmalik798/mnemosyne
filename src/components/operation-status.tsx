@@ -9,11 +9,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type OperationStatusKind = "loading" | "waiting" | "success" | "error" | "failure";
+export type OperationStatusKind = "loading" | "waiting" | "busy" | "processing" | "success" | "error" | "failure";
 
 const STATUS_ICONS: Record<OperationStatusKind, LucideIcon> = {
   loading: LoaderCircle,
   waiting: Clock3,
+  busy: LoaderCircle,
+  processing: LoaderCircle,
   success: CheckCircle2,
   error: AlertCircle,
   failure: XCircle,
@@ -31,6 +33,7 @@ export function OperationStatus({
   className?: string;
 }) {
   const Icon = STATUS_ICONS[kind];
+  const isInProgress = kind === "loading" || kind === "busy" || kind === "processing";
 
   return (
     <div
@@ -43,9 +46,10 @@ export function OperationStatus({
       role={kind === "error" || kind === "failure" ? "alert" : "status"}
       aria-live={kind === "error" || kind === "failure" ? "assertive" : "polite"}
       aria-atomic="true"
+      aria-busy={isInProgress}
     >
       <Icon
-        className={kind === "loading" ? "operation-status-icon operation-spinner" : "operation-status-icon"}
+        className={isInProgress ? "operation-status-icon operation-spinner" : "operation-status-icon"}
         aria-hidden="true"
       />
       <span>{message}</span>

@@ -227,7 +227,7 @@ export function AccountRegister() {
         </div>
         {error && <OperationStatus kind="failure" message={error} />}
         {message && <OperationStatus kind="success" message={message} />}
-        {busy && <OperationStatus kind="loading" message="Creating your account and preparing email confirmation…" />}
+        {busy && <OperationStatus kind="processing" message="Creating your account and preparing email confirmation…" />}
         <button className="primary-btn auth-submit" type="submit" disabled={busy}>
           {busy ? <LoaderCircle className="operation-spinner" size={17} /> : <ShieldCheck size={17} />}
           {busy ? "Creating your account…" : "Create secure account"}
@@ -344,14 +344,15 @@ export function AccountLogin() {
         </div>
         {error && <OperationStatus kind="failure" message={error} />}
         {message && <OperationStatus kind={needsVerification ? "waiting" : "success"} message={message} />}
-        {busy && <OperationStatus kind="loading" message="Verifying your account and unlocking your private archive…" />}
+        {busy && <OperationStatus kind="processing" message="Verifying your account and unlocking your private archive…" />}
         <button className="primary-btn auth-submit" type="submit" disabled={busy}>
           {busy ? <LoaderCircle className="operation-spinner" size={17} /> : <KeyRound size={17} />}
           {busy ? "Signing you in…" : "Sign in securely"}
           {!busy && <ArrowRight size={16} />}
         </button>
+        {resending && <OperationStatus kind="processing" message="Sending a fresh email confirmation link…" />}
         {needsVerification && (
-          <button type="button" className="secondary-btn auth-resend" disabled={resending || !email || !password} onClick={resend}>
+          <button type="button" className="secondary-btn auth-resend" disabled={resending || !email || !password} onClick={resend} aria-busy={resending}>
             {resending ? <LoaderCircle className="operation-spinner" size={15} /> : <MailCheck size={15} />}
             {resending ? "Sending confirmation…" : "Resend confirmation email"}
           </button>
@@ -413,7 +414,7 @@ export function VerifyEmailForm() {
           <p className="form-hint">This link can be used once and expires after 24 hours. Verification only activates the account; sign in afterward to unlock your archive.</p>
           {error && <OperationStatus kind="failure" message={error} />}
           {message && <OperationStatus kind="success" message={message} />}
-          {busy && <OperationStatus kind="loading" message="Confirming your email address…" />}
+          {busy && <OperationStatus kind="processing" message="Confirming your email address…" />}
           {!message && <button className="primary-btn auth-submit" type="button" onClick={verify} disabled={busy}>
             {busy ? <LoaderCircle className="operation-spinner" size={16} /> : <MailCheck size={16} />}
             {busy ? "Verifying…" : "Confirm email address"}

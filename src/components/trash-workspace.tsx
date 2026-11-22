@@ -116,6 +116,7 @@ export function TrashWorkspace() {
         </div>
       )}
       {error && <OperationStatus kind="failure" message={error} />}
+      {busy && <OperationStatus kind="processing" message={busy.action === "restore" ? "Restoring the selected note…" : "Permanently deleting the selected note and its encrypted images…"} />}
 
       {!loading && !loadError && (
         <section className="panel">
@@ -158,7 +159,8 @@ export function TrashWorkspace() {
       {confirmationDialog}
       {!loading && !loadError && hasMore && (
         <div className="archive-pagination-controls" style={{ justifyContent: "center", marginTop: 18 }}>
-          <button type="button" className="secondary-btn" onClick={() => void load(true)} disabled={loadingMore}>
+          {loadingMore && <OperationStatus kind="loading" message="Loading more deleted notes…" compact />}
+          <button type="button" className="secondary-btn" onClick={() => void load(true)} disabled={loadingMore} aria-busy={loadingMore}>
             {loadingMore ? "Loading more…" : "Load more deleted notes"}
           </button>
         </div>

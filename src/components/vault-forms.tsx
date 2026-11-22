@@ -52,7 +52,7 @@ export function VaultSetup() {
         <span className="form-hint">Required on production deployments when VAULT_SETUP_TOKEN is configured. Generate it on the server and do not share it.</span>
       </div>
       {error && <OperationStatus kind="failure" message={error} />}
-      <button className="primary-btn" type="submit" disabled={busy} style={{ width: "100%", height: 44, marginTop: 4 }}>{busy ? <LoaderCircle className="operation-spinner" size={16} /> : <ShieldCheck size={16} />}{busy ? "Creating secure vault…" : "Create private vault"}</button>{busy && <OperationStatus kind="loading" message="Generating and securing your private vault…" />}
+      <button className="primary-btn" type="submit" disabled={busy} style={{ width: "100%", height: 44, marginTop: 4 }}>{busy ? <LoaderCircle className="operation-spinner" size={16} /> : <ShieldCheck size={16} />}{busy ? "Creating secure vault…" : "Create private vault"}</button>{busy && <OperationStatus kind="processing" message="Generating and securing your private vault…" />}
     </form>
     <div className="auth-foot">Your vault key is generated randomly and wrapped with a key derived from your master password. Keep your password safe.</div>
   </AuthFrame>;
@@ -78,7 +78,7 @@ export function VaultUnlock() {
     <form className="auth-form" onSubmit={submit}>
       <div className="form-field"><label className="form-label" htmlFor="unlock-password">Master password</label><div style={{ position: "relative" }}><input id="unlock-password" className="field" type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your master password" required style={{ paddingRight: 42 }} /><button type="button" className="icon-button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} style={{ position: "absolute", right: 5, top: 4 }}>{show ? <EyeOff /> : <Eye />}</button></div></div>
       {error && <OperationStatus kind="failure" message={error} />}
-      <button className="primary-btn" type="submit" disabled={busy} style={{ width: "100%", height: 44, marginTop: 4 }}>{busy ? <LoaderCircle className="operation-spinner" size={16} /> : <KeyRound size={16} />}{busy ? "Unlocking…" : "Unlock Mnemosyne"}</button>{busy && <OperationStatus kind="loading" message="Verifying your password and unlocking the archive…" />}
+      <button className="primary-btn" type="submit" disabled={busy} style={{ width: "100%", height: 44, marginTop: 4 }}>{busy ? <LoaderCircle className="operation-spinner" size={16} /> : <KeyRound size={16} />}{busy ? "Unlocking…" : "Unlock Mnemosyne"}</button>{busy && <OperationStatus kind="processing" message="Verifying your password and unlocking the archive…" />}
     </form>
     <div className="auth-foot">This is a single-user private vault. Five consecutive failed password attempts trigger a temporary lockout.</div>
   </AuthFrame>;
