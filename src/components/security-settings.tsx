@@ -17,7 +17,7 @@ export function SecuritySettings() {
     setError("");
     setSuccess("");
 
-    if (newPassword.length < 12) return setError("Use at least 12 characters for your new password.");
+    if (newPassword.length < 16) return setError("Use at least 16 characters for your new password.");
     if (newPassword !== confirm) return setError("The new passwords do not match.");
 
     setBusy(true);
@@ -59,11 +59,11 @@ export function SecuritySettings() {
         </div>
         <div className="form-field">
           <label className="form-label" htmlFor="new-master-password">New password</label>
-          <input id="new-master-password" className="field" type="password" value={newPassword} onChange={(event) => setNew(event.target.value)} required minLength={12} autoComplete="new-password" disabled={busy} />
+          <input id="new-master-password" className="field" type="password" value={newPassword} onChange={(event) => setNew(event.target.value)} required minLength={16} autoComplete="new-password" disabled={busy} />
         </div>
         <div className="form-field">
           <label className="form-label" htmlFor="confirm-master-password">Confirm new password</label>
-          <input id="confirm-master-password" className="field" type="password" value={confirm} onChange={(event) => setConfirm(event.target.value)} required minLength={12} autoComplete="new-password" disabled={busy} />
+          <input id="confirm-master-password" className="field" type="password" value={confirm} onChange={(event) => setConfirm(event.target.value)} required minLength={16} autoComplete="new-password" disabled={busy} />
         </div>
       </div>
 
