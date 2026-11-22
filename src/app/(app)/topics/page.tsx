@@ -7,7 +7,18 @@ import { TopicArchive } from "@/components/topic-archive";
 export const dynamic = "force-dynamic";
 export default async function TopicsPage() {
   const session = await requireVaultSession();
-  const result = await db.query(`SELECT t.*, (SELECT COUNT(*)::int FROM notes n WHERE n.topic_id=t.id AND n.deleted_at IS NULL) AS note_count FROM topics t ORDER BY t.updated_at DESC`);
+  const result = await db.query(
+    `SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc,
+            t.cover_asset_id, t.updated_at, COALESCE(note_counts.note_count, 0)::int AS note_count
+     FROM topics t
+     LEFT JOIN (
+       SELECT topic_id, COUNT(*)::int AS note_count
+       FROM notes
+       WHERE deleted_at IS NULL
+       GROUP BY topic_id
+     ) AS note_counts ON note_counts.topic_id = t.id
+     ORDER BY t.updated_at DESC, t.id DESC`,
+  );
   const topics: TopicItem[] = result.rows.map((r) => ({ id:r.id,title:decryptText(r.title_enc,session.key),subject:decryptText(r.subject_enc,session.key),description:decryptText(r.description_enc,session.key),category:decryptText(r.category_enc,session.key),coverUrl:r.cover_asset_id?`/api/assets/${r.cover_asset_id}`:null,noteCount:r.note_count,updatedAt:r.updated_at }));
   const categories = Array.from(
     new Map(
