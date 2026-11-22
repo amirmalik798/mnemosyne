@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { detectTextDirection, detectTextLanguage } from "@/lib/bidi";
 import { safeFontFamily, safeTextColor } from "@/lib/note-formatting-utils";
 
 type RichNode = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: Array<{ type: string; attrs?: Record<string, unknown> }>; content?: RichNode[] };
+const EMPTY_RICH_NODES: RichNode[] = [];
+const EMPTY_WIKI_LINKS: Record<string, string> = {};
+
 
 const nodeTextCache = new WeakMap<object, string>();
 const BIDI_BLOCK_TYPES = new Set(["paragraph", "heading", "blockquote", "bulletList", "orderedList", "listItem"]);
@@ -176,12 +179,30 @@ function renderNode(
   return <React.Fragment key={index}>{children}</React.Fragment>;
 }
 
-export function RichContent({ content, wikiLinks = {} }: { content: unknown; wikiLinks?: Record<string, string> }) {
+export function RichContent({ content, wikiLinks = EMPTY_WIKI_LINKS }: { content: unknown; wikiLinks?: Record<string, string> }) {
   const [activeImage, setActiveImage] = useState<{ src: string; alt: string } | null>(null);
   const closeImage = useCallback(() => setActiveImage(null), []);
-  const root = content && typeof content === "object" ? content as RichNode : { type: "doc", content: [] };
-  const headings = collectReaderHeadings(root.content ?? []);
-  const headingIds = Object.fromEntries(headings.map((heading) => [heading.path, heading.id]));
+  const openImage = useCallback((src: string, alt: string) => setActiveImage({ src, alt }), []);
+  const root = useMemo(
+    () => content && typeof content === "object"
+      ? content as RichNode
+      : { type: "doc", content: EMPTY_RICH_NODES },
+    [content],
+  );
+  const contentNodes = root.content ?? EMPTY_RICH_NODES;
+  const headings = useMemo(() => collectReaderHeadings(contentNodes), [contentNodes]);
+  const headingIds = useMemo(
+    () => Object.fromEntries(headings.map((heading) => [heading.path, heading.id])),
+    [headings],
+  );
+  // Image preview state changes should not rebuild a potentially large note
+  // document or repeat its heading and bidirectional-text traversal.
+  const renderedContent = useMemo(
+    () => contentNodes.map((node, index) =>
+      renderNode(node, index, openImage, wikiLinks, headingIds),
+    ),
+    [contentNodes, openImage, wikiLinks, headingIds],
+  );
 
   return (
     <>
@@ -210,9 +231,7 @@ export function RichContent({ content, wikiLinks = {} }: { content: unknown; wik
         </details>
       )}
       <article className="reader-content" dir="ltr" aria-label="Note content">
-        {(root.content ?? []).map((node, index) =>
-          renderNode(node, index, (src, alt) => setActiveImage({ src, alt }), wikiLinks, headingIds),
-        )}
+        {renderedContent}
       </article>
       <ImageLightbox
         src={activeImage?.src ?? null}
