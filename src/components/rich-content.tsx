@@ -8,7 +8,17 @@ function getNodeText(node: RichNode): string {
 }
 
 function blockBidiProps(node: RichNode) {
-  const text = getNodeText(node);\n  const dir = detectTextDirection(text);\n  return { dir, lang: detectTextLanguage(text), style: { direction: dir, textAlign: dir === "rtl" ? "right" as const : "left" as const, unicodeBidi: "plaintext" as const } };
+  const text = getNodeText(node);
+  const dir = detectTextDirection(text);
+  return {
+    dir,
+    lang: detectTextLanguage(text),
+    style: {
+      direction: dir,
+      textAlign: dir === "rtl" ? "right" as const : "left" as const,
+      unicodeBidi: "plaintext" as const,
+    },
+  };
 }
 
 function renderText(node: RichNode, key: React.Key): React.ReactNode {
