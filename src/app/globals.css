@@ -6461,3 +6461,22 @@ html[data-theme="light"] .topic-card-collection .topic-card-footer .topic-card-o
     margin-left: auto;
   }
 }
+
+
+/* Keep the Create Topic footer actions grouped at the lower-right edge. */
+.topic-create-modal--create .topic-dialog-primary-actions {
+  width: auto;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+@media (max-width: 560px) {
+  .topic-create-modal--create .topic-dialog-primary-actions {
+    width: auto;
+    display: flex;
+    margin-left: auto;
+  }
+  .topic-create-modal--create .topic-dialog-primary-actions > button {
+    width: auto;
+    min-width: 112px;
+  }
+}

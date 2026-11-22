@@ -408,7 +408,7 @@ export function TopicDialog({ onClose, mode = "create", topic }: TopicDialogProp
     ? "Change the details you want to update. Your existing notes will stay in this collection."
     : "Only the topic title is required. You can change the other details later.";
 
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) requestClose(); }}><section ref={modalRef} className="modal topic-create-modal" role="dialog" aria-modal="true" aria-labelledby="topic-modal-title" aria-describedby="topic-modal-description" aria-busy={busy}>
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) requestClose(); }}><section ref={modalRef} className={`modal topic-create-modal ${isEdit ? "topic-edit-modal" : "topic-create-modal--create"}`} role="dialog" aria-modal="true" aria-labelledby="topic-modal-title" aria-describedby="topic-modal-description" aria-busy={busy}>
     <div className="modal-head"><div><div className="eyebrow">{dialogEyebrow}</div><h2 className="modal-title" id="topic-modal-title">{dialogTitle}</h2><p className="modal-subtitle" id="topic-modal-description">{dialogSubtitle}</p></div><button type="button" className="icon-button icon-only-btn" onClick={requestClose} aria-label="Close dialog" disabled={busy}><X /></button></div>
     <form onSubmit={submit}>
       <p className="topic-dialog-guidance">{dialogGuidance}</p>
