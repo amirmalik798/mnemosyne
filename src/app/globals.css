@@ -3597,6 +3597,8 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
 .reader-toc-link--level-2 { margin-inline-start: 12px; }
 .reader-toc-link--level-3 { margin-inline-start: 24px; }
 .reader-action-button {
+  width: auto;
+  height: 40px;
   min-height: 40px;
   min-width: 0;
   display: inline-flex;

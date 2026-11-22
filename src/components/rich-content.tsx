@@ -105,9 +105,9 @@ function collectReaderHeadings(nodes: RichNode[]): ReaderHeading[] {
       const title = getNodeText(node).trim();
       if (title) {
         const base = title.normalize("NFKD")
-          .replace(/[\\u0300-\\u036f]/g, "")
+          .replace(/[\u0300-\u036f]/g, "")
           .toLocaleLowerCase()
-          .replace(/[^\\p{L}\\p{N}]+/gu, "-")
+          .replace(/[^\p{L}\p{N}]+/gu, "-")
           .replace(/^-+|-+$/g, "") || "section";
         const occurrence = (usedIds.get(base) ?? 0) + 1;
         usedIds.set(base, occurrence);
