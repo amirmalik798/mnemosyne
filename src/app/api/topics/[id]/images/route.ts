@@ -19,7 +19,7 @@ type AssetRow = {
   byte_size: string | number;
 };
 
-const ASSET_URL = /^\/api\/assets\/([a-f0-9-]{36})$/i;
+const ASSET_URL = /^\/api\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 function collectImageAssetIds(value: unknown, result: Set<string>) {
   if (!value || typeof value !== "object") return;
