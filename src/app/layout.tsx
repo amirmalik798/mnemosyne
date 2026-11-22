@@ -20,7 +20,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           nonce={nonce}
           id="mnemosyne-theme-init"
           dangerouslySetInnerHTML={{
-            __html: "(function(){try{var t=localStorage.getItem('mnemosyne-theme');document.documentElement.dataset.theme=t==='light'?'light':'dark';var f=localStorage.getItem('mnemosyne-font');var valid=['source-sans','inter','atkinson','lato','plus-jakarta'];document.documentElement.dataset.font=valid.indexOf(f)!==-1?f:'source-sans';}catch(_){document.documentElement.dataset.theme='dark';document.documentElement.dataset.font='source-sans';}})();",
+            __html: "(function(){try{var t=localStorage.getItem('mnemosyne-theme');document.documentElement.dataset.theme=t==='light'?'light':'dark';var f=localStorage.getItem('mnemosyne-font');var fonts=['source-sans','inter','atkinson','lato','plus-jakarta'];document.documentElement.dataset.font=fonts.indexOf(f)!==-1?f:'source-sans';var s=localStorage.getItem('mnemosyne-font-size');var sizes=['compact','default','comfortable','large'];document.documentElement.dataset.fontSize=sizes.indexOf(s)!==-1?s:'default';}catch(_){document.documentElement.dataset.theme='dark';document.documentElement.dataset.font='source-sans';document.documentElement.dataset.fontSize='default';}})();",
           }}
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
