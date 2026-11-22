@@ -5015,3 +5015,26 @@ html[data-theme="light"] .note-row-more-menu .note-row-action:last-child { color
   .overview-image-card,
   .overview-create-topic-card { transition: none !important; transform: none !important; }
 }
+
+
+/* Ensure dashboard quick actions retain their labels despite the archive's icon-button sizing. */
+.note-row-actions--compact .note-row-action {
+  width: auto;
+  min-width: 0;
+  height: 36px;
+  min-height: 36px;
+  flex-basis: auto;
+  padding: 0 9px !important;
+}
+.note-row-more > summary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.note-row-more-menu .note-row-action {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 38px;
+  flex-basis: auto;
+  padding: 0 10px !important;
+}

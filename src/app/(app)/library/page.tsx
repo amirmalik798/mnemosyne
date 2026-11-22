@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, BookOpen, Clock3, FilePlus, FileText, FolderOpen, ImagePlus, Pin } from "lucide-react";
+import { ArrowUpRight, BookOpen, FilePlus, FileText, FolderOpen, ImagePlus, Pin } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
 import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
@@ -209,7 +209,7 @@ export default async function LibraryPage() {
       <section className="overview-section overview-continue-section" aria-labelledby="overview-continue-title">
         <div className="overview-section-heading">
           <div>
-            <div className="eyebrow">Recently opened up</div>
+            <div className="eyebrow">Your latest note</div>
             <h2 className="overview-section-title" id="overview-continue-title">Continue thinking</h2>
             <p className="overview-section-copy">Pick up where your latest idea left off.</p>
           </div>
