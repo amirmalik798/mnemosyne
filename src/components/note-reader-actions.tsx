@@ -26,6 +26,7 @@ export function NoteReaderActions({
   const [messageKind, setMessageKind] = useState<OperationStatusKind>("success");
   const [busy, setBusy] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [preparingPdf, setPreparingPdf] = useState(false);
 
   function markdown() {
     return noteToMarkdown(title, content, window.location.origin);
@@ -66,39 +67,59 @@ export function NoteReaderActions({
     }
   }
 
-  function exportPdf() {
-    if (busy || copying) return;
+  async function exportPdf() {
+    if (busy || copying || preparingPdf) return;
 
-    const printableRoot = document.querySelector(".note-reader-page");
-    if (!printableRoot) {
-      setMessageKind("failure");
-      setMessage("The note could not be prepared for PDF export. Please refresh and try again.");
-      return;
-    }
-
-    // Eagerly request lazy note images so the browser can include them in print.
-    printableRoot.querySelectorAll<HTMLImageElement>(".reader-content img").forEach((image) => {
-      image.loading = "eager";
-    });
-
-    const originalTitle = document.title;
-    const safeTitle = title
-      .replace(/[\\/:*?"<>|\u0000-\u001F]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 120) || "Mnemosyne note";
-
-    document.title = safeTitle;
-    window.addEventListener("afterprint", () => {
-      document.title = originalTitle;
-    }, { once: true });
+    setPreparingPdf(true);
+    setMessageKind("processing");
+    setMessage("Preparing note for PDF export…");
 
     try {
-      window.print();
+      const printableRoot = document.querySelector(".note-reader-page");
+      if (!printableRoot) {
+        throw new Error("The note could not be prepared for PDF export. Please refresh and try again.");
+      }
+
+      // Load lazy images and web fonts before opening the print dialog so the
+      // saved document does not omit content that was below the screen.
+      const images = Array.from(printableRoot.querySelectorAll<HTMLImageElement>(".reader-content img"));
+      await Promise.all(images.map((image) => {
+        image.loading = "eager";
+        return image.decode().catch(() => undefined);
+      }));
+      await document.fonts.ready;
+
+      const originalTitle = document.title;
+      const safeTitle = title
+        .replace(/[\\/:*?"<>|\u0000-\u001F]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120) || "Mnemosyne note";
+
+      document.title = safeTitle;
+      let titleRestored = false;
+      const restoreTitle = () => {
+        if (titleRestored) return;
+        titleRestored = true;
+        document.title = originalTitle;
+      };
+      window.addEventListener("afterprint", restoreTitle, { once: true });
+
+      try {
+        window.print();
+      } catch (error) {
+        window.removeEventListener("afterprint", restoreTitle);
+        restoreTitle();
+        throw error;
+      }
+
+      setMessageKind("success");
+      setMessage("Print dialog opened. Choose Save as PDF to export this note.");
+    } catch (error) {
+      setMessageKind("failure");
+      setMessage(error instanceof Error ? error.message : "The PDF export could not be prepared. Please try again.");
     } finally {
-      // Some browsers dispatch afterprint after print() returns; restore the
-      // title there so the suggested PDF filename remains the note title.
-      if (!("onafterprint" in window)) document.title = originalTitle;
+      setPreparingPdf(false);
     }
   }
 
@@ -146,13 +167,14 @@ export function NoteReaderActions({
       <button
         type="button"
         className={showLabels ? "secondary-btn reader-action-button reader-action-button--pdf" : "secondary-btn icon-only-btn"}
-        onClick={exportPdf}
-        aria-label="Export note as PDF"
-        title="Export as PDF · choose Save as PDF in your print dialog"
-        disabled={busy || copying}
+        onClick={() => void exportPdf()}
+        aria-label={preparingPdf ? "Preparing PDF export" : "Export note as PDF"}
+        title={preparingPdf ? "Preparing PDF export…" : "Export as PDF · choose Save as PDF in your print dialog"}
+        disabled={busy || copying || preparingPdf}
+        aria-busy={preparingPdf}
       >
-        <Printer size={16} aria-hidden="true" />
-        {showLabels && <span>Export PDF</span>}
+        {preparingPdf ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <Printer size={16} aria-hidden="true" />}
+        {showLabels && <span>{preparingPdf ? "Preparing…" : "Export PDF"}</span>}
       </button>
 
       <button
