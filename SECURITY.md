@@ -31,7 +31,7 @@ Set the first 64-character hexadecimal value as `SESSION_ENCRYPTION_SECRET`.
 
 Set the second value as `VAULT_SETUP_TOKEN`. It must be at least 32 characters. Keep it in the server's secret manager or protected environment configuration; do not commit it, expose it in a `NEXT_PUBLIC_*` variable, or paste it into an issue.
 
-The setup token is required only while the vault is uninitialized. The first production setup request must include it in the setup form. A production instance without a valid setup token intentionally refuses first-time initialization.
+The setup token is required only while the vault is uninitialized. The first production setup request must include it in the setup form. A production instance without a valid setup token intentionally refuses first-time initialization. After the vault has been initialized successfully, remove `VAULT_SETUP_TOKEN` from the production environment and restart the app; normal unlocks do not need it, and the initialized-vault check already blocks further setup.
 
 Keep `SESSION_ENCRYPTION_SECRET` stable. Changing it invalidates active sessions and prevents old session records from being decrypted. It does not re-encrypt vault data.
 
