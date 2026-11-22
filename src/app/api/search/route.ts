@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession } from "@/lib/auth";
-import { queryAsUser } from "@/lib/db";
+import { db, queryAsUser, setUserContext } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 
 function searchableText(value: unknown): string {
@@ -28,6 +28,136 @@ function searchableText(value: unknown): string {
   return fragments.join(" ");
 }
 
+
+type SearchNote = {
+  id: string;
+  topicId: string;
+  title: string;
+  subject: string;
+  topicTitle: string;
+  tags: string[];
+  preview: string;
+  matchType: "title" | "tag" | "content";
+  updatedAt: unknown;
+};
+
+/**
+ * Read note rows through a server-side cursor. At most 25 encrypted note
+ * documents are held by the Node process at once, rather than loading 2,000
+ * potentially large documents before searching them.
+ */
+async function searchNotesInBatches(
+  userId: string,
+  key: Buffer,
+  needle: string,
+  scope: "all" | "titles" | "tags" | "pinned",
+  signal: AbortSignal,
+): Promise<SearchNote[] | null> {
+  const client = await db.connect();
+  let transactionOpen = false;
+  const notes: SearchNote[] = [];
+  const contentExpression = scope === "all" || scope === "pinned"
+    ? "n.content_enc"
+    : "NULL::bytea";
+
+  try {
+    await client.query("BEGIN");
+    transactionOpen = true;
+    await setUserContext(client, userId);
+    await client.query(
+      `DECLARE notes_search_cursor NO SCROLL CURSOR FOR
+       SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, ${contentExpression} AS content_enc,
+              n.tags_enc, n.pinned, n.updated_at, t.title_enc AS topic_title_enc
+       FROM notes n
+       JOIN topics t ON t.id = n.topic_id
+       WHERE n.deleted_at IS NULL
+       ORDER BY n.updated_at DESC, n.id DESC
+       LIMIT 2000`,
+    );
+
+    let scanned = 0;
+    while (scanned < 2000 && notes.length < 40) {
+      if (signal.aborted) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return null;
+      }
+
+      const batch = await client.query("FETCH FORWARD 25 FROM notes_search_cursor");
+      if (batch.rows.length === 0) break;
+      scanned += batch.rows.length;
+
+      for (const row of batch.rows) {
+        const title = decryptText(row.title_enc, key);
+        const subject = decryptText(row.subject_enc, key);
+        const topicTitle = decryptText(row.topic_title_enc, key);
+        const tags = JSON.parse(decryptText(row.tags_enc, key)) as string[];
+        const contentText = contentExpression === "NULL::bytea"
+          ? ""
+          : searchableText(JSON.parse(decryptText(row.content_enc, key)));
+
+        const searchable = [title, subject, contentText, tags.join(" "), topicTitle]
+          .join(" ")
+          .toLocaleLowerCase();
+        const titleMatch = [title, topicTitle].join(" ").toLocaleLowerCase().includes(needle);
+        const tagMatch = tags.join(" ").toLocaleLowerCase().includes(needle);
+        const matches = scope === "titles"
+          ? titleMatch
+          : scope === "tags"
+            ? tagMatch
+            : scope === "pinned"
+              ? Boolean(row.pinned) && searchable.includes(needle)
+              : searchable.includes(needle);
+        if (!matches) continue;
+
+        const matchIndex = contentText.toLocaleLowerCase().indexOf(needle);
+        const previewStart = matchIndex > 72 ? matchIndex - 72 : 0;
+        const previewEnd = Math.min(contentText.length, previewStart + 220);
+        const contextualPreview = (previewStart > 0 ? "…" : "") +
+          contentText.slice(previewStart, previewEnd) +
+          (previewEnd < contentText.length ? "…" : "");
+        notes.push({
+          id: row.id,
+          topicId: row.topic_id,
+          title,
+          subject,
+          topicTitle,
+          tags,
+          preview: scope === "titles"
+            ? subject
+            : scope === "tags"
+              ? tags.join(" · ")
+              : matchIndex >= 0
+                ? contextualPreview
+                : contentText.slice(0, 220),
+          matchType: titleMatch ? "title" : tagMatch ? "tag" : "content",
+          updatedAt: row.updated_at,
+        });
+        if (notes.length === 40) break;
+      }
+
+      if (scanned % 100 === 0) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        if (signal.aborted) {
+          await client.query("ROLLBACK");
+          transactionOpen = false;
+          return null;
+        }
+      }
+    }
+
+    await client.query("CLOSE notes_search_cursor");
+    await client.query("COMMIT");
+    transactionOpen = false;
+    return notes;
+  } catch (error) {
+    if (transactionOpen) await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -41,23 +171,12 @@ export async function GET(request: Request) {
     if (!query) return NextResponse.json({ topics: [], notes: [] });
     const needle = query.toLocaleLowerCase();
 
-    const [topicRows, noteRows] = await Promise.all([
-      queryAsUser(session.userId, 
-        `SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, updated_at
-         FROM topics
-         ORDER BY updated_at DESC, id DESC
-         LIMIT 500`,
-      ),
-      queryAsUser(session.userId, 
-        `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.pinned, n.updated_at,
-                t.title_enc AS topic_title_enc
-         FROM notes n
-         JOIN topics t ON t.id = n.topic_id
-         WHERE n.deleted_at IS NULL
-         ORDER BY n.updated_at DESC, n.id DESC
-         LIMIT 2000`,
-      ),
-    ]);
+    const topicRows = await queryAsUser(session.userId,
+      `SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, updated_at
+       FROM topics
+       ORDER BY updated_at DESC, id DESC
+       LIMIT 500`,
+    );
 
     const topics = [];
     for (let index = 0; (scope === "all" || scope === "titles") && index < topicRows.rows.length; index += 1) {
@@ -87,54 +206,14 @@ export async function GET(request: Request) {
       if (topics.length === 25) break;
     }
 
-    const notes = [];
-    for (let index = 0; index < noteRows.rows.length; index += 1) {
-      if (index > 0 && index % 100 === 0) {
-        await new Promise<void>((resolve) => setImmediate(resolve));
-        if (request.signal.aborted) return new Response(null, { status: 204 });
-      }
-
-      const row = noteRows.rows[index];
-      const title = decryptText(row.title_enc, session.key);
-      const subject = decryptText(row.subject_enc, session.key);
-      const topicTitle = decryptText(row.topic_title_enc, session.key);
-      const tags = JSON.parse(decryptText(row.tags_enc, session.key)) as string[];
-      const content = JSON.parse(decryptText(row.content_enc, session.key));
-      const contentText = searchableText(content);
-      const searchable = [title, subject, contentText, tags.join(" "), topicTitle]
-        .join(" ")
-        .toLocaleLowerCase();
-      const titleMatch = [title, topicTitle].join(" ").toLocaleLowerCase().includes(needle);
-      const tagMatch = tags.join(" ").toLocaleLowerCase().includes(needle);
-      const matches = scope === "titles"
-        ? titleMatch
-        : scope === "tags"
-          ? tagMatch
-          : scope === "pinned"
-            ? Boolean(row.pinned) && searchable.includes(needle)
-            : searchable.includes(needle);
-      if (!matches) continue;
-      const matchIndex = contentText.toLocaleLowerCase().indexOf(needle);
-      const previewStart = matchIndex > 72 ? matchIndex - 72 : 0;
-      const previewEnd = Math.min(contentText.length, previewStart + 220);
-      const contextualPreview = (previewStart > 0 ? "…" : "") +
-        contentText.slice(previewStart, previewEnd) +
-        (previewEnd < contentText.length ? "…" : "");
-      notes.push({
-        id: row.id,
-        topicId: row.topic_id,
-        title,
-        subject,
-        topicTitle,
-        tags,
-        preview: scope === "titles" ? subject : scope === "tags" ? tags.join(" · ") : matchIndex >= 0 ? contextualPreview : contentText.slice(0, 220),
-        matchType: titleMatch ? "title" : tagMatch ? "tag" : "content",
-        updatedAt: row.updated_at,
-      });
-      // Preserve the previous newest-first 40-result limit without scanning
-      // older encrypted notes once all visible matches have been collected.
-      if (notes.length === 40) break;
-    }
+    const notes = await searchNotesInBatches(
+      session.userId,
+      session.key,
+      needle,
+      scope,
+      request.signal,
+    );
+    if (notes === null) return new Response(null, { status: 204 });
 
     return NextResponse.json({ topics, notes });
   } catch (error) {
