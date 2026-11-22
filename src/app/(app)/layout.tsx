@@ -3,7 +3,9 @@ import { getVaultSession } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 
 export const dynamic = "force-dynamic";
+
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  if (!(await getVaultSession())) redirect("/unlock");
-  return <AppShell>{children}</AppShell>;
+  const session = await getVaultSession();
+  if (!session) redirect("/login");
+  return <AppShell user={{ email: session.email, displayName: session.displayName }}>{children}</AppShell>;
 }
