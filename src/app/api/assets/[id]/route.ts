@@ -1,0 +1,44 @@
+import { NextResponse } from "next/server";
+import { requireVaultSession, assertSameOrigin } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { decryptText } from "@/lib/crypto";
+import { readEncryptedAsset, deleteAssetById } from "@/lib/storage";
+import { apiError } from "@/lib/http";
+
+type Context = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, context: Context) {
+  try {
+    const session = await requireVaultSession();
+    const { id } = await context.params;
+    const result = await db.query("SELECT * FROM assets WHERE id=$1", [id]);
+    if (!result.rows[0]) throw new Error("NOT_FOUND");
+    const asset = result.rows[0];
+    const bytes = await readEncryptedAsset(asset.storage_key, session.key);
+    const filename = decryptText(asset.original_name_enc, session.key).replace(/[\r\n\"\\]/g, "_");
+    return new NextResponse(new Uint8Array(bytes), {
+      headers: {
+        "Content-Type": asset.mime_type,
+        "Content-Length": String(bytes.length),
+        "Content-Disposition": `inline; filename="${filename}"`,
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch (error) { return apiError(error); }
+}
+
+export async function DELETE(request: Request, context: Context) {
+  try {
+    assertSameOrigin(request);
+    await requireVaultSession();
+    const { id } = await context.params;
+    const result = await db.query("SELECT owner_type, owner_id FROM assets WHERE id=$1", [id]);
+    if (!result.rows[0]) throw new Error("NOT_FOUND");
+    if (result.rows[0].owner_type === "topic") {
+      await db.query("UPDATE topics SET cover_asset_id=NULL WHERE id=$1 AND cover_asset_id=$2", [result.rows[0].owner_id, id]);
+    }
+    await deleteAssetById(id);
+    return NextResponse.json({ success: true });
+  } catch (error) { return apiError(error); }
+}
