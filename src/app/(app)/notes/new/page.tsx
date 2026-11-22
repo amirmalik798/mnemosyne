@@ -7,8 +7,8 @@ export default async function NewNotePage({
 }: {
   searchParams: Promise<{ topicId?: string }>;
 }) {
-  const [{ topicId }] = await Promise.all([searchParams, requireVaultSession()]);
+  const [{ topicId }, session] = await Promise.all([searchParams, requireVaultSession()]);
   // The editor loads destination options on demand. Keep only the requested
   // starting topic in the initial payload instead of decrypting every topic.
-  return <NoteEditor topics={[]} initialNote={undefined} defaultTopicId={topicId} />;
+  return <NoteEditor userId={session.userId} topics={[]} initialNote={undefined} defaultTopicId={topicId} />;
 }

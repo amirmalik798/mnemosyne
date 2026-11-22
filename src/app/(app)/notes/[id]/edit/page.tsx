@@ -23,6 +23,7 @@ export default async function EditNotePage({ params }: { params: Promise<{ id: s
 
   return (
     <NoteEditor
+      userId={session.userId}
       topics={[]}
       initialNote={{
         id: note.id,

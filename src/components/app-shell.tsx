@@ -19,7 +19,7 @@ const nav = [
   { label: "PERSONAL", items: [{ href: "/trash", label: "Recently deleted", icon: Trash2 }, { href: "/settings", label: "Settings", icon: Settings }] },
 ];
 
-export function AppShell({ children, user }: { children: React.ReactNode; user: { email: string; displayName: string } }) {
+export function AppShell({ children, user }: { children: React.ReactNode; user: { id: string; email: string; displayName: string } }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
@@ -89,7 +89,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         let sessionExpired = false;
         try {
           const payload = await response.clone().json() as { error?: unknown };
-          sessionExpired = payload.error === "Please unlock your vault.";
+          sessionExpired = payload.error === "Please sign in to your account.";
         } catch {
           // Unknown 401 response formats are not sufficient evidence to log out.
         }

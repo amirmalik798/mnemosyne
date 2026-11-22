@@ -204,7 +204,7 @@ const NOTE_EDITOR_EXTENSIONS = [
   Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." }),
 ];
 
-export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: Topic[]; initialNote?: Note; defaultTopicId?: string }) {
+export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { topics: Topic[]; initialNote?: Note; defaultTopicId?: string; userId: string }) {
   const router = useRouter();
   const imageRef = useRef<HTMLInputElement>(null);
   const savingRef = useRef(false);
@@ -240,7 +240,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [isImageDragActive, setIsImageDragActive] = useState(false);
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
   const closeImagePreview = useCallback(() => setImagePreview(null), []);
-  const draftStorageKey = noteId ? `note:${noteId}` : "note:new";
+  const draftStorageKey = `user:${userId}:note:${noteId ?? "new"}`;
   const latestDraftFieldsRef = useRef({
     noteId,
     topicId,
@@ -291,13 +291,13 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         savedAt: Date.now(),
         serverUpdatedAt: latest.serverUpdatedAt,
       };
-      const key = latest.noteId ? `note:${latest.noteId}` : "note:new";
+      const key = `user:${userId}:note:${latest.noteId ?? "new"}`;
       pendingDraftRef.current = { key, draft };
       void saveLocalNoteDraft(key, draft)
         .then(() => setRecoveryStatus("Recovery copy saved on this device"))
         .catch(() => setRecoveryStatus("Local recovery could not be saved"));
     }, 1000);
-  }, []);
+  }, [userId]);
 
   const markDirty = useCallback(() => {
     changeVersionRef.current += 1;
@@ -575,7 +575,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not save note.");
       const savedId = noteId ?? data.note.id;
-      const savedDraftKey = noteId ? `note:${noteId}` : "note:new";
+      const savedDraftKey = `user:${userId}:note:${noteId ?? "new"}`;
       if (!noteId) {
         setNoteId(savedId);
         if (options.navigateOnCreate !== false) {
@@ -794,7 +794,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
 
       if (!saveResponse.ok) {
         // Commit a local encrypted recovery copy before reporting failure.
-        await saveLocalNoteDraft("note:" + id, {
+        await saveLocalNoteDraft(`user:${userId}:note:${id}`, {
           version: 1,
           noteId: id,
           topicId,
@@ -820,8 +820,8 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       setStatus("All changes saved");
       setRecoveryStatus("Saved securely to your archive");
       await Promise.all([
-        removeLocalNoteDraft("note:new").catch(() => undefined),
-        removeLocalNoteDraft("note:" + id).catch(() => undefined),
+        removeLocalNoteDraft(`user:${userId}:note:new`).catch(() => undefined),
+        removeLocalNoteDraft(`user:${userId}:note:${id}`).catch(() => undefined),
       ]);
 
       if (shouldNavigateToEdit) {
@@ -868,7 +868,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not move this note to Recently deleted.");
 
-      void removeLocalNoteDraft(`note:${noteId}`).catch(() => undefined);
+      void removeLocalNoteDraft(`user:${userId}:note:${noteId}`).catch(() => undefined);
       notifyOperation("success", "Note moved to Recently deleted.");
       router.push("/notes");
       router.refresh();
