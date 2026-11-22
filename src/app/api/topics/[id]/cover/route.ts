@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { detectImageMime, saveEncryptedAsset, deleteAssetById } from "@/lib/storage";
-import { apiError } from "@/lib/http";
+import { apiError, readBoundedFormData } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -13,7 +13,7 @@ export async function POST(request: Request, context: Context) {
     const { id } = await context.params;
     const topic = await db.query("SELECT cover_asset_id FROM topics WHERE id = $1", [id]);
     if (!topic.rows[0]) throw new Error("NOT_FOUND");
-    const form = await request.formData();
+    const form = await readBoundedFormData(request, 8 * 1024 * 1024 + 256 * 1024);
     const file = form.get("file");
     if (!(file instanceof File)) throw new Error("VALIDATION:Choose an image file.");
     if (file.size > 8 * 1024 * 1024) throw new Error("VALIDATION:Topic covers must be 8 MB or smaller.");
