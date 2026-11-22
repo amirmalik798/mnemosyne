@@ -1,12 +1,20 @@
 import "server-only";
-import { chmod, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { chmod, mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { join, resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
 import { decryptBytes, decryptText, encryptBytes, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
 
 function storageRoot(): string {
   return resolve(process.env.STORAGE_DIR || join(process.cwd(), "storage"));
+}
+
+function safeStoragePath(storageKey: string): string | null {
+  if (!/^[a-f0-9-]+\\.enc$/i.test(storageKey)) return null;
+  const root = storageRoot();
+  const filePath = resolve(root, storageKey);
+  const rootPrefix = root.endsWith(sep) ? root : `${root}${sep}`;
+  return filePath.startsWith(rootPrefix) ? filePath : null;
 }
 
 async function ensurePrivateStorageRoot(root: string): Promise<void> {
@@ -52,11 +60,14 @@ export async function saveEncryptedAsset(input: {
 }
 
 export async function readEncryptedAsset(storageKey: string, key: Buffer): Promise<Buffer> {
-  if (!/^[a-f0-9-]+\.enc$/i.test(storageKey)) throw new Error("Invalid storage key.");
-  const root = storageRoot();
-  await ensurePrivateStorageRoot(root);
-  const filePath = resolve(root, storageKey);
-  if (!filePath.startsWith(`${storageRoot()}${process.platform === "win32" ? "\\" : "/"}`)) throw new Error("Invalid storage path.");
+  const filePath = safeStoragePath(storageKey);
+  if (!filePath) throw new Error("Invalid storage key or path.");
+  await ensurePrivateStorageRoot(storageRoot());
+
+  const fileInfo = await stat(filePath);
+  if (!fileInfo.isFile() || fileInfo.size > 20 * 1024 * 1024 + 28) {
+    throw new Error("Stored image file is invalid or exceeds the upload limit.");
+  }
   return decryptBytes(await readFile(filePath), key);
 }
 
@@ -71,9 +82,12 @@ export async function readVerifiedImageAsset(input: {
   mimeType: string;
   byteSize: string | number;
 }): Promise<Buffer> {
-  const bytes = await readEncryptedAsset(input.storageKey, input.key);
   const expectedSize = Number(input.byteSize);
-  if (!Number.isSafeInteger(expectedSize) || expectedSize <= 0 || bytes.byteLength !== expectedSize) {
+  if (!Number.isSafeInteger(expectedSize) || expectedSize <= 0 || expectedSize > 20 * 1024 * 1024) {
+    throw new Error("IMAGE_INTEGRITY:Stored image size is invalid or exceeds the upload limit.");
+  }
+  const bytes = await readEncryptedAsset(input.storageKey, input.key);
+  if (bytes.byteLength !== expectedSize) {
     throw new Error("IMAGE_INTEGRITY:Stored image size does not match the original upload.");
   }
 
@@ -87,7 +101,8 @@ export async function readVerifiedImageAsset(input: {
 export async function deleteAssetById(id: string): Promise<void> {
   const result = await db.query("DELETE FROM assets WHERE id = $1 RETURNING storage_key", [id]);
   const storageKey = result.rows[0]?.storage_key as string | undefined;
-  if (storageKey) await unlink(join(storageRoot(), storageKey)).catch(() => undefined);
+  const filePath = storageKey ? safeStoragePath(storageKey) : null;
+  if (filePath) await unlink(filePath).catch(() => undefined);
 }
 
 export async function deleteAssetsFor(ownerType: "topic" | "note", ownerId: string): Promise<void> {
@@ -95,7 +110,10 @@ export async function deleteAssetsFor(ownerType: "topic" | "note", ownerId: stri
     "DELETE FROM assets WHERE owner_type = $1 AND owner_id = $2 RETURNING storage_key",
     [ownerType, ownerId],
   );
-  await Promise.all(result.rows.map((row: { storage_key: string }) => unlink(join(storageRoot(), row.storage_key)).catch(() => undefined)));
+  const filePaths = result.rows
+    .map((row: { storage_key: string }) => safeStoragePath(row.storage_key))
+    .filter((filePath): filePath is string => filePath !== null);
+  await Promise.all(filePaths.map((filePath) => unlink(filePath).catch(() => undefined)));
 }
 
 export async function deleteUnreferencedNoteAssets(noteId: string, content: unknown): Promise<void> {
@@ -137,12 +155,9 @@ export async function cloneEncryptedNoteAsset(input: {
   const id = randomUUID();
   const storageKey = `${id}.enc`;
   const root = storageRoot();
-  const sourcePath = resolve(root, input.asset.storage_key);
-  const targetPath = resolve(root, storageKey);
-  const normalizedRoot = `${root}${process.platform === "win32" ? "\\" : "/"}`;
-  if (!sourcePath.startsWith(normalizedRoot) || !targetPath.startsWith(normalizedRoot)) {
-    throw new Error("Invalid storage path.");
-  }
+  const sourcePath = safeStoragePath(input.asset.storage_key);
+  const targetPath = safeStoragePath(storageKey);
+  if (!sourcePath || !targetPath) throw new Error("Invalid storage path.");
 
   await ensurePrivateStorageRoot(root);
   const plainBytes = await readVerifiedImageAsset({
@@ -167,6 +182,6 @@ export async function cloneEncryptedNoteAsset(input: {
 }
 
 export async function removeEncryptedStorageFile(storageKey: string): Promise<void> {
-  if (!/^[a-f0-9-]+\.enc$/i.test(storageKey)) return;
-  await unlink(join(storageRoot(), storageKey)).catch(() => undefined);
+  const filePath = safeStoragePath(storageKey);
+  if (filePath) await unlink(filePath).catch(() => undefined);
 }
