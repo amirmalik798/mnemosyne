@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
-import { apiError, requireJsonObject, stringField } from "@/lib/http";
+import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 export async function GET() {
   try {
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const session = await requireVaultSession();
-    const body = requireJsonObject(await request.json());
+    const body = await readJsonObject(request, 2_100_000);
     const topicId = stringField(body, "topicId", 64, true);
     const title = stringField(body, "title", 180, true);
     const subject = stringField(body, "subject", 180);
