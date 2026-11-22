@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export function apiError(error: unknown) {
@@ -10,6 +11,12 @@ export function apiError(error: unknown) {
   if (message === "NOT_FOUND") return NextResponse.json({ error: "The requested item was not found." }, { status: 404 });
   if (message === "CONFLICT") return NextResponse.json({ error: "This item cannot be deleted while it contains notes." }, { status: 409 });
   if (message === "ASSET_IN_USE") return NextResponse.json({ error: "This image is still used by a note. Remove it from the note and save before deleting the image." }, { status: 409 });
+  if (message === "RATE_LIMITED") {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": "60" } },
+    );
+  }
   if (message.startsWith("VALIDATION:")) return NextResponse.json({ error: message.slice(11) }, { status: 400 });
 
   const errorName = error instanceof Error ? error.name : "UnknownError";
@@ -20,20 +27,48 @@ export function apiError(error: unknown) {
 
   // PostgreSQL's undefined_column and undefined_table errors commonly mean
   // npm run db:migrate has not been run against this exact DATABASE_URL.
-  // Return an actionable response without exposing SQL or schema details.
   if (errorCode === "42703" || errorCode === "42P01") {
+    const reference = randomUUID().slice(0, 8).toUpperCase();
     console.error("Database schema is missing a required column or table.", {
+      reference,
       code: errorCode,
     });
     return NextResponse.json(
-      { error: "The database schema is out of date. Run npm run db:migrate, then npm run db:check, and restart the application." },
-      { status: 503 },
+      {
+        error: "The database schema is out of date. Run npm run db:migrate, then npm run db:check, and restart the application.",
+        reference,
+      },
+      { status: 503, headers: { "X-Error-Reference": reference } },
     );
   }
 
-  console.error("API error occurred.", { name: errorName, code: errorCode });
-  return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
-}
+  const reference = randomUUID().slice(0, 8).toUpperCase();
+  const unavailableCodes = new Set([
+    "08000", "08001", "08003", "08006",
+    "40001", "40P01", "53300", "57P01", "57P02", "57P03",
+    "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT",
+  ]);
+  const conflictCodes = new Set(["23503", "23505", "23514"]);
+  if (errorCode && unavailableCodes.has(errorCode)) {
+    console.error("API dependency is temporarily unavailable.", { reference, name: errorName, code: errorCode });
+    return NextResponse.json(
+      { error: "The archive service is temporarily unavailable. Please wait a moment and try again.", reference },
+      { status: 503, headers: { "Retry-After": "3", "X-Error-Reference": reference } },
+    );
+  }
+  if (errorCode && conflictCodes.has(errorCode)) {
+    console.error("API request conflicted with the current archive state.", { reference, name: errorName, code: errorCode });
+    return NextResponse.json(
+      { error: "This change conflicts with the current archive state. Refresh the page and try again.", reference },
+      { status: 409, headers: { "X-Error-Reference": reference } },
+    );
+  }
+
+  console.error("API request failed.", { reference, name: errorName, code: errorCode });
+  return NextResponse.json(
+    { error: `Something went wrong. Please try again. Reference: ${reference}`, reference },
+    { status: 500, headers: { "X-Error-Reference": reference } },
+  );
 
 export function requireJsonObject(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("VALIDATION:Invalid request body.");
