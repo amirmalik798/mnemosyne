@@ -12,6 +12,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
+        <script
+          id="mnemosyne-theme-init"
+          dangerouslySetInnerHTML={{
+            __html: "(function(){try{var t=localStorage.getItem('mnemosyne-theme');document.documentElement.dataset.theme=t==='light'?'light':'dark';}catch(_){document.documentElement.dataset.theme='dark';}})();",
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
