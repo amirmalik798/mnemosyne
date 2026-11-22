@@ -11,7 +11,7 @@ export async function GET(_request: Request, context: Context) {
   try {
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const result = await db.query("SELECT * FROM assets WHERE id=$1", [id]);
+    const result = await db.query("SELECT id,storage_key,original_name_enc,mime_type,byte_size FROM assets WHERE id=$1", [id]);
     if (!result.rows[0]) throw new Error("NOT_FOUND");
     const asset = result.rows[0];
     const bytes = await readVerifiedImageAsset({
