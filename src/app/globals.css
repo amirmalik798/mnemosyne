@@ -883,3 +883,30 @@ html[data-theme="light"] .success-text { color: #047857; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+
+/* Script typography from the Mnemosyne editorial reference. */
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+:lang(ar) {
+  font-family: var(--font-arabic);
+  font-synthesis: none;
+}
+:lang(ur) {
+  font-family: var(--font-urdu);
+  font-synthesis: none;
+}
+:lang(en) { font-family: inherit; }
+.rich-editor :lang(ar),
+.reader-content :lang(ar) {
+  font-family: var(--font-arabic);
+}
+.rich-editor :lang(ur),
+.reader-content :lang(ur) {
+  font-family: var(--font-urdu);
+}
