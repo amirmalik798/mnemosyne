@@ -20,6 +20,12 @@ export function detectImageMime(buffer: Buffer): string | null {
 export async function saveEncryptedAsset(input: {
   bytes: Buffer; name: string; mimeType: string; ownerType: "topic" | "note"; ownerId: string; key: Buffer;
 }): Promise<{ id: string; mimeType: string; byteSize: number }> {
+  // Store only the original supported image bytes. Never resize, transcode or
+  // recompress images in the persistence layer.
+  const detectedMime = detectImageMime(input.bytes);
+  if (!detectedMime || detectedMime !== input.mimeType) {
+    throw new Error("VALIDATION:The image format does not match its file contents.");
+  }
   const id = randomUUID();
   const storageKey = `${id}.enc`;
   const root = storageRoot();
@@ -43,6 +49,30 @@ export async function readEncryptedAsset(storageKey: string, key: Buffer): Promi
   const filePath = resolve(storageRoot(), storageKey);
   if (!filePath.startsWith(`${storageRoot()}${process.platform === "win32" ? "\\" : "/"}`)) throw new Error("Invalid storage path.");
   return decryptBytes(await readFile(filePath), key);
+}
+
+/**
+ * Read an image only when its decrypted bytes still match the original upload
+ * metadata. AES-GCM authenticates the encrypted file; these checks additionally
+ * detect truncation or mismatched MIME/size metadata before serving or exporting.
+ */
+export async function readVerifiedImageAsset(input: {
+  storageKey: string;
+  key: Buffer;
+  mimeType: string;
+  byteSize: string | number;
+}): Promise<Buffer> {
+  const bytes = await readEncryptedAsset(input.storageKey, input.key);
+  const expectedSize = Number(input.byteSize);
+  if (!Number.isSafeInteger(expectedSize) || expectedSize <= 0 || bytes.byteLength !== expectedSize) {
+    throw new Error("IMAGE_INTEGRITY:Stored image size does not match the original upload.");
+  }
+
+  const detectedMime = detectImageMime(bytes);
+  if (!detectedMime || detectedMime !== input.mimeType) {
+    throw new Error("IMAGE_INTEGRITY:Stored image format does not match the original upload.");
+  }
+  return bytes;
 }
 
 export async function deleteAssetById(id: string): Promise<void> {
@@ -106,8 +136,12 @@ export async function cloneEncryptedNoteAsset(input: {
   }
 
   await mkdir(root, { recursive: true });
-  const encryptedBytes = await readFile(sourcePath);
-  const plainBytes = decryptBytes(encryptedBytes, input.key);
+  const plainBytes = await readVerifiedImageAsset({
+    storageKey: input.asset.storage_key,
+    key: input.key,
+    mimeType: input.asset.mime_type,
+    byteSize: input.asset.byte_size,
+  });
   const freshEncryptedBytes = encryptBytes(plainBytes, input.key);
   await writeFile(targetPath, freshEncryptedBytes, { mode: 0o600, flag: "wx" });
   try {
