@@ -28,16 +28,21 @@ export function createZipStream(entries: ZipStreamEntry[]): ReadableStream<Uint8
     throw new Error("VALIDATION:This topic contains too many images for one ZIP download.");
   }
 
+  const centralDirectory: Buffer[] = [];
+  let localOffset = 0;
+  let entryIndex = 0;
+  let finished = false;
+  const dosTime = 0;
+  const dosDate = 0x0021;
+  const utf8Flag = 0x0800;
+
   return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const centralDirectory: Buffer[] = [];
-      let localOffset = 0;
-      const dosTime = 0;
-      const dosDate = 0x0021;
-      const utf8Flag = 0x0800;
+    async pull(controller) {
+      if (finished) return;
 
       try {
-        for (const entry of entries) {
+        if (entryIndex < entries.length) {
+          const entry = entries[entryIndex];
           const name = Buffer.from(entry.name, "utf8");
           if (name.length > 0xffff) throw new Error("An image filename is too long for the ZIP archive.");
 
@@ -60,10 +65,6 @@ export function createZipStream(entries: ZipStreamEntry[]): ReadableStream<Uint8
           localHeader.writeUInt16LE(name.length, 26);
           localHeader.writeUInt16LE(0, 28);
 
-          controller.enqueue(localHeader);
-          controller.enqueue(name);
-          controller.enqueue(data);
-
           const centralHeader = Buffer.alloc(46);
           centralHeader.writeUInt32LE(0x02014b50, 0);
           centralHeader.writeUInt16LE(20, 4);
@@ -84,7 +85,12 @@ export function createZipStream(entries: ZipStreamEntry[]): ReadableStream<Uint8
           centralHeader.writeUInt32LE(localOffset, 42);
           centralDirectory.push(centralHeader, name);
 
+          controller.enqueue(localHeader);
+          controller.enqueue(name);
+          controller.enqueue(data);
           localOffset += localHeader.length + name.length + data.length;
+          entryIndex += 1;
+          return;
         }
 
         const centralOffset = localOffset;
@@ -104,8 +110,10 @@ export function createZipStream(entries: ZipStreamEntry[]): ReadableStream<Uint8
         end.writeUInt32LE(centralOffset, 16);
         end.writeUInt16LE(0, 20);
         controller.enqueue(end);
+        finished = true;
         controller.close();
       } catch (error) {
+        finished = true;
         controller.error(error);
       }
     },
