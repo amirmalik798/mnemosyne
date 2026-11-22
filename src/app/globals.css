@@ -1353,16 +1353,23 @@ html[data-theme="light"] .font-selector-control select option {
   display: inline-flex;
   align-items: baseline;
   justify-self: end;
-  gap: 6px;
+  gap: 7px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 17px;
+  font-weight: 550;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .topic-browser-count strong {
   color: var(--text);
-  font-size: 20px;
-  font-weight: 650;
+  font-size: 21px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+.topic-browser-count > span[aria-hidden="true"] {
+  color: var(--dim);
+  font-size: 17px;
 }
 .topic-browser-heading .archive-sort-control {
   grid-area: sort;
