@@ -7,15 +7,16 @@ import { formatArchiveDate } from "@/lib/date-format";
 export type TopicItem = { id: string; title: string; subject: string; description: string; category: string; coverUrl: string | null; noteCount: number; updatedAt: string | Date; dateAt?: string | Date; dateLabel?: string };
 export type NoteItem = { id: string; topicId: string; topicTitle: string; title: string; subject: string; preview?: string; pinned?: boolean; updatedAt: string | Date; dateAt?: string | Date; dateLabel?: string };
 
-export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; variant?: "default" | "dashboard" | "archive" }) {
+export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; variant?: "default" | "dashboard" | "archive" | "archive-featured" }) {
   const glyph = topic.title.trim().charAt(0).toUpperCase() || "M";
-  const archiveCard = variant === "archive";
+  const archiveCard = variant === "archive" || variant === "archive-featured";
+  const featuredArchiveCard = variant === "archive-featured";
   const title = topic.title.trim() || "Untitled collection";
   const category = topic.category.trim() || (archiveCard ? "Uncategorized" : "Collection");
 
   return (
     <Link
-      className={`topic-card ${variant === "dashboard" ? "topic-card-dashboard" : ""} ${archiveCard ? "topic-card-archive" : ""}`}
+      className={`topic-card ${variant === "dashboard" ? "topic-card-dashboard" : ""} ${archiveCard ? "topic-card-archive" : ""} ${featuredArchiveCard ? "topic-card-archive-featured" : ""}`}
       href={`/topics/${topic.id}`}
       aria-label={archiveCard ? `Open ${title} collection` : undefined}
     >
@@ -31,16 +32,18 @@ export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; va
           <>
             {topic.subject.trim()
               ? <div className="topic-subject" dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject}</div>
-              : <div className="topic-subject topic-card-missing" aria-label="No subject added">No subject added</div>}
+              : <div className="topic-subject topic-card-missing" aria-label="No subject yet">No subject yet</div>}
             {topic.description.trim()
               ? <p className="topic-description" dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description}</p>
-              : <p className="topic-description topic-card-missing topic-card-description-missing">No description yet. Add context in collection settings.</p>}
-            <div className="topic-meta">
-              <span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span>
-              <span>{topic.dateLabel ? `${topic.dateLabel} · ` : ""}{formatArchiveDate(topic.dateAt ?? topic.updatedAt)}</span>
-            </div>
-            <div className="topic-card-open-cue">
-              <span>Open collection</span><ArrowUpRight size={16} aria-hidden="true" />
+              : <p className="topic-description topic-card-missing topic-card-description-missing">No description yet</p>}
+            <div className="topic-card-footer">
+              <div className="topic-meta">
+                <span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span>
+                <span>{topic.dateLabel ? `${topic.dateLabel} · ` : ""}{formatArchiveDate(topic.dateAt ?? topic.updatedAt)}</span>
+              </div>
+              <div className="topic-card-open-cue">
+                <span>Open collection</span><ArrowUpRight size={16} aria-hidden="true" />
+              </div>
             </div>
           </>
         ) : (

@@ -5891,7 +5891,8 @@ html[data-theme="light"] .topic-detail-note-panel .note-row-main-link:focus-visi
   gap: 22px;
 }
 .topic-archive-grid--single {
-  grid-template-columns: minmax(0, 430px);
+  width: min(100%, 980px);
+  grid-template-columns: minmax(0, 1fr);
 }
 .topic-archive-grid--pair {
   width: min(100%, 900px);
@@ -6188,4 +6189,144 @@ html[data-theme="light"] .topic-filter-empty .empty-state {
   .topic-card-archive,
   .topic-card-open-cue,
   .topic-card-open-cue svg { transition: none !important; transform: none !important; }
+}
+
+
+/* Single-collection state: use the available canvas for a deliberate featured collection. */
+.topic-card-archive-featured {
+  width: 100%;
+  min-height: 270px;
+  display: grid;
+  grid-template-columns: minmax(250px, .78fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+.topic-card-archive-featured .topic-cover {
+  height: auto;
+  min-height: 270px;
+  flex: initial;
+}
+.topic-card-archive-featured .topic-cover img {
+  height: 100%;
+  min-height: 270px;
+  object-fit: cover;
+}
+.topic-card-archive-featured .topic-cover::after {
+  inset: 45% 0 0;
+}
+.topic-card-archive-featured .cover-category {
+  left: 19px;
+  bottom: 17px;
+}
+.topic-card-archive-featured .topic-body {
+  min-height: 270px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 25px clamp(22px, 3vw, 34px) 21px;
+}
+.topic-card-archive-featured .topic-title {
+  margin-bottom: 9px;
+  font-size: clamp(26px, 2.45vw, 33px);
+  line-height: 1.16;
+}
+.topic-card-archive-featured .topic-subject {
+  min-height: 0;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.topic-card-archive-featured .topic-description {
+  min-height: 0;
+  margin: 11px 0 22px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.topic-card-archive .topic-card-missing {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.topic-card-archive .topic-card-description-missing {
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.65;
+}
+.topic-card-footer {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+.topic-card-archive .topic-card-footer .topic-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  justify-content: flex-start;
+  gap: 9px 18px;
+}
+.topic-card-archive .topic-card-footer .topic-card-open-cue {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  white-space: nowrap;
+}
+html[data-theme="light"] .topic-card-archive .topic-card-missing {
+  color: #5F625F;
+}
+html[data-theme="dark"] .topic-card-archive .topic-card-missing {
+  color: #B5BEC5;
+}
+@media (max-width: 900px) {
+  .topic-archive-grid--single { width: 100%; }
+  .topic-card-archive-featured {
+    grid-template-columns: minmax(220px, .72fr) minmax(0, 1fr);
+    min-height: 250px;
+  }
+  .topic-card-archive-featured .topic-cover,
+  .topic-card-archive-featured .topic-cover img,
+  .topic-card-archive-featured .topic-body { min-height: 250px; }
+  .topic-card-archive-featured .topic-body { padding: 20px; }
+}
+@media (max-width: 760px) {
+  .topic-card-archive-featured {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .topic-card-archive-featured .topic-cover,
+  .topic-card-archive-featured .topic-cover img {
+    height: 190px;
+    min-height: 190px;
+  }
+  .topic-card-archive-featured .topic-body {
+    min-height: 0;
+    padding: 19px 18px 17px;
+  }
+  .topic-card-archive-featured .topic-title { font-size: 25px; }
+  .topic-card-archive-featured .topic-description { margin: 10px 0 17px; }
+}
+@media (max-width: 560px) {
+  .topic-card-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 11px;
+  }
+  .topic-card-archive .topic-card-footer .topic-meta {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .topic-card-archive .topic-card-footer .topic-card-open-cue {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .topic-card-archive .topic-card-missing,
+  .topic-card-archive .topic-card-description-missing { font-size: 14px; }
 }

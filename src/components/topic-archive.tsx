@@ -144,7 +144,7 @@ export function TopicArchive({
 
       {topics.length > 0 ? (
         <div className={`topic-grid topic-archive-grid topic-archive-grid--${gridLayout}`} data-layout={gridLayout} aria-label={`Showing ${topics.length} collections`}>
-          {topics.map((topic) => <TopicCard key={topic.id} topic={topic} variant="archive" />)}
+          {topics.map((topic) => <TopicCard key={topic.id} topic={topic} variant={gridLayout === "single" ? "archive-featured" : "archive"} />)}
         </div>
       ) : (
         <div className="topic-filter-empty">
