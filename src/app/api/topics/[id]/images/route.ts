@@ -10,7 +10,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
-type NoteRow = { id: string; title_enc: Buffer; content_enc: Buffer };
 type AssetRow = {
   id: string;
   owner_id: string;
@@ -19,26 +18,6 @@ type AssetRow = {
   mime_type: string;
   byte_size: string | number;
 };
-
-const ASSET_URL = /^\/api\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-
-function collectImageAssetIds(value: unknown, result: Set<string>) {
-  if (!value || typeof value !== "object") return;
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectImageAssetIds(item, result));
-    return;
-  }
-
-  const record = value as Record<string, unknown>;
-  if (record.type === "image" && record.attrs && typeof record.attrs === "object") {
-    const src = (record.attrs as Record<string, unknown>).src;
-    if (typeof src === "string") {
-      const match = src.match(ASSET_URL);
-      if (match) result.add(match[1]);
-    }
-  }
-  Object.values(record).forEach((item) => collectImageAssetIds(item, result));
-}
 
 function safeZipSegment(value: string, fallback: string): string {
   const safe = value
@@ -66,31 +45,28 @@ export async function GET(_request: Request, context: Context) {
       cover_asset_id: string | null;
     };
     const topicTitle = decryptText(topic.title_enc, session.key);
-    const noteResult = await db.query(
-      "SELECT id, title_enc, content_enc FROM notes WHERE topic_id=$1 AND deleted_at IS NULL ORDER BY updated_at DESC",
-      [id],
-    );
-    const notes = noteResult.rows as NoteRow[];
-    const referencedByNote = new Map<string, Set<string>>();
-    const referencedAssetIds = new Set<string>();
-
-    for (const note of notes) {
-      const content = JSON.parse(decryptText(note.content_enc, session.key)) as unknown;
-      const imageIds = new Set<string>();
-      collectImageAssetIds(content, imageIds);
-      if (imageIds.size > 0) {
-        referencedByNote.set(note.id, imageIds);
-        imageIds.forEach((assetId) => referencedAssetIds.add(assetId));
-      }
-    }
-
-    const noteAssetsResult = referencedAssetIds.size > 0 && notes.length > 0
-      ? await db.query(
-          "SELECT id, owner_id, storage_key, original_name_enc, mime_type, byte_size FROM assets " +
-          "WHERE owner_type='note' AND id = ANY($1::uuid[]) AND owner_id = ANY($2::uuid[]) ORDER BY created_at ASC",
-          [Array.from(referencedAssetIds), notes.map((note) => note.id)],
-        )
-      : { rows: [] };
+    // Note assets are explicitly linked through owner_type + owner_id.
+    // Querying this relation avoids decrypting every note document simply
+    // to rediscover assets that the database already associates with notes.
+    const [noteAssetsResult, noteTitleRows] = await Promise.all([
+      db.query(
+        `SELECT a.id, a.owner_id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size
+         FROM assets a
+         JOIN notes n ON n.id = a.owner_id
+         WHERE a.owner_type='note' AND n.topic_id=$1 AND n.deleted_at IS NULL
+         ORDER BY a.created_at ASC`,
+        [id],
+      ),
+      db.query(
+        "SELECT id, title_enc FROM notes WHERE topic_id=$1 AND deleted_at IS NULL",
+        [id],
+      ),
+    ]);
+    const noteTitles = new Map(noteTitleRows.rows.map((note) => [
+      note.id as string,
+      decryptText(note.title_enc, session.key),
+    ]));
+    const noteAssets = noteAssetsResult.rows as AssetRow[];
 
     let coverAsset: AssetRow | null = null;
     if (topic.cover_asset_id) {
@@ -100,14 +76,6 @@ export async function GET(_request: Request, context: Context) {
       );
       coverAsset = (coverResult.rows[0] as AssetRow | undefined) ?? null;
     }
-
-    const noteTitles = new Map(notes.map((note) => [
-      note.id,
-      decryptText(note.title_enc, session.key),
-    ]));
-    const noteAssets = (noteAssetsResult.rows as AssetRow[]).filter((asset) =>
-      referencedByNote.get(asset.owner_id)?.has(asset.id),
-    );
 
     const topicFolder = safeZipSegment(topicTitle, "Topic");
     const entries: ZipStreamEntry[] = [];
