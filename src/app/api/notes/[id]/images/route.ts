@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
-import { readEncryptedAsset } from "@/lib/storage";
+import { readVerifiedImageAsset } from "@/lib/storage";
 import { apiError } from "@/lib/http";
 import { createZipStream, type ZipStreamEntry } from "@/lib/zip-stream";
 
@@ -14,6 +14,7 @@ type AssetRow = {
   id: string;
   storage_key: string;
   original_name_enc: Buffer;
+  mime_type: string;
   byte_size: string | number;
 };
 
@@ -72,7 +73,7 @@ export async function GET(_request: Request, context: Context) {
     }
 
     const assetResult = await db.query(
-      "SELECT id, storage_key, original_name_enc, byte_size FROM assets " +
+      "SELECT id, storage_key, original_name_enc, mime_type, byte_size FROM assets " +
       "WHERE owner_type='note' AND owner_id=$1 AND id=ANY($2::uuid[]) ORDER BY created_at ASC",
       [id, Array.from(referencedAssetIds)],
     );
@@ -91,7 +92,12 @@ export async function GET(_request: Request, context: Context) {
       totalBytes += Number(asset.byte_size);
       entries.push({
         name: noteFolder + "/" + String(index + 1).padStart(2, "0") + "-" + filename,
-        read: () => readEncryptedAsset(asset.storage_key, session.key),
+        read: () => readVerifiedImageAsset({
+          storageKey: asset.storage_key,
+          key: session.key,
+          mimeType: asset.mime_type,
+          byteSize: asset.byte_size,
+        }),
       });
     });
 
