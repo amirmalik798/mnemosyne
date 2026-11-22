@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ArrowLeft, ImagePlus, LoaderCircle, Save, Trash2 } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
+import { UploadProgress } from "@/components/upload-progress";
+import { uploadFormDataWithProgress } from "@/lib/upload-form-data";
 import { useConfirmation } from "@/components/confirmation-dialog";
 
 type Topic = {
@@ -32,6 +34,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -85,8 +88,9 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
         setProcessingMessage("Uploading the new topic cover…");
         const form = new FormData();
         form.append("file", file);
-        const coverResponse = await fetch(`/api/topics/${topic.id}/cover`, { method: "POST", body: form });
-        const coverData = await coverResponse.json();
+        setUploadProgress(0);
+        const coverResponse = await uploadFormDataWithProgress<{ error?: string }>(`/api/topics/${topic.id}/cover`, form, (progress) => setUploadProgress(progress.percentage));
+        const coverData = coverResponse.data;
         if (!coverResponse.ok) {
           throw new Error(coverData.error || "Topic details were saved, but the cover image could not be uploaded.");
         }
@@ -101,6 +105,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
     } finally {
       setBusy(false);
       setProcessingMessage("");
+      setUploadProgress(null);
     }
   }
 

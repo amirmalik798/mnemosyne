@@ -5,6 +5,8 @@ import { Check, ChevronDown, ImagePlus, LoaderCircle, Plus, X } from "lucide-rea
 import { useRouter } from "next/navigation";
 import { detectTextLanguage } from "@/lib/bidi";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
+import { UploadProgress } from "@/components/upload-progress";
+import { uploadFormDataWithProgress } from "@/lib/upload-form-data";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 
 export function TopicDialog({ onClose }: { onClose: () => void }) {
@@ -25,6 +27,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("Creating topic…");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const hasUnsavedChanges =
     title !== "" ||
@@ -193,8 +196,9 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
         setProcessingMessage("Uploading the topic cover image…");
         const form = new FormData();
         form.append("file", file);
-        const coverResponse = await fetch(`/api/topics/${data.topic.id}/cover`, { method: "POST", body: form });
-        const coverData = await coverResponse.json();
+        setUploadProgress(0);
+        const coverResponse = await uploadFormDataWithProgress<{ error?: string }>(`/api/topics/${data.topic.id}/cover`, form, (progress) => setUploadProgress(progress.percentage));
+        const coverData = coverResponse.data;
         if (!coverResponse.ok) {
           throw new Error(coverData.error || "The topic was created, but its cover could not be uploaded. Edit the topic to try again.");
         }
@@ -215,6 +219,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
       }
     } finally {
       setBusy(false);
+      setUploadProgress(null);
     }
   }
   return <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) requestClose(); }}><section ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="topic-modal-title" aria-describedby="topic-modal-description">
@@ -225,7 +230,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
       <div className="form-field"><label className="form-label" htmlFor="new-topic-category">Category</label><div className="category-combobox" ref={categoryRef}><div className="category-combobox-input-wrap"><input id="new-topic-category" disabled={busy} className="field category-combobox-input" role="combobox" aria-autocomplete="list" aria-expanded={categoryMenuOpen} aria-controls="new-topic-category-options" autoComplete="off" value={category} onFocus={() => { setCategoryMenuOpen(true); setFilterCategories(false); }} onClick={() => { setCategoryMenuOpen(true); setFilterCategories(false); }} onChange={(e) => { setCategory(e.target.value); setCategoryMenuOpen(true); setFilterCategories(true); }} onKeyDown={(e) => { if (e.key === "Escape") { setCategoryMenuOpen(false); setFilterCategories(false); } else if (e.key === "ArrowDown") { e.preventDefault(); setCategoryMenuOpen(true); setFilterCategories(true); } else if (e.key === "Enter" && categoryMenuOpen) { e.preventDefault(); if (visibleCategories.length) chooseCategory(visibleCategories[0]); else { setCategoryMenuOpen(false); setFilterCategories(false); } } }} placeholder="Choose or create a category" maxLength={60}/><button type="button" disabled={busy} className="category-combobox-toggle" aria-label={categoryMenuOpen ? "Close categories" : "Open categories"} title={categoryMenuOpen ? "Close categories" : "Open categories"} aria-expanded={categoryMenuOpen} onClick={() => { setCategoryMenuOpen((open) => !open); setFilterCategories(false); }}><ChevronDown size={17}/></button></div>{categoryMenuOpen && <div className="category-combobox-menu" id="new-topic-category-options" role="listbox" aria-label="Available categories">{visibleCategories.map((item) => <button type="button" role="option" aria-selected={category.toLocaleLowerCase() === item.toLocaleLowerCase()} className="category-combobox-option" key={item} onMouseDown={(e) => e.preventDefault()} onClick={() => chooseCategory(item)}><span>{item}</span>{category.toLocaleLowerCase() === item.toLocaleLowerCase() && <Check size={15}/>}</button>)}{category.trim() && !hasExactCategory && <button type="button" role="option" aria-selected="false" className="category-combobox-option category-combobox-create icon-only-btn" aria-label={`Create category ${category.trim()}`} title={`Create category ${category.trim()}`} onMouseDown={(e) => e.preventDefault()} onClick={() => chooseCategory(category.trim())}><Plus size={17}/></button>}{visibleCategories.length === 0 && hasExactCategory === false && !category.trim() && <div className="category-combobox-empty">No categories yet. Type a name to create one.</div>}</div>}</div><span className="form-hint">Choose an existing category or type a new one. New categories become available after you create this topic.</span></div>
       <div className="form-field full"><label className="form-label" htmlFor="new-topic-description">Description</label><textarea id="new-topic-description" dir="auto" lang={detectTextLanguage(description)} className="textarea-field" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What belongs in this collection?" maxLength={1000} disabled={busy} /></div>
       <div className="form-field full"><label className="form-label" htmlFor="new-topic-cover">Custom thumbnail</label><input id="new-topic-cover" ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => { chooseFile(e.target.files?.[0] ?? null); e.currentTarget.value = ""; }} /><button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy} aria-label={preview ? "Replace topic cover image" : "Choose topic cover image"} title={preview ? "Replace topic cover image" : "Choose topic cover image"}>{preview ? <><img src={preview} alt="Current topic cover preview" /><ImagePlus size={19} aria-hidden="true" /></> : <ImagePlus size={22} aria-hidden="true" />}<span>{preview ? "Replace cover image" : "Choose cover image"}</span></button></div>
-    </div>{busy && <OperationStatus kind="processing" message={processingMessage} />} {error && <OperationStatus kind="failure" message={error} />}<div className="form-actions"><button type="button" className="secondary-btn icon-only-btn" onClick={requestClose} disabled={busy} aria-label="Cancel" title="Cancel"><X size={17} /></button><button type="submit" className="primary-btn icon-only-btn" disabled={busy} aria-label={busy ? processingMessage : "Create topic"} title={busy ? processingMessage : "Create topic"}>{busy ? <LoaderCircle className="operation-spinner" size={17} /> : <Plus size={18} />}</button></div></form>
+    </div>{busy && <OperationStatus kind="processing" message={processingMessage} />} {uploadProgress !== null && <UploadProgress label="Uploading topic cover" percentage={uploadProgress} detail={file?.name} />} {error && <OperationStatus kind="failure" message={error} />}<div className="form-actions"><button type="button" className="secondary-btn icon-only-btn" onClick={requestClose} disabled={busy} aria-label="Cancel" title="Cancel"><X size={17} /></button><button type="submit" className="primary-btn icon-only-btn" disabled={busy} aria-label={busy ? processingMessage : "Create topic"} title={busy ? processingMessage : "Create topic"}>{busy ? <LoaderCircle className="operation-spinner" size={17} /> : <Plus size={18} />}</button></div></form>
   </section>
     {confirmDiscard && <ConfirmationDialog
       options={{
