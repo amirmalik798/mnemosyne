@@ -435,16 +435,18 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     <a className="skip-link" href="#main-content">Skip to main content</a>
     <aside className="sidebar">
       <Link href="/library" className="brand" aria-label="Mnemosyne library" title="Mnemosyne library"><span className="brand-mark">M</span><span><span className="brand-name">Mnemosyne</span><span className="brand-sub">Private knowledge archive</span></span></Link>
+      <nav className="sidebar-navigation" aria-label="Archive navigation">
       {nav.map((group) => <div key={group.label}><div className="nav-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const active = current?.href === item.href; return <Link href={item.href} key={item.href} className={`nav-link ${active ? "active" : ""}`} aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label}><Icon /><span>{item.label}</span></Link>; })}</div>)}
+      </nav>
       <div className="sidebar-spacer" />
       <div className="vault-status"><div className="status-row"><span className="dot" /> Vault encrypted</div><div className="vault-caption">Your personal archive is unlocked for this session.</div></div>
       <div className="sidebar-bottom"><div className="profile"><div className="avatar">{(user.displayName.trim().charAt(0) || user.email.charAt(0)).toUpperCase()}</div><div className="profile-copy"><div className="profile-name">{user.displayName}</div><div className="profile-sub">{user.email}</div></div></div></div>
     </aside>
-    <div className="main-area" id="main-content" tabIndex={-1}>
+    <div className="main-area">
       <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{breadcrumbLabel}</span></div>
         <div className="top-actions" role="group" aria-label="Workspace actions"><ThemeToggle /><button type="button" className="search-trigger icon-only-btn" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive"><Search size={17} /></button><button type="button" className="secondary-btn top-action-button" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><FilePlus size={17} aria-hidden="true" /><span>New note</span></button><button type="button" className="primary-btn top-action-button" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><FolderPlus size={17} aria-hidden="true" /><span>New topic</span></button><button type="button" className="lock-vault-btn icon-only-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault"} aria-label={locking ? "Locking vault" : "Lock vault"}>{locking ? <LoaderCircle className="operation-spinner" size={15} /> : <LockKeyhole size={15} />}</button></div>
       </header>
-      {children}
+      <div className="main-content" id="main-content" tabIndex={-1}>{children}</div>
     </div>
     <nav className="mobile-nav" aria-label="Main navigation">
       {nav.flatMap((group) => group.items).map((item) => {
