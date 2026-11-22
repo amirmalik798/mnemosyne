@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession, assertSameOrigin } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, queryAsUser } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { deleteEmptyTopicWithAssets } from "@/lib/storage";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
@@ -12,8 +12,8 @@ export async function GET(_request: Request, context: Context) {
     const session = await requireVaultSession();
     const { id } = await context.params;
     const [result, notesResult] = await Promise.all([
-      db.query("SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, created_at, updated_at FROM topics WHERE id = $1", [id]),
-      db.query(
+      queryAsUser(session.userId, "SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, created_at, updated_at FROM topics WHERE id = $1", [id]),
+      queryAsUser(session.userId, 
         "SELECT id, title_enc, subject_enc, content_enc, tags_enc, pinned, created_at, updated_at FROM notes WHERE topic_id = $1 AND deleted_at IS NULL ORDER BY pinned DESC, updated_at DESC, id DESC",
         [id],
       ),
@@ -55,13 +55,13 @@ export async function PATCH(request: Request, context: Context) {
     const session = await requireVaultSession();
     const { id } = await context.params;
     const body = await readJsonObject(request, 16 * 1024);
-    const existing = await db.query("SELECT id FROM topics WHERE id = $1", [id]);
+    const existing = await queryAsUser(session.userId, "SELECT id FROM topics WHERE id = $1", [id]);
     if (!existing.rows[0]) throw new Error("NOT_FOUND");
     const title = stringField(body, "title", 120, true);
     const subject = stringField(body, "subject", 120);
     const description = stringField(body, "description", 1000);
     const category = stringField(body, "category", 60);
-    await db.query(
+    await queryAsUser(session.userId, 
       `UPDATE topics SET title_enc=$1, subject_enc=$2, description_enc=$3, category_enc=$4, updated_at=NOW() WHERE id=$5`,
       [encryptText(title, session.key), encryptText(subject, session.key), encryptText(description, session.key), encryptText(category, session.key), id],
     );
@@ -72,9 +72,9 @@ export async function PATCH(request: Request, context: Context) {
 export async function DELETE(request: Request, context: Context) {
   try {
     assertSameOrigin(request);
-    await requireVaultSession();
+    const session = await requireVaultSession();
     const { id } = await context.params;
-    await deleteEmptyTopicWithAssets(id);
+    await deleteEmptyTopicWithAssets(id, session.userId);
     return NextResponse.json({ success: true });
   } catch (error) { return apiError(error); }
 }

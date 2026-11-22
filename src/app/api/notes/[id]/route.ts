@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, queryAsUser } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { deleteUnreferencedNoteAssets } from "@/lib/storage";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
@@ -11,7 +11,7 @@ export async function GET(_request: Request, context: Context) {
   try {
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const result = await db.query(
+    const result = await queryAsUser(session.userId, 
       `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.pinned, n.created_at, n.updated_at, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.id=$1 AND n.deleted_at IS NULL`, [id],
     );
     if (!result.rows[0]) throw new Error("NOT_FOUND");
@@ -31,7 +31,7 @@ export async function PATCH(request: Request, context: Context) {
     const session = await requireVaultSession();
     const { id } = await context.params;
     const body = await readJsonObject(request, 8_500_000);
-    const current = await db.query("SELECT id FROM notes WHERE id=$1 AND deleted_at IS NULL", [id]);
+    const current = await queryAsUser(session.userId, "SELECT id FROM notes WHERE id=$1 AND deleted_at IS NULL", [id]);
     if (!current.rows[0]) throw new Error("NOT_FOUND");
     const title = stringField(body, "title", 180, true);
     const subject = stringField(body, "subject", 180);
@@ -42,13 +42,13 @@ export async function PATCH(request: Request, context: Context) {
     if (content.length > 2_000_000) throw new Error("VALIDATION:This note is too large.");
     const tags = Array.isArray(body.tags) ? body.tags.filter((tag): tag is string => typeof tag === "string").slice(0, 30) : [];
     const pinned = typeof body.pinned === "boolean" ? body.pinned : false;
-    const topic = await db.query("SELECT id FROM topics WHERE id=$1", [topicId]);
+    const topic = await queryAsUser(session.userId, "SELECT id FROM topics WHERE id=$1", [topicId]);
     if (!topic.rows[0]) throw new Error("VALIDATION:Choose a valid topic.");
-    await db.query(
+    await queryAsUser(session.userId, 
       `UPDATE notes SET topic_id=$1, title_enc=$2, subject_enc=$3, content_enc=$4, tags_enc=$5, pinned=$6, updated_at=NOW() WHERE id=$7`,
       [topicId, encryptText(title, session.key), encryptText(subject, session.key), encryptText(content, session.key), encryptText(JSON.stringify(tags), session.key), pinned, id],
     );
-    await deleteUnreferencedNoteAssets(id, contentValue);
+    await deleteUnreferencedNoteAssets(id, contentValue, session.userId);
     return NextResponse.json({ success: true });
   } catch (error) { return apiError(error); }
 }
@@ -56,9 +56,9 @@ export async function PATCH(request: Request, context: Context) {
 export async function DELETE(request: Request, context: Context) {
   try {
     assertSameOrigin(request);
-    await requireVaultSession();
+    const session = await requireVaultSession();
     const { id } = await context.params;
-    const result = await db.query("UPDATE notes SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL RETURNING id", [id]);
+    const result = await queryAsUser(session.userId, "UPDATE notes SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL RETURNING id", [id]);
     if (!result.rows[0]) throw new Error("NOT_FOUND");
     return NextResponse.json({ success: true });
   } catch (error) { return apiError(error); }

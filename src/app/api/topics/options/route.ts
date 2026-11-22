@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { apiError } from "@/lib/http";
 
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams;
     const hasPagination = params.has("limit") || params.has("offset");
     if (!hasPagination) {
-      const result = await db.query(
+      const result = await queryAsUser(session.userId, 
         "SELECT id, title_enc FROM topics ORDER BY updated_at DESC, id DESC",
       );
       return NextResponse.json({
@@ -28,8 +28,8 @@ export async function GET(request: Request) {
     const limit = Number.isSafeInteger(requestedLimit) ? Math.min(200, Math.max(1, requestedLimit)) : 100;
     const offset = Number.isSafeInteger(requestedOffset) ? Math.min(1_000_000, Math.max(0, requestedOffset)) : 0;
     const [countResult, pageResult] = await Promise.all([
-      db.query("SELECT COUNT(*)::int AS total FROM topics"),
-      db.query(
+      queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM topics"),
+      queryAsUser(session.userId, 
         "SELECT id, title_enc FROM topics ORDER BY updated_at DESC, id DESC LIMIT $1 OFFSET $2",
         [limit, offset],
       ),
