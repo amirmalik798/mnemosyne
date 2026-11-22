@@ -8121,3 +8121,118 @@ html[data-theme="light"] .dialog-close-button:hover:not(:disabled) {
     width: calc(100% - 30px);
   }
 }
+
+
+/* ==========================================================================
+   Pin affordance and pinned-state emphasis, shared by dashboard, note lists
+   and Topic Detail. Pinning remains the same action; only its signifiers
+   become clearer and more consistent.
+   ========================================================================== */
+.note-row-actions .note-row-action--pin,
+.topic-detail-page .note-row-actions .note-row-action--pin {
+  border: 1px solid rgba(203,180,126,.48) !important;
+  background: rgba(203,180,126,.13) !important;
+  color: #E7CF91 !important;
+  font-weight: 750 !important;
+  box-shadow: inset 0 0 0 1px rgba(203,180,126,.045);
+  transition:
+    color .16s ease,
+    background .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease,
+    transform .16s ease;
+}
+.note-row-actions .note-row-action--pin:hover:not(:disabled),
+.topic-detail-page .note-row-actions .note-row-action--pin:hover:not(:disabled) {
+  border-color: rgba(231,207,134,.82) !important;
+  background: rgba(203,180,126,.23) !important;
+  color: #F5E5B8 !important;
+  box-shadow: 0 3px 13px rgba(203,180,126,.12);
+}
+.note-row-actions .note-row-action--pin[aria-pressed="true"],
+.topic-detail-page .note-row-actions .note-row-action--pin[aria-pressed="true"] {
+  border-color: #F0DDA4 !important;
+  background: linear-gradient(135deg, #E7CC82, #C9A44D) !important;
+  color: #191A1D !important;
+  font-weight: 800 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    0 3px 12px rgba(203,180,126,.20);
+}
+.note-row-actions .note-row-action--pin[aria-pressed="true"] > svg,
+.topic-detail-page .note-row-actions .note-row-action--pin[aria-pressed="true"] > svg {
+  color: #191A1D !important;
+  stroke-width: 2.5;
+}
+.note-row-pinned {
+  border-left: 3px solid #D2B363 !important;
+  background: linear-gradient(90deg, rgba(203,180,126,.095), rgba(203,180,126,.018) 58%, transparent) !important;
+}
+.note-row-pinned .note-icon {
+  border-color: rgba(231,207,134,.56) !important;
+  background: rgba(203,180,126,.16) !important;
+  color: #E8D39D !important;
+  box-shadow: inset 0 0 0 1px rgba(203,180,126,.07);
+}
+.note-row .pinned-badge,
+.topic-detail-page .topic-detail-note-panel .pinned-badge {
+  border: 1px solid #E5CB82 !important;
+  background: linear-gradient(135deg, #E7CC82, #C9A44D) !important;
+  color: #191A1D !important;
+  font-weight: 800 !important;
+  letter-spacing: .055em;
+  box-shadow: 0 2px 8px rgba(203,180,126,.13);
+}
+.note-row .pinned-badge > svg,
+.topic-detail-page .topic-detail-note-panel .pinned-badge > svg {
+  color: #191A1D !important;
+  stroke-width: 2.4;
+}
+html[data-theme="light"] .note-row-actions .note-row-action--pin,
+html[data-theme="light"] .topic-detail-page .note-row-actions .note-row-action--pin {
+  border-color: #C4A04F !important;
+  background: #F3E8CB !important;
+  color: #76520F !important;
+}
+html[data-theme="light"] .note-row-actions .note-row-action--pin:hover:not(:disabled),
+html[data-theme="light"] .topic-detail-page .note-row-actions .note-row-action--pin:hover:not(:disabled) {
+  border-color: #A77D24 !important;
+  background: #EBD9A9 !important;
+  color: #5B3D08 !important;
+}
+html[data-theme="light"] .note-row-actions .note-row-action--pin[aria-pressed="true"],
+html[data-theme="light"] .topic-detail-page .note-row-actions .note-row-action--pin[aria-pressed="true"] {
+  border-color: #9B711C !important;
+  background: linear-gradient(135deg, #C99E3D, #A9781B) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 3px 11px rgba(132,91,15,.18);
+}
+html[data-theme="light"] .note-row-actions .note-row-action--pin[aria-pressed="true"] > svg,
+html[data-theme="light"] .topic-detail-page .note-row-actions .note-row-action--pin[aria-pressed="true"] > svg {
+  color: #FFFFFF !important;
+}
+html[data-theme="light"] .note-row-pinned {
+  border-left-color: #A9781B !important;
+  background: linear-gradient(90deg, rgba(169,120,27,.12), rgba(169,120,27,.025) 58%, transparent) !important;
+}
+html[data-theme="light"] .note-row-pinned .note-icon {
+  border-color: #D5BC7D !important;
+  background: #F3E8CB !important;
+  color: #805A12 !important;
+}
+html[data-theme="light"] .note-row .pinned-badge,
+html[data-theme="light"] .topic-detail-page .topic-detail-note-panel .pinned-badge {
+  border-color: #C49B45 !important;
+  background: linear-gradient(135deg, #C99E3D, #A9781B) !important;
+  color: #FFFFFF !important;
+}
+html[data-theme="light"] .note-row .pinned-badge > svg,
+html[data-theme="light"] .topic-detail-page .topic-detail-note-panel .pinned-badge > svg {
+  color: #FFFFFF !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-row-actions .note-row-action--pin,
+  .topic-detail-page .note-row-actions .note-row-action--pin {
+    transition: none;
+  }
+}
