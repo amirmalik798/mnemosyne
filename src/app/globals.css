@@ -3637,3 +3637,91 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
   .reader-actions .operation-status { flex-basis: 100%; }
   .reader-toc { margin-bottom: 22px; }
 }
+
+
+/* Editor controls expose their purpose without sacrificing a quiet writing surface. */
+.note-editor-save-actions {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.editor-header-action {
+  min-width: 40px;
+  min-height: 40px;
+  height: 40px;
+  gap: 8px;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+.editor-header-action > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.editor-header-action > span {
+  font-size: 11px;
+  font-weight: 650;
+}
+.editor-property-action {
+  width: 100%;
+  min-height: 42px;
+  height: auto;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 9px 12px;
+  margin-top: 10px;
+  text-align: left;
+}
+.editor-property-action > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.editor-property-action > span {
+  font-size: 12px;
+  font-weight: 600;
+}
+.editor-property-action[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--icon-accent-action) 35%, var(--line));
+  color: var(--icon-accent-action);
+  background: color-mix(in srgb, var(--icon-accent-action) 8%, var(--surface-2));
+}
+.editor-property-action--danger {
+  margin-top: 10px;
+  color: var(--icon-danger-action);
+}
+.note-editor-page .editor-title,
+.note-editor-page .editor-subject {
+  display: block;
+  max-width: 74ch;
+  margin-inline: auto;
+}
+.note-editor-page .note-image-dropzone {
+  width: min(100%, 74ch);
+  margin-inline: auto;
+}
+@media (max-width: 760px) {
+  .note-editor-save-actions {
+    width: auto;
+    flex: 0 1 auto;
+    justify-content: flex-end;
+  }
+  .editor-header-action {
+    width: 40px;
+    min-width: 40px;
+    padding-inline: 0;
+  }
+  .editor-header-action > span {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .note-editor-heading {
+    align-items: center !important;
+  }
+  .editor-header-action {
+    width: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    height: 38px;
+  }
+}
