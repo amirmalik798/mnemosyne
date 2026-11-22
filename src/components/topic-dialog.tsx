@@ -39,7 +39,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
       });
     return () => controller.abort();
   }, []);
-  function chooseFile(next: File | null) {(next: File | null) {
+  function chooseFile(next: File | null) {
     if (!next) return;
     if (!next.type.startsWith("image/")) return setError("Choose an image file for the topic cover.");
     if (next.size > 8 * 1024 * 1024) return setError("The cover image must be 8 MB or smaller.");
