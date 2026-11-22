@@ -64,27 +64,82 @@ const BidiDirection = Extension.create({
   addProseMirrorPlugins() {
     return [
       new Plugin({
-        appendTransaction(_transactions, _oldState, newState) {
+        appendTransaction(transactions, _oldState, newState) {
+          if (!transactions.some((item) => item.docChanged)) return null;
+          if (transactions.every((item) => item.getMeta("bidi-normalization"))) return null;
+
+          // Map each changed step range into the final document. This avoids
+          // re-reading every paragraph on every keystroke in a long note.
+          const changedRanges: Array<{ from: number; to: number }> = [];
+          transactions.forEach((item, transactionIndex) => {
+            if (!item.docChanged) return;
+            let hasMappedRange = false;
+
+            item.mapping.maps.forEach((stepMap, mapIndex) => {
+              stepMap.forEach((_oldFrom, _oldTo, newFrom, newTo) => {
+                let from = item.mapping.slice(mapIndex + 1).map(newFrom, -1);
+                let to = item.mapping.slice(mapIndex + 1).map(newTo, 1);
+
+                for (let laterIndex = transactionIndex + 1; laterIndex < transactions.length; laterIndex += 1) {
+                  from = transactions[laterIndex].mapping.map(from, -1);
+                  to = transactions[laterIndex].mapping.map(to, 1);
+                }
+
+                changedRanges.push({
+                  from: Math.max(0, from - 1),
+                  to: Math.min(newState.doc.content.size, to + 1),
+                });
+                hasMappedRange = true;
+              });
+            });
+
+            // Attribute/mark-only steps can change a block without producing a
+            // positional StepMap range. Use that transaction's selection.
+            if (!hasMappedRange) {
+              let from = item.selection.from;
+              let to = item.selection.to;
+              for (let laterIndex = transactionIndex + 1; laterIndex < transactions.length; laterIndex += 1) {
+                from = transactions[laterIndex].mapping.map(from, -1);
+                to = transactions[laterIndex].mapping.map(to, 1);
+              }
+              changedRanges.push({
+                from: Math.max(0, Math.min(from, to) - 1),
+                to: Math.min(newState.doc.content.size, Math.max(from, to) + 1),
+              });
+            }
+          });
+
+          if (changedRanges.length === 0) return null;
+
+          const affectedNodes = new Map<number, (typeof newState.doc) extends infer _Doc ? import("@tiptap/pm/model").Node : never>();
+          for (const range of changedRanges) {
+            const from = Math.max(0, Math.min(range.from, newState.doc.content.size));
+            const to = Math.min(
+              newState.doc.content.size,
+              Math.max(from + (from < newState.doc.content.size ? 1 : 0), range.to),
+            );
+            if (to <= from) continue;
+
+            newState.doc.nodesBetween(from, to, (node, position) => {
+              const directionAwareNode =
+                node.isTextblock ||
+                node.type.name === "blockquote" ||
+                node.type.name === "listItem" ||
+                node.type.name === "bulletList" ||
+                node.type.name === "orderedList";
+              if (directionAwareNode && node.textContent.trim()) {
+                affectedNodes.set(position, node);
+              }
+            });
+          }
+
           const transaction = newState.tr;
           let changed = false;
-
-          newState.doc.descendants((node, position) => {
-            const directionAwareNode =
-              node.isTextblock ||
-              node.type.name === "blockquote" ||
-              node.type.name === "listItem" ||
-              node.type.name === "bulletList" ||
-              node.type.name === "orderedList";
-
-            if (!directionAwareNode) return;
-
-            const text = node.textContent;
-            if (!text.trim()) return;
-
+          for (const [position, node] of affectedNodes) {
             // Recalculate from the actual text, overriding incorrect dir/lang
             // values that may have been carried in pasted HTML.
-            const { dir, lang } = getBidiAttributes(text);
-            if (node.attrs.dir === dir && node.attrs.lang === lang) return;
+            const { dir, lang } = getBidiAttributes(node.textContent);
+            if (node.attrs.dir === dir && node.attrs.lang === lang) continue;
 
             transaction.setNodeMarkup(
               position,
@@ -93,7 +148,7 @@ const BidiDirection = Extension.create({
               node.marks,
             );
             changed = true;
-          });
+          }
 
           if (!changed) return null;
 
