@@ -12,6 +12,11 @@ const COOKIE_NAME = process.env.NODE_ENV === "production"
 const SESSION_HOURS = 12;
 const SESSION_IDLE_MINUTES = 20;
 
+type SessionQueryExecutor = (
+  text: string,
+  values: Array<string | Buffer | Date>,
+) => Promise<{ rows: unknown[] }>;
+
 export type VaultSession = { id: string; key: Buffer; expiresAt: Date };
 
 export async function isVaultInitialized(): Promise<boolean> {
@@ -19,16 +24,37 @@ export async function isVaultInitialized(): Promise<boolean> {
   return result.rowCount === 1;
 }
 
-export async function createSession(vaultKey: Buffer): Promise<void> {
+/**
+ * Insert a session record and return its one-time cookie token.
+ * A caller may provide its active transaction so vault setup can commit the
+ * vault settings and the first session together. Schema/insert errors then
+ * roll back the entire first-run setup instead of leaving a locked vault.
+ */
+export async function createSessionRecord(
+  vaultKey: Buffer,
+  query?: SessionQueryExecutor,
+): Promise<string> {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000);
   const encryptedKey = encryptBytes(vaultKey, sessionEncryptionKey());
+  const values = [hashToken(token), encryptedKey, expiresAt];
 
-  await db.query(
-    "INSERT INTO vault_sessions (token_hash, encrypted_key, expires_at, last_active_at) VALUES ($1, $2, $3, NOW())",
-    [hashToken(token), encryptedKey, expiresAt],
-  );
+  if (query) {
+    await query(
+      "INSERT INTO vault_sessions (token_hash, encrypted_key, expires_at, last_active_at) VALUES ($1, $2, $3, NOW())",
+      values,
+    );
+  } else {
+    await db.query(
+      "INSERT INTO vault_sessions (token_hash, encrypted_key, expires_at, last_active_at) VALUES ($1, $2, $3, NOW())",
+      values,
+    );
+  }
 
+  return token;
+}
+
+export async function setSessionCookie(token: string): Promise<void> {
   const store = await cookies();
   if (process.env.NODE_ENV === "production") {
     // __Host- cookies must be Secure, host-only and scoped to Path=/.
@@ -44,6 +70,11 @@ export async function createSession(vaultKey: Buffer): Promise<void> {
     // Browser-session cookie: closing the browser normally requires the
     // master password again. The server also enforces absolute and idle expiry.
   });
+}
+
+export async function createSession(vaultKey: Buffer): Promise<void> {
+  const token = await createSessionRecord(vaultKey);
+  await setSessionCookie(token);
 }
 
 /**
