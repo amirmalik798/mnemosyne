@@ -1177,3 +1177,132 @@ html[data-theme="dark"] .result-copy {
   .field, .select-field, .textarea-field { font-size: 14px; }
   .theme-toggle { width: 40px; min-width: 40px; height: 40px; }
 }
+
+
+/* ==========================================================================
+   Global English typeface preference.
+   The selected font applies throughout the interface, including note titles,
+   editor content, readers, forms and navigation. Arabic/Urdu stay script-aware.
+   ========================================================================== */
+html[data-font="source-sans"] {
+  --font-english: "Source Sans 3", "Segoe UI", sans-serif;
+}
+html[data-font="inter"] {
+  --font-english: "Inter", "Segoe UI", sans-serif;
+}
+html[data-font="atkinson"] {
+  --font-english: "Atkinson Hyperlegible", "Segoe UI", sans-serif;
+}
+html[data-font="lato"] {
+  --font-english: "Lato", "Segoe UI", sans-serif;
+}
+html[data-font="plus-jakarta"] {
+  --font-english: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+html[data-font] {
+  --font-sans: var(--font-english);
+  --font-serif: var(--font-english);
+}
+html[data-font] body,
+html[data-font] body :not(svg):not(svg *) {
+  font-family: var(--font-english);
+}
+/* Keep the visual signature of the Mnemosyne wordmark and archival glyphs. */
+html[data-font] .brand-name,
+html[data-font] .brand-mark,
+html[data-font] .avatar,
+html[data-font] .auth-mark,
+html[data-font] .cover-glyph {
+  font-family: var(--font-display);
+}
+/* Technical fragments retain their monospaced reading convention. */
+html[data-font] body :not(svg):not(svg *) :is(code, kbd, pre) {
+  font-family: var(--font-mono);
+}
+/* The English preference must never replace the Arabic-script typefaces. */
+html[data-font] body :lang(ur),
+html[data-font] body :lang(ur) *,
+html[data-font] body :lang(ur)::placeholder {
+  font-family: var(--font-urdu);
+}
+html[data-font] body :lang(ar),
+html[data-font] body :lang(ar) *,
+html[data-font] body :lang(ar)::placeholder {
+  font-family: var(--font-arabic);
+}
+
+/* Font picker — deliberately compact so it fits beside the theme control. */
+.font-selector-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 40px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  box-shadow: 0 2px 8px rgba(0,0,0,.035);
+}
+.font-selector-control > svg {
+  flex: none;
+  color: var(--gold);
+}
+.font-selector-control select {
+  width: 126px;
+  max-width: 126px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.font-selector-control select option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+html[data-theme="light"] .font-selector-control {
+  background: #FFFFFF;
+  border-color: #DDD5C5;
+  color: #454B56;
+  box-shadow: 0 2px 8px rgba(59,47,26,.035);
+}
+html[data-theme="light"] .font-selector-control select {
+  color: #292B30;
+}
+html[data-theme="light"] .font-selector-control select option {
+  background: #FFFFFF;
+  color: #14161C;
+}
+.auth-display-controls {
+  position: fixed;
+  top: 22px;
+  right: 24px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .font-selector-control {
+    height: 40px;
+    padding: 0 7px;
+    gap: 5px;
+  }
+  .font-selector-control select {
+    width: 112px;
+    max-width: 112px;
+    font-size: 11px;
+  }
+  .auth-display-controls {
+    top: 13px;
+    right: 13px;
+    gap: 6px;
+  }
+}
