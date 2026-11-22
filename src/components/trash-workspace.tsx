@@ -59,7 +59,6 @@ export function TrashWorkspace() {
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "The action could not be completed.";
       setError(message);
-      notifyOperation("failure", message);
     } finally {
       setBusy(null);
     }
