@@ -15,6 +15,9 @@ export const NOTE_FONT_OPTIONS = [
   { value: "'EB Garamond', serif", label: "EB Garamond" },
   { value: "Amiri, serif", label: "Amiri" },
   { value: "'Noto Naskh Arabic', serif", label: "Noto Naskh Arabic" },
+  { value: "'Noto Nastaliq Urdu', serif", label: "Noto Nastaliq Urdu" },
+  { value: "'Noto Sans Arabic', sans-serif", label: "Noto Sans Arabic" },
+  { value: "Cinzel, serif", label: "Cinzel" },
   { value: "'JetBrains Mono', monospace", label: "JetBrains Mono" },
 ] as const;
 
