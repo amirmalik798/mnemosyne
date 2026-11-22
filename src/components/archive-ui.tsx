@@ -10,25 +10,26 @@ export type NoteItem = { id: string; topicId: string; topicTitle: string; title:
 export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; variant?: "default" | "dashboard" | "archive" | "archive-featured" }) {
   const glyph = topic.title.trim().charAt(0).toUpperCase() || "M";
   const archiveCard = variant === "archive" || variant === "archive-featured";
+  const collectionCard = variant === "dashboard" || archiveCard;
   const featuredArchiveCard = variant === "archive-featured";
   const title = topic.title.trim() || "Untitled collection";
-  const category = topic.category.trim() || (archiveCard ? "Uncategorized" : "Collection");
+  const category = topic.category.trim() || (collectionCard ? "Uncategorized" : "Collection");
 
   return (
     <Link
-      className={`topic-card ${variant === "dashboard" ? "topic-card-dashboard" : ""} ${archiveCard ? "topic-card-archive" : ""} ${featuredArchiveCard ? "topic-card-archive-featured" : ""}`}
+      className={`topic-card ${variant === "dashboard" ? "topic-card-dashboard" : ""} ${archiveCard ? "topic-card-archive" : ""} ${collectionCard ? "topic-card-collection" : ""} ${featuredArchiveCard ? "topic-card-archive-featured" : ""}`}
       href={`/topics/${topic.id}`}
-      aria-label={archiveCard ? `Open ${title} collection` : undefined}
+      aria-label={collectionCard ? `Open ${title} collection` : undefined}
     >
       <div className="topic-cover">
         {topic.coverUrl
-          ? <img src={topic.coverUrl} alt={archiveCard ? "" : `${title} cover`} loading="lazy" decoding="async" />
+          ? <img src={topic.coverUrl} alt={collectionCard ? "" : `${title} cover`} loading="lazy" decoding="async" />
           : <div className="cover-placeholder"><span className="cover-glyph">{glyph}</span></div>}
         <span className="cover-category">{category}</span>
       </div>
       <div className="topic-body">
         <h2 className="topic-title" dir="auto" lang={detectTextLanguage(title)}>{title}</h2>
-        {archiveCard ? (
+        {collectionCard ? (
           <>
             {topic.subject.trim()
               ? <div className="topic-subject" dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject}</div>
@@ -38,7 +39,7 @@ export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; va
               : <p className="topic-description topic-card-missing topic-card-description-missing">No description yet</p>}
             <div className="topic-card-footer">
               <div className="topic-meta">
-                <span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span>
+                <span className="meta-count"><BookOpen aria-hidden="true" /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span>
                 <span>{topic.dateLabel ? `${topic.dateLabel} · ` : ""}{formatArchiveDate(topic.dateAt ?? topic.updatedAt)}</span>
               </div>
               <div className="topic-card-open-cue">
@@ -51,7 +52,7 @@ export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; va
             <div className="topic-subject" dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject || "A personal collection"}</div>
             <p className="topic-description" dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description || "A place to gather notes, references and ideas worth keeping."}</p>
             <div className="topic-meta">
-              <span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span>
+              <span className="meta-count"><BookOpen aria-hidden="true" /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span>
               <span>{topic.dateLabel ? `${topic.dateLabel} · ` : ""}{formatArchiveDate(topic.dateAt ?? topic.updatedAt)}</span>
             </div>
           </>

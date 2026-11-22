@@ -80,6 +80,8 @@ export default async function LibraryPage() {
         coverUrl: row.cover_asset_id ? `/api/assets/${row.cover_asset_id}` : null,
         noteCount: row.note_count,
         updatedAt: row.updated_at,
+        dateAt: row.updated_at,
+        dateLabel: "Modified",
       });
     } catch {
       recordDecryptionIssue("topic", String(row.id));
