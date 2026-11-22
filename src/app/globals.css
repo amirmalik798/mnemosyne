@@ -6480,3 +6480,28 @@ html[data-theme="light"] .topic-card-collection .topic-card-footer .topic-card-o
     min-width: 112px;
   }
 }
+
+
+/* The dialog close control is icon-only visually; keep its accessible name for assistive technology. */
+.topic-create-modal .topic-dialog-close {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  gap: 0;
+  padding: 0 !important;
+}
+.topic-create-modal .topic-dialog-close::after {
+  content: none !important;
+  display: none !important;
+}
+@media (max-width: 560px) {
+  .topic-create-modal .topic-dialog-close {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+    flex-basis: 42px;
+  }
+}
