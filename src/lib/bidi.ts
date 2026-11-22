@@ -10,7 +10,7 @@ export type TextDirection = "rtl" | "ltr";
 // Characters commonly used in Urdu but not in standard Arabic orthography.
 const URDU_SPECIFIC_CHARACTERS = /[پٹڈڑںھہےگچژک]/u;
 const ARABIC_SCRIPT_CHARACTERS = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
-const RTL_STRONG_CHARACTER = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/u;
+const RTL_STRONG_CHARACTER = /[\u05D0-\u05EA\u05EF-\u05F4\u0620-\u064A\u066E-\u066F\u0671-\u06D3\u06D5\u06E5-\u06E6\u06EE-\u06EF\u06FA-\u06FC\u06FF\u0750-\u077F\u08A0-\u08C9\uFB1D-\uFB4F\uFB50-\uFDCF\uFDF0-\uFDFF\uFE70-\uFEFC]/u;
 const LTR_STRONG_CHARACTER = /[A-Za-z\u00C0-\u02AF]/u;
 
 export function detectTextLanguage(value: string): TextLanguage {
