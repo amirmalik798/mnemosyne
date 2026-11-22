@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, Edit3, FilePlus, ImagePlus } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Edit3, FilePlus } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
