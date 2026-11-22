@@ -55,6 +55,9 @@ CREATE INDEX IF NOT EXISTS notes_topic_idx ON notes(topic_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS notes_live_recent_idx
   ON notes(pinned DESC, updated_at DESC, id DESC)
   WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS notes_live_updated_idx
+  ON notes(updated_at DESC, id DESC)
+  WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS notes_live_topic_order_idx
   ON notes(topic_id, pinned DESC, updated_at DESC, id DESC)
   WHERE deleted_at IS NULL;
