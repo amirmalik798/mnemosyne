@@ -3,12 +3,27 @@ import { FilePlus } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
-import { EmptyState, NoteRow, type NoteItem } from "@/components/archive-ui";
+import { ArchiveIntegrityNotice, EmptyState, NoteRow, type NoteItem } from "@/components/archive-ui";
 import { ARCHIVE_PAGE_SIZE, ArchivePagination, parseArchivePage } from "@/components/archive-pagination";
 
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<{ page?: string | string[] }> };
+
+function decryptNoteValue(value: unknown, key: Buffer, id: string, field: string): string | null {
+  try {
+    if (!Buffer.isBuffer(value)) throw new Error("Encrypted field is not a byte buffer.");
+    return decryptText(value, key);
+  } catch (error) {
+    console.error("[Mnemosyne] Note archive encrypted field failed authentication.", {
+      recordType: "note",
+      recordId: id,
+      field,
+      reason: error instanceof Error ? error.message : "Unknown decryption error",
+    });
+    return null;
+  }
+}
 
 export default async function NotesPage({ searchParams }: Props) {
   const [{ page: requestedPage }, session] = await Promise.all([
@@ -32,18 +47,31 @@ export default async function NotesPage({ searchParams }: Props) {
     [ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
   );
 
-  const notes: NoteItem[] = result.rows.map((row) => ({
-    id: row.id,
-    topicId: row.topic_id,
-    topicTitle: decryptText(row.topic_title_enc, session.key),
-    title: decryptText(row.title_enc, session.key),
-    subject: decryptText(row.subject_enc, session.key),
-    pinned: row.pinned,
-    updatedAt: row.updated_at,
-  }));
+  const notes: NoteItem[] = [];
+  const unavailableNoteIds = new Set<string>();
+  for (const row of result.rows) {
+    const id = String(row.id);
+    const topicTitle = decryptNoteValue(row.topic_title_enc, session.key, id, "topic_title_enc");
+    const title = decryptNoteValue(row.title_enc, session.key, id, "title_enc");
+    const subject = decryptNoteValue(row.subject_enc, session.key, id, "subject_enc");
+    if (topicTitle === null || title === null || subject === null) {
+      unavailableNoteIds.add(id);
+      continue;
+    }
+    notes.push({
+      id,
+      topicId: row.topic_id,
+      topicTitle,
+      title,
+      subject,
+      pinned: row.pinned,
+      updatedAt: row.updated_at,
+    });
+  }
 
   return (
     <main className="page">
+      <ArchiveIntegrityNotice count={unavailableNoteIds.size} itemLabel="note" />
       <div className="page-heading">
         <div>
           <div className="eyebrow">Your writing</div>
@@ -58,9 +86,11 @@ export default async function NotesPage({ searchParams }: Props) {
         <div className="note-list">
           {notes.length ? notes.map((note) => <NoteRow key={note.id} note={note} />) : (
             <EmptyState
-              title="No notes yet"
-              copy="Start with a short thought or build a longer reflection in the editor."
-              action={<Link href="/notes/new" className="primary-btn"><FilePlus size={14} /> Create note</Link>}
+              title={unavailableNoteIds.size ? "Some notes are unavailable" : "No notes yet"}
+              copy={unavailableNoteIds.size
+                ? "Their encrypted fields could not be authenticated. The original records remain unchanged; investigate the vault key and backup before making further changes."
+                : "Start with a short thought or build a longer reflection in the editor."}
+              action={unavailableNoteIds.size ? undefined : <Link href="/notes/new" className="primary-btn"><FilePlus size={14} /> Create note</Link>}
             />
           )}
         </div>

@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { derivePasswordKey, encryptBytes, newVaultKey, sessionEncryptionKey } from "@/lib/crypto";
-import { createSession, isVaultInitialized, assertSameOrigin } from "@/lib/auth";
+import {
+  createSessionRecord,
+  isVaultInitialized,
+  setSessionCookie,
+  assertSameOrigin,
+} from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
@@ -55,7 +60,9 @@ export async function POST(request: Request) {
     const wrappedKey = encryptBytes(vaultKey, wrappingKey);
 
     // Serialize first-run requests and re-check the database inside the same
-    // transaction as the insert. This prevents two setup requests racing.
+    // transaction as both the vault key wrapper and the first session record.
+    // If the DB schema is outdated, session insertion fails and setup rolls
+    // back completely rather than leaving an initialized but inaccessible vault.
     client = await db.connect();
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock($1::bigint)", [SETUP_ADVISORY_LOCK_ID]);
@@ -105,11 +112,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The vault has already been set up." }, { status: 409 });
     }
 
+    // Keep the session row in this transaction. If last_active_at (or another
+    // required session column) is missing, neither vault_settings nor the
+    // initial session is committed.
+    const sessionToken = await createSessionRecord(
+      vaultKey,
+      (text, values) => client!.query(text, values),
+    );
+
     await client.query("COMMIT");
     client.release();
     client = undefined;
 
-    await createSession(vaultKey);
+    // Only emit the browser cookie after PostgreSQL confirms the transaction.
+    await setSessionCookie(sessionToken);
     return NextResponse.json({ success: true });
   } catch (error) {
     if (client) await client.query("ROLLBACK").catch(() => undefined);
