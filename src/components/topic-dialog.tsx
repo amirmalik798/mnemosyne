@@ -19,6 +19,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
+  const previewUrlRef = useRef<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("Creating topic…");
@@ -29,6 +30,11 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
     category !== "Personal" ||
     description !== "" ||
     file !== null;
+
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = null;
+  }, []);
 
   function requestClose() {
     if (busy) return;
@@ -119,7 +125,12 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
     if (!next) return;
     if (!next.type.startsWith("image/")) return setError("Choose an image file for the topic cover.");
     if (next.size > 8 * 1024 * 1024) return setError("The cover image must be 8 MB or smaller.");
-    setError(""); setFile(next); setPreview(URL.createObjectURL(next));
+    setError("");
+    setFile(next);
+    const nextPreview = URL.createObjectURL(next);
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = nextPreview;
+    setPreview(nextPreview);
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
