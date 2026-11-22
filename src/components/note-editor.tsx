@@ -10,7 +10,7 @@ import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { NoteImageNodeView } from "@/components/note-image-node-view";
-import { OperationStatus, type OperationStatusKind } from "@/components/operation-status";
+import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 import { TextHighlightMark, TextStyleMark } from "@/lib/note-formatting";
 import {
   colorPickerValue,
@@ -40,7 +40,7 @@ const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
 
 function getEditorStatusKind(message: string): OperationStatusKind {
   const value = message.toLocaleLowerCase();
-  if (value.includes("fail") || value.includes("could not") || value.includes("error")) return "error";
+  if (value.includes("fail") || value.includes("could not") || value.includes("error") || value.includes("unavailable")) return "error";
   if (value.includes("saving") || value.includes("uploading")) return "loading";
   if (value.includes("unsaved") || value.includes("recovered") || value.includes("draft") || value.includes("need saving") || value.includes("preparing")) return "waiting";
   return "success";
@@ -525,6 +525,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         setDirty(false);
         setStatus("All changes saved");
         setRecoveryStatus("Saved securely to your archive");
+        if (!quiet) notifyOperation("success", "Your note has been saved securely.");
         await removeLocalNoteDraft(savedDraftKey).catch(() => undefined);
       } else {
         setDirty(true);
@@ -539,7 +540,10 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       if (message === "Please unlock your vault.") {
         setStatus("Vault session ended. Returning to unlock…");
       } else {
-        if (!quiet) setError(message);
+        if (!quiet) {
+          setError(message);
+          notifyOperation("failure", "Your note could not be saved. Your local recovery copy has been retained.");
+        }
         setStatus(quiet ? "Autosave failed; local recovery is retained" : "Save failed");
       }
       // Do not clear dirty state on failure: the latest version remains
@@ -741,6 +745,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       setDirty(false);
       setStatus("All changes saved");
       setRecoveryStatus("Saved securely to your archive");
+      notifyOperation("success", insertedCount + " image(s) added and the note was saved securely.");
       await Promise.all([
         removeLocalNoteDraft("note:new").catch(() => undefined),
         removeLocalNoteDraft("note:" + id).catch(() => undefined),
@@ -763,6 +768,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       } else {
         setError(message);
         setStatus(insertedCount > 0 ? "Images added; save needs attention" : "Upload failed");
+        notifyOperation("failure", message);
       }
       if (insertedCount > 0) setDirty(true);
     } finally {
@@ -780,14 +786,28 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   }
 
   async function removeNote() {
-    if (!noteId || !confirm("Move this note to Recently deleted? You can restore it later.")) return;
-    const response = await fetch(`/api/notes/${noteId}`, { method: "DELETE" });
-    if (response.ok) {
-      if (noteId) void removeLocalNoteDraft(`note:${noteId}`).catch(() => undefined);
+    if (!noteId || busy || imageUploading || !confirm("Move this note to Recently deleted? You can restore it later.")) return;
+
+    setBusy(true);
+    setError("");
+    setStatus("Moving note to Recently deleted…");
+    try {
+      const response = await fetch(`/api/notes/${noteId}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not move this note to Recently deleted.");
+
+      void removeLocalNoteDraft(`note:${noteId}`).catch(() => undefined);
+      notifyOperation("success", "Note moved to Recently deleted.");
       router.push("/notes");
       router.refresh();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Could not move this note to Recently deleted.";
+      setError(message);
+      setStatus("Move to Trash failed");
+      notifyOperation("failure", message);
+    } finally {
+      setBusy(false);
     }
-    else setError("Could not move this note to Trash.");
   }
 
   function hasExternalFiles(dataTransfer: DataTransfer): boolean {
