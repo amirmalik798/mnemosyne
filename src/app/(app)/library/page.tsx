@@ -163,20 +163,20 @@ export default async function LibraryPage() {
             <OpenTopicDialogButton className="secondary-btn overview-quick-action" />
           </div>
         </div>
-        <div className="overview-stats" role="group" aria-label="Archive totals">
-          <div className="overview-stat-card">
+        <nav className="overview-stats" aria-label="Explore your archive">
+          <Link className="overview-stat-card" href="/topics" aria-label={`View all ${stats.topics} topics`}>
             <span className="overview-stat-icon"><FolderOpen size={17} aria-hidden="true" /></span>
-            <strong>{stats.topics}</strong><span>Topics</span>
-          </div>
-          <div className="overview-stat-card">
+            <strong>{stats.topics}</strong><span>Topics</span><span className="overview-stat-open">View topics <ArrowUpRight size={13} aria-hidden="true" /></span>
+          </Link>
+          <Link className="overview-stat-card" href="/notes" aria-label={`View all ${stats.notes} notes`}>
             <span className="overview-stat-icon"><FileText size={17} aria-hidden="true" /></span>
-            <strong>{stats.notes}</strong><span>Notes</span>
-          </div>
-          <div className="overview-stat-card">
+            <strong>{stats.notes}</strong><span>Notes</span><span className="overview-stat-open">View notes <ArrowUpRight size={13} aria-hidden="true" /></span>
+          </Link>
+          <a className="overview-stat-card" href="#overview-images" aria-label={`Jump to ${stats.assets} images in your archive`}>
             <span className="overview-stat-icon"><ImagePlus size={17} aria-hidden="true" /></span>
-            <strong>{stats.assets}</strong><span>Images</span>
-          </div>
-        </div>
+            <strong>{stats.assets}</strong><span>Images</span><span className="overview-stat-open">View images <ArrowUpRight size={13} aria-hidden="true" /></span>
+          </a>
+        </nav>
       </section>
 
       {decryptionIssues.length > 0 && (
@@ -296,28 +296,51 @@ export default async function LibraryPage() {
         </section>
       )}
 
-      {recentImages.length > 0 && (
-        <section className="overview-section" aria-labelledby="overview-images-title">
-          <div className="overview-section-heading">
-            <div>
-              <div className="eyebrow">Visual references</div>
-              <h2 className="overview-section-title" id="overview-images-title">Recently added images</h2>
-              <p className="overview-section-copy">Images saved inside your notes, connected to their original context.</p>
-            </div>
+      <section className="overview-section" id="overview-images" aria-labelledby="overview-images-title">
+        <div className="overview-section-heading">
+          <div>
+            <div className="eyebrow">Visual references</div>
+            <h2 className="overview-section-title" id="overview-images-title">Recently added images</h2>
+            <p className="overview-section-copy">Preview an image or open the note where it belongs.</p>
           </div>
+          <Link className="overview-text-link" href="/notes">Browse notes <ArrowUpRight size={15} aria-hidden="true" /></Link>
+        </div>
+        {recentImages.length > 0 ? (
           <div className="overview-image-grid">
             {recentImages.map((image) => (
-              <Link href={`/notes/${image.noteId}`} className="overview-image-card" key={image.id}>
-                <img src={`/api/assets/${image.id}`} alt={`Image in ${image.noteTitle}`} loading="lazy" decoding="async" />
-                <span className="overview-image-caption">
+              <article className="overview-image-card" key={image.id}>
+                <a
+                  href={`/api/assets/${image.id}`}
+                  className="overview-image-preview"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Preview image from note ${image.noteTitle || "Untitled note"}`}
+                  title="Open image preview"
+                >
+                  <img src={`/api/assets/${image.id}`} alt="" loading="lazy" decoding="async" />
+                  <span className="overview-image-preview-cue"><ImagePlus size={14} aria-hidden="true" /> Preview image</span>
+                </a>
+                <div className="overview-image-caption">
                   <strong dir="auto">{image.noteTitle || "Untitled note"}</strong>
                   <small dir="auto">{image.topicTitle} · {formatArchiveDate(image.createdAt, true)}</small>
-                </span>
-              </Link>
+                  <Link href={`/notes/${image.noteId}`} className="overview-image-open-note">
+                    <FileText size={13} aria-hidden="true" /><span>Open note</span><ArrowUpRight size={13} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="overview-image-empty">
+            <div className="overview-image-empty-icon"><ImagePlus size={21} aria-hidden="true" /></div>
+            <div className="overview-image-empty-copy">
+              <strong>No image references yet</strong>
+              <p>Images you add inside notes will appear here, ready to preview or revisit in context.</p>
+            </div>
+            <Link href="/notes/new" className="secondary-btn overview-quick-action"><FilePlus size={15} aria-hidden="true" /><span>Create a note</span></Link>
+          </div>
+        )}
+      </section>
     </main>
   );
 }
