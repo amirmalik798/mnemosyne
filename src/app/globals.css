@@ -113,7 +113,7 @@
 .textarea-field:lang(ur),
 .editor-title:lang(ur),
 .editor-subject:lang(ur) {
-  font-size: calc(1.08em * var(--font-scale, 1));
+  font-size: 1.08em;
   line-height: 2.15;
   padding-top: 9px;
   padding-bottom: 12px;
@@ -129,7 +129,7 @@
 .reader-content p:lang(ur),
 .rich-editor li:lang(ur),
 .reader-content li:lang(ur) {
-  font-size: calc(1.12em * var(--font-scale, 1));
+  font-size: 1.12em;
   line-height: 2.55;
   margin-bottom: 20px;
 }
@@ -147,7 +147,7 @@
 .reader-content p:lang(ar),
 .rich-editor li:lang(ar),
 .reader-content li:lang(ar) {
-  font-size: calc(1.04em * var(--font-scale, 1));
+  font-size: 1.04em;
   line-height: 2.15;
   margin-bottom: 20px;
 }
