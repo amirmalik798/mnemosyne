@@ -2592,8 +2592,10 @@ html[data-theme="light"] .search-section-empty {
   .mobile-nav-link { min-height: 42px; }
 }
 .rich-editor:focus-visible {
-  border-radius: 8px;
-  box-shadow: inset 0 0 0 1px var(--gold-border) !important;
+  outline: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none !important;
 }
 button:disabled,
 [role="button"][aria-disabled="true"] {
@@ -3898,8 +3900,29 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
 .note-editor-page .editor-property-action,
 .note-editor-page .editor-header-action,
 .note-editor-page .reader-action-button { font-size: 11px; }
+.cover-upload {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.cover-upload > img {
+  display: block;
+  flex: 0 0 105px;
+  width: 105px;
+  max-width: 105px;
+  height: 78px;
+  object-fit: cover;
+  object-position: center;
+}
+.cover-upload > svg {
+  flex: 0 0 auto;
+}
 .cover-upload > span {
-  flex: 1 0 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-size: 11px;
   font-weight: 600;
@@ -4021,6 +4044,27 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
+/* Prevent topic-cover content from widening the dialog or its grid. */
+.modal {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.modal form,
+.modal .form-grid,
+.modal .form-field {
+  min-width: 0;
+  max-width: 100%;
+}
+.modal .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 560px) {
+  .modal .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 760px) {
   .archive-sort-row {
     justify-content: stretch;
