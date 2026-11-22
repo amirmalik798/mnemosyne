@@ -212,7 +212,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
               <label className="form-label">Topic thumbnail</label>
               <input hidden ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={(event) => chooseCover(event.target.files?.[0])} />
               <button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy} aria-label={preview ? "Replace topic cover image" : "Choose topic cover image"} title={preview ? "Replace topic cover image" : "Choose topic cover image"}>
-                {preview ? <><img src={preview} alt="Topic cover preview" /><ImagePlus size={22} aria-hidden="true" />}<span>{preview ? "Replace cover image" : "Choose cover image"}</span>
+                {preview ? <><img src={preview} alt="Topic cover preview" /><ImagePlus size={19} aria-hidden="true" /></> : <ImagePlus size={22} aria-hidden="true" />}<span>{preview ? "Replace cover image" : "Choose cover image"}</span>
               </button>
               {preview && <button type="button" className="secondary-btn icon-only-btn" onClick={removeCover} disabled={busy} aria-label="Remove topic cover" title="Remove topic cover"><Trash2 size={17} /></button>}
             </div>
