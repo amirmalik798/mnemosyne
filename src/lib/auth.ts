@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
@@ -50,31 +51,29 @@ export async function createSession(vaultKey: Buffer): Promise<void> {
  * Normal protected requests refresh last_active_at. The lightweight session
  * heartbeat explicitly opts out so an abandoned open tab cannot stay unlocked.
  */
-export async function getVaultSession(
-  options: { touch?: boolean } = {},
-): Promise<VaultSession | null> {
+const getVaultSessionCached = cache(async (touch: boolean): Promise<VaultSession | null> => {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
   if (!token) return null;
 
   const tokenHash = hashToken(token);
-  const result = options.touch === false
+  const result = touch
     ? await db.query(
-        `SELECT id, encrypted_key, expires_at
-         FROM vault_sessions
-         WHERE token_hash = $1
-           AND expires_at > NOW()
-           AND last_active_at > NOW() - ($2 * INTERVAL '1 minute')
-         LIMIT 1`,
-        [tokenHash, SESSION_IDLE_MINUTES],
-      )
-    : await db.query(
         `UPDATE vault_sessions
          SET last_active_at = NOW()
          WHERE token_hash = $1
            AND expires_at > NOW()
            AND last_active_at > NOW() - ($2 * INTERVAL '1 minute')
          RETURNING id, encrypted_key, expires_at`,
+        [tokenHash, SESSION_IDLE_MINUTES],
+      )
+    : await db.query(
+        `SELECT id, encrypted_key, expires_at
+         FROM vault_sessions
+         WHERE token_hash = $1
+           AND expires_at > NOW()
+           AND last_active_at > NOW() - ($2 * INTERVAL '1 minute')
+         LIMIT 1`,
         [tokenHash, SESSION_IDLE_MINUTES],
       );
 
@@ -88,6 +87,17 @@ export async function getVaultSession(
   } catch {
     return null;
   }
+});
+
+/**
+ * Request-scoped memoization avoids repeating the same session database query
+ * when the protected layout and its page both verify the same vault session.
+ * The read-only heartbeat remains separate and never extends the idle lease.
+ */
+export function getVaultSession(
+  options: { touch?: boolean } = {},
+): Promise<VaultSession | null> {
+  return getVaultSessionCached(options.touch !== false);
 }
 
 export async function requireVaultSession(
