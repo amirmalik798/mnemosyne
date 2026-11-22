@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const session = await requireVaultSession();
-    const body = await readJsonObject(request, 2_100_000);
+    const body = await readJsonObject(request, 8_500_000);
     const topicId = stringField(body, "topicId", 64, true);
     const title = stringField(body, "title", 180, true);
     const subject = stringField(body, "subject", 180);
