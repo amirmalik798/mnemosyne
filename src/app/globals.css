@@ -8472,3 +8472,145 @@ html[data-theme="light"] .overview-recent-panel .note-row-pinned .note-icon {
     width: 100%;
   }
 }
+
+
+/* Topic note rows use a stable details/actions grid to prevent the date and
+   action controls from squeezing into or overlapping each other. */
+.topic-detail-page .topic-detail-note-panel .note-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 10px;
+  min-width: 0;
+}
+.topic-detail-page .topic-detail-note-panel .note-row-main-link {
+  min-width: 0;
+  width: 100%;
+  display: grid !important;
+  grid-template-columns: 42px minmax(100px, 1fr) auto auto;
+  align-items: center;
+  column-gap: 12px;
+  flex: initial !important;
+}
+.topic-detail-page .topic-detail-note-panel .note-row-main-link .note-icon {
+  grid-column: 1;
+  grid-row: 1;
+}
+.topic-detail-page .topic-detail-note-panel .note-row-main-link .note-main {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+.topic-detail-page .topic-detail-note-panel .note-row-main-link .note-row-meta {
+  grid-column: 3;
+  grid-row: 1;
+  margin: 0 !important;
+  white-space: nowrap;
+}
+.topic-detail-page .topic-detail-note-panel .note-row-main-link .note-row-open-cue {
+  grid-column: 4;
+  grid-row: 1;
+  margin: 0 !important;
+  white-space: nowrap;
+}
+.topic-detail-page .topic-detail-note-panel .note-row-actions {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  min-width: max-content;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  margin: 0 !important;
+  white-space: nowrap;
+}
+.topic-detail-page .topic-detail-note-panel .note-row-actions .note-row-action-labelled,
+.topic-detail-page .topic-detail-note-panel .note-row-actions .reader-action-button {
+  flex: 0 0 auto;
+}
+.topic-detail-page .topic-detail-note-panel .note-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topic-detail-page .topic-detail-note-panel .note-row-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mid-size layouts give the action group its own row rather than compressing
+   note metadata or causing action buttons to overlap. */
+@media (max-width: 1200px) {
+  .topic-detail-page .topic-detail-note-panel .note-row {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 7px;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link {
+    grid-template-columns: 42px minmax(120px, 1fr) auto auto;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-actions {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: end;
+    width: auto;
+    max-width: 100%;
+    margin: 0 0 0 54px !important;
+  }
+}
+@media (max-width: 760px) {
+  .topic-detail-page .topic-detail-note-panel .note-row {
+    row-gap: 9px;
+    padding: 14px 9px;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link {
+    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-areas:
+      "icon main"
+      "meta meta"
+      "open open";
+    row-gap: 7px;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link .note-icon {
+    grid-area: icon;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link .note-main {
+    grid-area: main;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link .note-row-meta {
+    grid-area: meta;
+    padding-left: 54px;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link .note-row-open-cue {
+    grid-area: open;
+    justify-self: start;
+    margin-left: 54px !important;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-actions {
+    justify-self: stretch;
+    width: calc(100% - 54px);
+    min-width: 0;
+    margin-left: 54px !important;
+    flex-wrap: wrap;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-actions .note-row-action-labelled,
+  .topic-detail-page .topic-detail-note-panel .note-row-actions .reader-action-button {
+    flex: 1 1 auto;
+  }
+}
+@media (max-width: 480px) {
+  .topic-detail-page .topic-detail-note-panel .note-row {
+    padding-inline: 7px;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link .note-row-meta,
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link .note-row-open-cue {
+    padding-left: 48px;
+    margin-left: 0 !important;
+  }
+  .topic-detail-page .topic-detail-note-panel .note-row-actions {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+}
