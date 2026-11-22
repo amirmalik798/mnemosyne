@@ -74,7 +74,7 @@ export function ConfirmationDialog({
   const isDanger = options.tone !== "neutral";
 
   return (
-    <div className="confirmation-backdrop">
+    <div className="confirmation-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
       <section
         ref={dialogRef}
         className={`confirmation-dialog ${isDanger ? "confirmation-dialog-danger" : "confirmation-dialog-neutral"}`}
