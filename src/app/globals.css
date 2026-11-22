@@ -3775,7 +3775,7 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
 .top-actions .icon-only-btn {
   flex: 0 1 auto;
 }
-.icon-only-btn.auth-submit {
+.icon-only-btn.auth-submit:not(.transfer-choice):not(.note-image-delete) {
   width: 100%;
   min-width: 0;
   min-height: 48px;
@@ -3865,7 +3865,7 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
     width: 42px;
     height: 42px;
   }
-  .icon-only-btn.auth-submit {
+  .icon-only-btn.auth-submit:not(.transfer-choice):not(.note-image-delete) {
     width: 100%;
     min-width: 0;
     min-height: 48px;
