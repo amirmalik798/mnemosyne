@@ -6,6 +6,7 @@ import Link from "next/link";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
+import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { detectTextLanguage, getBidiAttributes } from "@/lib/bidi";
@@ -111,7 +112,7 @@ const BidiDirection = Extension.create({
 
           if (changedRanges.length === 0) return null;
 
-          const affectedNodes = new Map<number, (typeof newState.doc) extends infer _Doc ? import("@tiptap/pm/model").Node : never>();
+          const affectedNodes = new Map<number, ProseMirrorNode>();
           for (const range of changedRanges) {
             const from = Math.max(0, Math.min(range.from, newState.doc.content.size));
             const to = Math.min(
@@ -172,12 +173,15 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [subject, setSubject] = useState(initialNote?.subject ?? "");
   const [tagsInput, setTagsInput] = useState(initialNote?.tags?.join(", ") ?? "");
   const [pinned, setPinned] = useState(initialNote?.pinned ?? false);
-  const [content, setContent] = useState<any>(initialNote?.content ?? EMPTY_DOC);
+  const contentRef = useRef<any>(initialNote?.content ?? EMPTY_DOC);
+  const selectionRef = useRef({ from: 1, to: 1 });
+  const changeVersionRef = useRef(0);
+  const autosaveRevisionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [autosaveRevision, setAutosaveRevision] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState(initialNote ? "Saved" : "Draft");
   const [recoveryStatus, setRecoveryStatus] = useState("Preparing local recovery…");
   const [draftReady, setDraftReady] = useState(false);
-  const [selection, setSelection] = useState({ from: 1, to: 1 });
   const [focusTarget, setFocusTarget] = useState<"title" | "subject" | "editor" | "tags" | null>(null);
   const pendingDraftRef = useRef<{ key: string; draft: LocalNoteDraft } | null>(null);
   const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -189,6 +193,71 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
   const closeImagePreview = useCallback(() => setImagePreview(null), []);
   const draftStorageKey = noteId ? `note:${noteId}` : "note:new";
+  const latestDraftFieldsRef = useRef({
+    noteId,
+    topicId,
+    title,
+    subject,
+    tagsInput,
+    pinned,
+    focusTarget,
+    dirty,
+    draftReady,
+    serverUpdatedAt: initialNote?.updatedAt ? new Date(initialNote.updatedAt).getTime() : null,
+  });
+  latestDraftFieldsRef.current = {
+    noteId,
+    topicId,
+    title,
+    subject,
+    tagsInput,
+    pinned,
+    focusTarget,
+    dirty,
+    draftReady,
+    serverUpdatedAt: initialNote?.updatedAt ? new Date(initialNote.updatedAt).getTime() : null,
+  };
+
+  const scheduleLocalRecovery = useCallback(() => {
+    if (recoveryTimerRef.current !== null) return;
+
+    // Keep at most one encrypted recovery write in flight per second while
+    // typing, and build the snapshot from refs so cursor movement does not
+    // re-render the entire editor.
+    recoveryTimerRef.current = window.setTimeout(() => {
+      recoveryTimerRef.current = null;
+      const latest = latestDraftFieldsRef.current;
+      if (!latest.draftReady || !latest.dirty) return;
+
+      const draft: LocalNoteDraft = {
+        version: 1,
+        noteId: latest.noteId,
+        topicId: latest.topicId,
+        title: latest.title,
+        subject: latest.subject,
+        tagsInput: latest.tagsInput,
+        pinned: latest.pinned,
+        content: contentRef.current,
+        selection: selectionRef.current,
+        focusTarget: latest.focusTarget,
+        savedAt: Date.now(),
+        serverUpdatedAt: latest.serverUpdatedAt,
+      };
+      const key = latest.noteId ? `note:${latest.noteId}` : "note:new";
+      pendingDraftRef.current = { key, draft };
+      void saveLocalNoteDraft(key, draft)
+        .then(() => setRecoveryStatus("Recovery copy saved on this device"))
+        .catch(() => setRecoveryStatus("Local recovery could not be saved"));
+    }, 1000);
+  }, []);
+
+  const markDirty = useCallback(() => {
+    changeVersionRef.current += 1;
+    setDirty(true);
+    setStatus("Unsaved changes");
+    scheduleLocalRecovery();
+  }, [scheduleLocalRecovery]);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [StarterKit, BidiDirection, Image.configure({ inline: false, allowBase64: false }), Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." })],
@@ -200,18 +269,27 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       // Normalize older saved documents immediately, without requiring the
       // user to edit or re-paste their existing Urdu content.
       current.view.dispatch(current.state.tr.setMeta("bidi-initial-normalization", true));
-      setContent(current.getJSON());
+      contentRef.current = current.getJSON();
     },
     onUpdate: ({ editor: current, transaction }) => {
-      setContent(current.getJSON());
+      contentRef.current = current.getJSON();
       if (transaction.getMeta("bidi-normalization")) return;
-      setDirty(true);
-      setStatus("Unsaved changes");
+
+      markDirty();
+      // Debounce the React autosave trigger instead of putting the full
+      // ProseMirror JSON tree into React state on every keystroke.
+      if (autosaveRevisionTimerRef.current !== null) {
+        clearTimeout(autosaveRevisionTimerRef.current);
+      }
+      autosaveRevisionTimerRef.current = window.setTimeout(() => {
+        autosaveRevisionTimerRef.current = null;
+        setAutosaveRevision((revision) => revision + 1);
+      }, 500);
     },
     onSelectionUpdate: ({ editor: current }) => {
       setImageSelected(current.isActive("image"));
       const currentSelection = current.state.selection;
-      setSelection({ from: currentSelection.from, to: currentSelection.to });
+      selectionRef.current = { from: currentSelection.from, to: currentSelection.to };
     },
   });
 
@@ -247,13 +325,13 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         setSubject(draft.subject);
         setTagsInput(draft.tagsInput);
         setPinned(draft.pinned);
-        setContent(draft.content);
+        contentRef.current = draft.content;
         editor.commands.setContent(draft.content as any, { emitUpdate: false });
         const maxPosition = editor.state.doc.content.size;
         const from = Math.max(1, Math.min(draft.selection?.from ?? 1, maxPosition));
         const to = Math.max(from, Math.min(draft.selection?.to ?? from, maxPosition));
         editor.commands.setTextSelection({ from, to });
-        setSelection({ from, to });
+        selectionRef.current = { from, to };
         setFocusTarget(draft.focusTarget ?? null);
         requestAnimationFrame(() => {
           if (draft.focusTarget === "title") {
@@ -280,46 +358,12 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     return () => { cancelled = true; };
   }, [editor, draftStorageKey, initialNote?.updatedAt, defaultTopicId, topics]);
 
-  // Persist each edited state locally. This runs independently of server
-  // autosave so a new, untitled or offline draft is still recoverable.
+  // Metadata changes schedule recovery too; document edits and cursor
+  // updates are handled through refs without forcing component renders.
   useEffect(() => {
     if (!draftReady || !dirty) return;
-
-    // Throttle rather than debounce: a continuously typed paragraph is still
-    // committed to IndexedDB every 250 ms instead of waiting for a pause.
-    pendingDraftRef.current = {
-      key: draftStorageKey,
-      draft: {
-        version: 1,
-        noteId,
-        topicId,
-        title,
-        subject,
-        tagsInput,
-        pinned,
-        content,
-        selection,
-        focusTarget,
-        savedAt: Date.now(),
-        serverUpdatedAt: initialNote?.updatedAt ? new Date(initialNote.updatedAt).getTime() : null,
-      },
-    };
-    if (recoveryTimerRef.current === null) {
-      setRecoveryStatus("Saving recovery copy…");
-      recoveryTimerRef.current = window.setTimeout(() => {
-        recoveryTimerRef.current = null;
-        const pending = pendingDraftRef.current;
-        if (!pending) return;
-        void saveLocalNoteDraft(pending.key, pending.draft)
-          .then(() => setRecoveryStatus("Recovery copy saved on this device"))
-          .catch(() => setRecoveryStatus("Local recovery could not be saved"));
-      }, 250);
-    }
-
-    return () => {
-      // Intentionally keep the throttle timer alive across rapid edits.
-    };
-  }, [draftReady, dirty, draftStorageKey, noteId, topicId, title, subject, tagsInput, pinned, content, selection, focusTarget, initialNote?.updatedAt]);
+    scheduleLocalRecovery();
+  }, [draftReady, dirty, noteId, topicId, title, subject, tagsInput, pinned, focusTarget, scheduleLocalRecovery]);
 
   // Flush a final local snapshot when the tab is hidden or closed. The
   // frequent IndexedDB writes above remain the primary power-loss protection.
@@ -344,8 +388,8 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         subject,
         tagsInput,
         pinned,
-        content,
-        selection,
+        content: contentRef.current,
+        selection: selectionRef.current,
         focusTarget,
         savedAt: Date.now(),
         serverUpdatedAt: initialNote?.updatedAt ? new Date(initialNote.updatedAt).getTime() : null,
@@ -367,7 +411,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       window.removeEventListener("mnemosyne:flush-local-drafts", flush);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [draftReady, dirty, recoveryStatus, draftStorageKey, noteId, topicId, title, subject, tagsInput, pinned, content, selection, focusTarget, initialNote?.updatedAt]);
+  }, [draftReady, dirty, recoveryStatus, draftStorageKey, noteId, topicId, title, subject, tagsInput, pinned, focusTarget, initialNote?.updatedAt]);
 
   const save = useCallback(async (
     quiet = false,
@@ -376,12 +420,21 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     if (!topicId) { setError("Create a topic before writing a note."); return null; }
     if (!title.trim()) { if (!quiet) setError("Give your note a title before saving."); return null; }
     if (savingRef.current) return noteId;
-    savingRef.current = true; setBusy(true); if (!quiet) setError(""); setStatus("Saving…");
+    const savedVersion = changeVersionRef.current;
+    const showBusyState = !quiet;
+    savingRef.current = true;
+    if (showBusyState) setBusy(true);
+    if (!quiet) setError("");
+    setStatus(quiet ? "Saving in background…" : "Saving…");
     try {
-      const payload = { topicId, title, subject, content, tags: tagsInput.split(",").map((t) => t.trim().replace(/^#/, "")).filter(Boolean).slice(0, 30), pinned };
+      const payload = { topicId, title, subject, content: contentRef.current, tags: tagsInput.split(",").map((t) => t.trim().replace(/^#/, "")).filter(Boolean).slice(0, 30), pinned };
       const response = await fetch(noteId ? `/api/notes/${noteId}` : "/api/notes", {
         method: noteId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
+      if (response.status === 401) {
+        setStatus("Vault session ended. Returning to unlock…");
+        return null;
+      }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not save note.");
       const savedId = noteId ?? data.note.id;
@@ -400,33 +453,51 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         // the next successful save.
         router.replace(`/notes/${savedId}/edit`);
       }
-      // The editor is made read-only while a save is in flight, so the server
-      // response represents the complete visible draft. Cancel any trailing
-      // local throttle write before removing the recovered copy.
-      if (recoveryTimerRef.current !== null) {
-        clearTimeout(recoveryTimerRef.current);
-        recoveryTimerRef.current = null;
+      // Background saves do not stop typing. Only clear the recovery copy
+      // when no newer edit happened while this request was in flight.
+      if (savedVersion === changeVersionRef.current) {
+        if (recoveryTimerRef.current !== null) {
+          clearTimeout(recoveryTimerRef.current);
+          recoveryTimerRef.current = null;
+        }
+        pendingDraftRef.current = null;
+        setDirty(false);
+        setStatus("All changes saved");
+        setRecoveryStatus("Saved securely to your archive");
+        await removeLocalNoteDraft(savedDraftKey).catch(() => undefined);
+      } else {
+        setDirty(true);
+        setStatus("Newer changes still need saving");
+        scheduleLocalRecovery();
+        setAutosaveRevision((revision) => revision + 1);
       }
-      pendingDraftRef.current = null;
-      setDirty(false);
-      setStatus("All changes saved");
-      setRecoveryStatus("Saved securely to your archive");
-      await removeLocalNoteDraft(savedDraftKey).catch(() => undefined);
       if (options.refreshOnSave !== false) router.refresh();
       return savedId;
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not save note.";
-      setError(message); setStatus("Save failed"); setDirty(false); return null;
-    } finally { savingRef.current = false; setBusy(false); }
-  }, [topicId, title, subject, content, tagsInput, pinned, noteId, router]);
+      if (message === "Please unlock your vault.") {
+        setStatus("Vault session ended. Returning to unlock…");
+      } else {
+        if (!quiet) setError(message);
+        setStatus(quiet ? "Autosave failed; local recovery is retained" : "Save failed");
+      }
+      // Do not clear dirty state on failure: the latest version remains
+      // eligible for local recovery and can be retried.
+      setDirty(true);
+      return null;
+    } finally {
+      savingRef.current = false;
+      if (showBusyState) setBusy(false);
+    }
+  }, [topicId, title, subject, tagsInput, pinned, noteId, router, scheduleLocalRecovery]);
 
   useEffect(() => {
     // Image upload performs its own immediate document PATCH. Do not run the
     // background autosave concurrently with that upload/save sequence.
     if (!noteId || !dirty || busy || imageUploading) return;
-    const timer = setTimeout(() => { void save(true); }, 1100);
+    const timer = setTimeout(() => { void save(true, { refreshOnSave: false }); }, 1100);
     return () => clearTimeout(timer);
-  }, [noteId, dirty, title, subject, topicId, tagsInput, pinned, content, save, busy, imageUploading]);
+  }, [noteId, dirty, title, subject, topicId, tagsInput, pinned, autosaveRevision, save, busy, imageUploading]);
 
   useEffect(() => {
     if (!dirty) return;
