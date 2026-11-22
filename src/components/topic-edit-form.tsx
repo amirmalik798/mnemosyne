@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ImagePlus, LoaderCircle, Save, Trash2 } from "lucide-react";
@@ -24,11 +24,44 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
   const [subject, setSubject] = useState(topic.subject);
   const [description, setDescription] = useState(topic.description);
   const [category, setCategory] = useState(topic.category || "Personal");
+  const [categorySuggestions, setCategorySuggestions] = useState<string[]>(categories);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState(topic.coverUrl ?? "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/topics/categories", {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then((data) => {
+        if (!data || !Array.isArray(data.categories)) return;
+        const incoming = data.categories.filter(
+          (value: unknown): value is string => typeof value === "string" && value.trim().length > 0,
+        );
+        setCategorySuggestions((current) =>
+          Array.from(
+            new Map(
+              [...current, ...incoming, topic.category]
+                .filter(Boolean)
+                .map((value) => [value.toLocaleLowerCase(), value] as const),
+            ).values(),
+          ).sort((a, b) => a.localeCompare(b)),
+        );
+      })
+      .catch(() => {
+        // Existing category text and built-in options remain usable offline.
+      });
+    return () => controller.abort();
+  }, [topic.category]);
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -157,7 +190,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
               <label className="form-label" htmlFor="edit-topic-category">Category</label>
               <input id="edit-topic-category" list="edit-topic-category-suggestions" className="field" value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Choose or create a category" maxLength={60} disabled={busy} />
               <datalist id="edit-topic-category-suggestions">
-                {Array.from(new Map<string, string>(["Personal", "Philosophy", "Science", "Technology", "Research", "Reading", "Work", "Other", ...categories, topic.category].filter(Boolean).map((value): [string, string] => [value.toLocaleLowerCase(), value])).values()).map((value) => <option key={value} value={value} />)}
+                {Array.from(new Map<string, string>(["Personal", "Philosophy", "Science", "Technology", "Research", "Reading", "Work", "Other", ...categorySuggestions, topic.category].filter(Boolean).map((value): [string, string] => [value.toLocaleLowerCase(), value])).values()).map((value) => <option key={value} value={value} />)}
               </datalist>
               <span className="form-hint">Choose an existing category or type a new one. Your category will appear in the All topics filter when saved.</span>
             </div>
