@@ -9,10 +9,20 @@ function getNodeText(node: RichNode): string {
 
 function blockBidiProps(node: RichNode) {
   const text = getNodeText(node);
-  const dir = detectTextDirection(text);
+  const detectedDirection = detectTextDirection(text);
+  const detectedLanguage = detectTextLanguage(text);
+  const storedDirection = node.attrs?.dir;
+  const storedLanguage = node.attrs?.lang;
+  const dir = storedDirection === "rtl" || storedDirection === "ltr"
+    ? storedDirection
+    : detectedDirection;
+  const lang = storedLanguage === "ur" || storedLanguage === "ar" || storedLanguage === "en"
+    ? storedLanguage
+    : detectedLanguage;
+
   return {
     dir,
-    lang: detectTextLanguage(text),
+    lang,
     style: {
       direction: dir,
       textAlign: dir === "rtl" ? "right" as const : "left" as const,
@@ -46,8 +56,8 @@ function renderNode(node: RichNode, index: React.Key): React.ReactNode {
     return <h3 key={index} {...bidi}>{children}</h3>;
   }
   if (node.type === "blockquote") return <blockquote key={index} {...bidi}>{children}</blockquote>;
-  if (node.type === "bulletList") return <ul key={index} dir={detectTextDirection(getNodeText(node))}>{children}</ul>;
-  if (node.type === "orderedList") return <ol key={index} dir={detectTextDirection(getNodeText(node))}>{children}</ol>;
+  if (node.type === "bulletList") return <ul key={index} {...bidi}>{children}</ul>;
+  if (node.type === "orderedList") return <ol key={index} {...bidi}>{children}</ol>;
   if (node.type === "listItem") return <li key={index} {...bidi}>{children}</li>;
   if (node.type === "hardBreak") return <br key={index} />;
   if (node.type === "horizontalRule") return <hr key={index} />;
