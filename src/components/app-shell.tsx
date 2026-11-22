@@ -29,12 +29,38 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const [commandQuery, setCommandQuery] = useState("");
   const [commandResults, setCommandResults] = useState<Array<{ id: string; href: string; title: string; detail: string }>>([]);
   const [commandIndex, setCommandIndex] = useState(0);
+  const [commandSearchState, setCommandSearchState] = useState<"idle" | "waiting" | "loading" | "ready" | "error">("idle");
+  const [commandSearchError, setCommandSearchError] = useState("");
+  const [commandSearchAttempt, setCommandSearchAttempt] = useState(0);
   const commandInputRef = useRef<HTMLInputElement>(null);
+  const commandPreviousFocusRef = useRef<HTMLElement | null>(null);
   const commandItemsRef = useRef<Array<{ id: string; title: string; detail: string; run: () => void }>>([]);
   const [locking, setLocking] = useState(false);
   const [operationNotice, setOperationNotice] = useState<{ kind: OperationStatusKind; message: string } | null>(null);
   const operationNoticeTimerRef = useRef<number | null>(null);
   const redirectingToUnlockRef = useRef(false);
+
+  function openCommandPalette() {
+    commandPreviousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    setCommandQuery("");
+    setCommandIndex(0);
+    setCommandSearchError("");
+    setCommandSearchAttempt(0);
+    setCommandOpen(true);
+  }
+
+  function closeCommandPalette(restoreFocus = true) {
+    setCommandOpen(false);
+    if (!restoreFocus) return;
+    window.requestAnimationFrame(() => {
+      const previous = commandPreviousFocusRef.current;
+      if (previous?.isConnected && !previous.hasAttribute("disabled")) previous.focus();
+      else document.querySelector<HTMLButtonElement>(".top-actions .search-trigger")?.focus();
+      commandPreviousFocusRef.current = null;
+    });
+  }
   useEffect(() => {
     const activeAccountKey = "mnemosyne:active-account";
     const handleAccountChange = (event: StorageEvent) => {
@@ -246,9 +272,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
       if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setCommandOpen(true);
-        setCommandQuery("");
-        setCommandIndex(0);
+        openCommandPalette();
         return;
       }
       if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "l") {
@@ -258,7 +282,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       }
       if (event.key === "Escape" && commandOpen) {
         event.preventDefault();
-        setCommandOpen(false);
+        closeCommandPalette();
         return;
       }
       if (isTyping) return;
@@ -306,44 +330,59 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     }
   }
   useEffect(() => {
-    if (!commandOpen || !commandQuery.trim()) {
+    const cleanQuery = commandQuery.trim();
+    if (!commandOpen || !cleanQuery) {
       setCommandResults([]);
+      setCommandSearchState("idle");
+      setCommandSearchError("");
       return;
     }
     const controller = new AbortController();
+    setCommandResults([]);
+    setCommandSearchState("waiting");
+    setCommandSearchError("");
     const timer = window.setTimeout(async () => {
+      if (controller.signal.aborted) return;
+      setCommandSearchState("loading");
       try {
-        const response = await fetch("/api/search?q=" + encodeURIComponent(commandQuery.trim()), {
+        const response = await fetch("/api/search?q=" + encodeURIComponent(cleanQuery), {
           credentials: "same-origin",
           cache: "no-store",
           signal: controller.signal,
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Search unavailable");
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.error || "Archive search is temporarily unavailable.");
         const next = [
-          ...(Array.isArray(data.notes) ? data.notes.map((item: any) => ({
+          ...(Array.isArray(data?.notes) ? data.notes.map((item: any) => ({
             id: "note:" + item.id,
             href: "/notes/" + item.id,
             title: item.title,
             detail: "Note · " + (item.topicTitle || "Archive"),
           })) : []),
-          ...(Array.isArray(data.topics) ? data.topics.map((item: any) => ({
+          ...(Array.isArray(data?.topics) ? data.topics.map((item: any) => ({
             id: "topic:" + item.id,
             href: "/topics/" + item.id,
             title: item.title,
             detail: "Topic · " + (item.category || "Collection"),
           })) : []),
         ];
-        if (!controller.signal.aborted) setCommandResults(next.slice(0, 8));
-      } catch {
-        if (!controller.signal.aborted) setCommandResults([]);
+        if (!controller.signal.aborted) {
+          setCommandResults(next.slice(0, 8));
+          setCommandSearchState("ready");
+        }
+      } catch (cause) {
+        if (!controller.signal.aborted) {
+          setCommandResults([]);
+          setCommandSearchError(cause instanceof Error ? cause.message : "Archive search is temporarily unavailable.");
+          setCommandSearchState("error");
+        }
       }
     }, 180);
     return () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [commandOpen, commandQuery]);
+  }, [commandOpen, commandQuery, commandSearchAttempt]);
 
   const commandActions = [
     { id: "new-note", title: "New note", detail: "Create a new inscription", run: () => router.push("/notes/new") },
@@ -378,7 +417,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   function runCommandAt(index: number) {
     const item = commandItemsRef.current[index];
     if (!item) return;
-    setCommandOpen(false);
+    closeCommandPalette(false);
     item.run();
   }
 
@@ -402,7 +441,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         runCommandAt(commandIndex);
       } else if (event.key === "Escape") {
         event.preventDefault();
-        setCommandOpen(false);
+        closeCommandPalette();
       } else if (event.key === "Tab") {
         const focusable = Array.from(document.querySelectorAll<HTMLElement>(
           ".command-palette input, .command-palette button",
@@ -460,10 +499,10 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         className="command-palette-backdrop"
         role="presentation"
         onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setCommandOpen(false);
+          if (event.target === event.currentTarget) closeCommandPalette();
         }}
       >
-        <section className="command-palette" role="dialog" aria-modal="true" aria-label="Mnemosyne command center">
+        <section className="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-palette-title" aria-describedby="command-palette-help">
           <div className="command-palette-input-wrap">
             <Command size={18} aria-hidden="true" />
             <input
@@ -472,15 +511,23 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               onChange={(event) => setCommandQuery(event.target.value)}
               placeholder="Search notes, topics, tags or run a command…"
               aria-label="Search and commands"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={commandItems.length > 0}
+              aria-controls="command-palette-options"
+              aria-activedescendant={commandItems.length ? `command-option-${Math.min(commandIndex, commandItems.length - 1)}` : undefined}
+              aria-busy={commandSearchState === "waiting" || commandSearchState === "loading"}
             />
           </div>
-          <div className="command-palette-label">{commandQuery.trim() ? "Search results and commands" : "Quick actions"}</div>
-          <div className="command-palette-list" role="listbox" aria-label="Commands and archive results">
+          <div className="command-palette-label" id="command-palette-title">{commandQuery.trim() ? "Search results and commands" : "Quick actions"}</div>
+          <p className="command-palette-help" id="command-palette-help">Use ↑ and ↓ to move, Enter to open, and Esc to close. Press Ctrl / ⌘ + K to reopen from anywhere.</p>
+          <div className="command-palette-list" id="command-palette-options" role="listbox" aria-label="Commands and archive results" aria-busy={commandSearchState === "waiting" || commandSearchState === "loading"}>
             {commandItems.map((item, index) => (
               <button
                 type="button"
                 role="option"
-                aria-selected={commandIndex === index}
+                id={`command-option-${index}`}
+                aria-selected={Math.min(commandIndex, commandItems.length - 1) === index}
                 className={commandIndex === index ? "command-palette-item active" : "command-palette-item"}
                 key={item.id}
                 onMouseEnter={() => setCommandIndex(index)}
@@ -490,14 +537,23 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                 <kbd>↵</kbd>
               </button>
             ))}
-            {commandItems.length === 0 && (
+            {(commandSearchState === "waiting" || commandSearchState === "loading") && (
+              <div className="command-palette-empty" role="status">Searching your encrypted archive…</div>
+            )}
+            {commandSearchState === "error" && (
+              <div className="command-palette-search-error" role="alert">
+                <span>{commandSearchError}</span>
+                <button type="button" className="secondary-btn" onClick={() => setCommandSearchAttempt((value) => value + 1)}>Retry search</button>
+              </div>
+            )}
+            {commandItems.length === 0 && commandSearchState !== "waiting" && commandSearchState !== "loading" && commandSearchState !== "error" && (
               <div className="command-palette-empty">
                 {commandQuery.trim() ? "No matching notes, topics or commands." : "Start typing to search your encrypted archive."}
               </div>
             )}
           </div>
           <div className="command-palette-footer">
-            <span>↑ ↓ Navigate</span><span>Enter Open / Run</span><span>Esc Close</span><kbd>⌘ K</kbd>
+            <span>↑ ↓ Navigate</span><span>Enter Open / Run</span><span>Esc Close</span><kbd>Ctrl / ⌘ K</kbd>
           </div>
         </section>
       </div>

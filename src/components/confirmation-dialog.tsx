@@ -71,13 +71,15 @@ export function ConfirmationDialog({
   }, []);
 
   const isDanger = options.tone !== "neutral";
+  const cancelText = options.cancelLabel ?? "Cancel";
+  const confirmText = options.confirmLabel ?? (isDanger ? "Confirm deletion" : "Confirm");
 
   return (
     <div className="confirmation-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
       <section
         ref={dialogRef}
         className={`confirmation-dialog ${isDanger ? "confirmation-dialog-danger" : "confirmation-dialog-neutral"}`}
-        role="alertdialog"
+        role={isDanger ? "alertdialog" : "dialog"}
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
@@ -95,11 +97,11 @@ export function ConfirmationDialog({
         <h2 className="confirmation-dialog-title" id={titleId}>{options.title}</h2>
         <p className="confirmation-dialog-description" id={descriptionId}>{options.description}</p>
         <div className="confirmation-dialog-actions">
-          <button ref={cancelRef} type="button" className="secondary-btn confirmation-dialog-cancel icon-only-btn" onClick={onCancel} aria-label={options.cancelLabel ?? "Cancel"} title={options.cancelLabel ?? "Cancel"}>
-            <X size={17} />
+          <button ref={cancelRef} type="button" className="secondary-btn confirmation-dialog-cancel" onClick={onCancel} aria-label={cancelText}>
+            <X size={17} aria-hidden="true" /><span>{cancelText}</span>
           </button>
-          <button type="button" className={isDanger ? "danger-btn confirmation-dialog-confirm icon-only-btn" : "primary-btn confirmation-dialog-confirm icon-only-btn"} onClick={onConfirm} aria-label={options.confirmLabel ?? "Confirm"} title={options.confirmLabel ?? "Confirm"}>
-            {isDanger ? <Trash2 size={17} /> : <Check size={17} />}
+          <button type="button" className={isDanger ? "danger-btn confirmation-dialog-confirm" : "primary-btn confirmation-dialog-confirm"} onClick={onConfirm} aria-label={confirmText}>
+            {isDanger ? <Trash2 size={17} aria-hidden="true" /> : <Check size={17} aria-hidden="true" />}<span>{confirmText}</span>
           </button>
         </div>
       </section>
