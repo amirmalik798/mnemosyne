@@ -17,6 +17,12 @@ export function apiError(error: unknown) {
       { status: 429, headers: { "Retry-After": "60" } },
     );
   }
+  if (message === "EMAIL_DELIVERY_UNAVAILABLE") {
+    return NextResponse.json(
+      { error: "Email delivery is temporarily unavailable. Your account data has not been discarded; try requesting the message again later." },
+      { status: 503, headers: { "Retry-After": "60" } },
+    );
+  }
   if (message.startsWith("VALIDATION:")) return NextResponse.json({ error: message.slice(11) }, { status: 400 });
 
   const errorName = error instanceof Error ? error.name : "UnknownError";
@@ -46,9 +52,15 @@ export function apiError(error: unknown) {
   const unavailableCodes = new Set([
     "08000", "08001", "08003", "08006",
     "40001", "40P01", "53300", "57P01", "57P02", "57P03",
-    "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT",
+    "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "EAI_AGAIN", "EPIPE",
   ]);
   const conflictCodes = new Set(["23503", "23505", "23514"]);
+  if (errorCode && ["22P02", "22001", "22003"].includes(errorCode)) {
+    return NextResponse.json(
+      { error: "The request contains an invalid identifier or value. Check the supplied information and try again." },
+      { status: 400 },
+    );
+  }
   if (errorCode && unavailableCodes.has(errorCode)) {
     console.error("API dependency is temporarily unavailable.", { reference, name: errorName, code: errorCode });
     return NextResponse.json(
