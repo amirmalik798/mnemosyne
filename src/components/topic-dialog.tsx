@@ -46,15 +46,16 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
   }
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/topics", { signal: controller.signal })
+    fetch("/api/topics/categories", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) return null;
         return response.json();
       })
       .then((data) => {
-        if (!data || !Array.isArray(data.topics)) return;
-        const existing = data.topics
-          .map((topic: { category?: unknown }) => typeof topic.category === "string" ? topic.category.trim() : "")
+        if (!data || !Array.isArray(data.categories)) return;
+        const existing = data.categories
+          .filter((category: unknown): category is string => typeof category === "string")
+          .map((category: string) => category.trim())
           .filter(Boolean);
         setCategorySuggestions((current) =>
           Array.from(new Map<string, string>([...current, ...existing].map((value): [string, string] => [value.toLocaleLowerCase(), value])).values())
