@@ -5,7 +5,7 @@ This document describes the application's security controls and the deployment w
 ## Security controls in the application
 
 - Topic fields, note fields, tags, image bytes and original image names are encrypted at rest with AES-256-GCM using a random vault key.
-- The vault key is wrapped using a key derived from the master password with Argon2id.
+- The vault key is wrapped using a key derived from the master password with Argon2id. New vault passwords and password changes require at least 16 characters; existing passwords remain valid for unlock.
 - Session tokens are random 256-bit values. Only their SHA-256 hashes are stored in PostgreSQL; the active vault key is encrypted in the session record.
 - Production uses an HttpOnly, Secure, SameSite=Strict, host-only `__Host-` session cookie.
 - Sessions have a 12-hour absolute lifetime and a server-enforced 20-minute idle timeout. The session heartbeat does not extend the idle timeout.
