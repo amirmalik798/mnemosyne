@@ -12,7 +12,7 @@ export async function GET(_request: Request, context: Context) {
     const session = await requireVaultSession();
     const { id } = await context.params;
     const result = await db.query(
-      `SELECT n.*, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.id=$1 AND n.deleted_at IS NULL`, [id],
+      `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.pinned, n.created_at, n.updated_at, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.id=$1 AND n.deleted_at IS NULL`, [id],
     );
     if (!result.rows[0]) throw new Error("NOT_FOUND");
     const row = result.rows[0];
