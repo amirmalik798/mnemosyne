@@ -8,7 +8,7 @@ import { ARCHIVE_PAGE_SIZE, ArchivePagination, parseArchivePage } from "@/compon
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ page?: string }> };
+type Props = { searchParams: Promise<{ page?: string | string[] }> };
 
 export default async function NotesPage({ searchParams }: Props) {
   const [{ page: requestedPage }, session] = await Promise.all([
