@@ -1591,3 +1591,55 @@ html[data-theme="light"] .category-combobox-create {
 html[data-theme="light"] .category-combobox-empty {
   color: #575C66;
 }
+
+
+/* External image drop target in the note editor */
+.note-image-dropzone {
+  position: relative;
+  min-height: 390px;
+  border: 1px dashed transparent;
+  border-radius: 13px;
+  transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+.note-image-dropzone-active {
+  border-color: var(--gold);
+  background: rgba(203,180,126,.035);
+  box-shadow: inset 0 0 0 1px rgba(203,180,126,.12), 0 0 28px rgba(203,180,126,.06);
+}
+.note-image-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border-radius: 12px;
+  background: rgba(11,16,22,.78);
+  pointer-events: none;
+  backdrop-filter: blur(3px);
+}
+.note-image-drop-message {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  padding: 24px 30px;
+  border: 1px solid rgba(203,180,126,.42);
+  border-radius: 14px;
+  background: rgba(21,31,41,.94);
+  color: var(--text);
+  text-align: center;
+  box-shadow: 0 16px 44px rgba(0,0,0,.24);
+}
+.note-image-drop-message svg {
+  color: var(--gold-bright);
+}
+.note-image-drop-message strong {
+  font-family: Georgia,'Times New Roman',serif;
+  font-size: 20px;
+  font-weight: 400;
+}
+.note-image-drop-message span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
