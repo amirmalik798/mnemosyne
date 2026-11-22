@@ -8373,3 +8373,65 @@ html[data-theme="light"] .overview-recent-panel .note-row-pinned .note-icon {
   background: #F0E2BD !important;
   color: #76520F !important;
 }
+
+
+/* Final PDF canvas normalization.
+   The note content already has a white print style, but the page-margin area
+   can still inherit the dark application color scheme in Chromium previews. */
+@page {
+  size: A4;
+  margin: 18mm 17mm 20mm;
+  background: #FFFFFF;
+}
+@media print {
+  :root,
+  html,
+  body {
+    color-scheme: light !important;
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    background-image: none !important;
+    print-color-adjust: economy !important;
+    -webkit-print-color-adjust: economy !important;
+  }
+  .app-shell,
+  .main-area,
+  .main-content,
+  main.page.note-reader-page,
+  .note-reader-page .reader {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    background-image: none !important;
+    color: #202124 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .note-reader-page,
+  .note-reader-page .reader,
+  .note-reader-page .reader-header,
+  .note-reader-page .reader-content {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .note-reader-page .reader-content {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  .note-reader-page .reader-content blockquote {
+    background: #F7F5EF !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  .note-reader-page .reader-content pre,
+  .note-reader-page .reader-content code,
+  .note-reader-page .reader-content mark,
+  .note-reader-page .tag-pill {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+}
