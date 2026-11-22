@@ -5,17 +5,21 @@ import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { EmptyState, NoteRow, type NoteItem } from "@/components/archive-ui";
 import { ARCHIVE_PAGE_SIZE, ArchivePagination, parseArchivePage } from "@/components/archive-pagination";
+import { ArchiveSortControl } from "@/components/archive-sort-control";
+import { compareArchiveTitles, isAlphabeticalArchiveSort, parseArchiveSort } from "@/lib/archive-sort";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ page?: string | string[] }> };
+type Props = { searchParams: Promise<{ page?: string | string[]; sort?: string | string[] }> };
 
 export default async function PinnedNotesPage({ searchParams }: Props) {
-  const [{ page: requestedPage }, session] = await Promise.all([
+  const [{ page: requestedPage, sort: requestedSort }, session] = await Promise.all([
     searchParams,
     requireVaultSession(),
   ]);
   const requestedPageNumber = parseArchivePage(requestedPage);
+  const sort = parseArchiveSort(requestedSort);
+  const alphabetical = isAlphabeticalArchiveSort(sort);
 
   const countResult = await queryAsUser(session.userId, 
     "SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NULL AND pinned = TRUE",
@@ -23,18 +27,28 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
   const totalNotes = Number(countResult.rows[0]?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(totalNotes / ARCHIVE_PAGE_SIZE));
   const currentPage = Math.min(requestedPageNumber, totalPages);
-  const result = await queryAsUser(session.userId, 
-    `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.updated_at,
-            t.title_enc AS topic_title_enc
-     FROM notes n
-     JOIN topics t ON t.id = n.topic_id
-     WHERE n.deleted_at IS NULL AND n.pinned = TRUE
-     ORDER BY n.updated_at DESC, n.id DESC
-     LIMIT $1 OFFSET $2`,
-    [ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
-  );
+  const orderColumn = sort === "modified-desc" ? "n.updated_at" : "n.created_at";
+  const result = alphabetical
+    ? await queryAsUser(session.userId,
+        `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.created_at, n.updated_at,
+                t.title_enc AS topic_title_enc
+         FROM notes n
+         JOIN topics t ON t.id = n.topic_id
+         WHERE n.deleted_at IS NULL AND n.pinned = TRUE
+         ORDER BY n.created_at DESC, n.id DESC`,
+      )
+    : await queryAsUser(session.userId,
+        `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.created_at, n.updated_at,
+                t.title_enc AS topic_title_enc
+         FROM notes n
+         JOIN topics t ON t.id = n.topic_id
+         WHERE n.deleted_at IS NULL AND n.pinned = TRUE
+         ORDER BY ${orderColumn} DESC, n.id DESC
+         LIMIT $1 OFFSET $2`,
+        [ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
+      );
 
-  const notes: NoteItem[] = result.rows.map((row) => ({
+  const decryptedNotes: NoteItem[] = result.rows.map((row) => ({
     id: row.id,
     topicId: row.topic_id,
     topicTitle: decryptText(row.topic_title_enc, session.key),
@@ -43,6 +57,11 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
     pinned: row.pinned,
     updatedAt: row.updated_at,
   }));
+
+  if (alphabetical) decryptedNotes.sort((a, b) => compareArchiveTitles(a, b, sort));
+  const notes = alphabetical
+    ? decryptedNotes.slice((currentPage - 1) * ARCHIVE_PAGE_SIZE, currentPage * ARCHIVE_PAGE_SIZE)
+    : decryptedNotes;
 
   return (
     <main className="page">
@@ -60,6 +79,7 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
 
       <div className="toolbar">
         <div className="eyebrow">Saved for later</div>
+        <ArchiveSortControl basePath="/pinned" currentSort={sort} />
         <Link href="/notes" className="secondary-btn icon-only-btn" aria-label="Browse all notes" title="Browse all notes"><ArrowUpRight size={17} /></Link>
       </div>
 
@@ -74,7 +94,7 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
           )}
         </div>
       </section>
-      <ArchivePagination currentPage={currentPage} totalItems={totalNotes} basePath="/pinned" />
+      <ArchivePagination currentPage={currentPage} totalItems={totalNotes} basePath="/pinned" query={sort === "created-desc" ? undefined : `sort=${sort}`} />
     </main>
   );
 }
