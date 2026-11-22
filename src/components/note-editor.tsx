@@ -555,10 +555,15 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     let cancelled = false;
     setRevisionHistoryError("");
     loadLocalNoteRevisions(noteId)
-      .then((revisions) => {
+      .then(({ revisions, skippedCount }) => {
         if (!cancelled) {
           setRevisionSnapshots(revisions);
           lastRevisionSavedAtRef.current = revisions[0]?.savedAt ?? 0;
+          if (skippedCount > 0) {
+            setRevisionHistoryError(
+              skippedCount + " local version(s) could not be authenticated and were skipped. Other available versions remain accessible.",
+            );
+          }
         }
       })
       .catch((cause) => {
