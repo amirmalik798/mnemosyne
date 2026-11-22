@@ -62,7 +62,7 @@ async function main() {
         "SELECT c.relname, pg_get_userbyid(c.relowner) AS owner " +
         "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace " +
         "WHERE n.nspname=current_schema() AND c.relname=ANY($1::text[])",
-        [["topics", "notes", "assets", "asset_blobs"]],
+        [runtimeTables],
       ),
       pool.query(
         "SELECT has_schema_privilege(current_user, current_schema(), 'CREATE') AS can_create",
@@ -114,6 +114,30 @@ async function main() {
 
     if (schemaPrivilege.rows[0]?.can_create) {
       throw new Error("APP_DATABASE_URL must not have CREATE privilege on the application schema.");
+    }
+
+    const requiredConstraints = [
+      "notes_user_topic_fk",
+      "asset_blobs_user_asset_fk",
+    ];
+    const constraintResult = await pool.query(
+      "SELECT conname FROM pg_constraint WHERE conname=ANY($1::text[])",
+      [requiredConstraints],
+    );
+    const presentConstraints = new Set(constraintResult.rows.map((row) => row.conname));
+    const missingConstraints = requiredConstraints.filter((name) => !presentConstraints.has(name));
+    if (missingConstraints.length) {
+      throw new Error("Required same-account database constraints are missing: " + missingConstraints.join(", ") + ". Run npm run db:migrate.");
+    }
+
+    const triggerResult = await pool.query(
+      "SELECT tgname FROM pg_trigger WHERE NOT tgisinternal AND tgname=ANY($1::text[])",
+      [["assets_validate_owner", "topics_validate_cover"]],
+    );
+    const presentTriggers = new Set(triggerResult.rows.map((row) => row.tgname));
+    const missingTriggers = ["assets_validate_owner", "topics_validate_cover"].filter((name) => !presentTriggers.has(name));
+    if (missingTriggers.length) {
+      throw new Error("Required account-ownership triggers are missing: " + missingTriggers.join(", ") + ". Run npm run db:migrate.");
     }
 
     const missingPrivileges = privileges.rows

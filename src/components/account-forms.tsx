@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AtSign, Eye, EyeOff, LoaderCircle, ShieldCheck, UserRound, KeyRound, MailCheck } from "lucide-react";
@@ -215,13 +215,16 @@ export function VerifyEmailForm() {
   const router = useRouter();
   const [token, setToken] = useState("");
   const [linkLoaded, setLinkLoaded] = useState(false);
+  const tokenReadRef = useRef(false);
 
   useEffect(() => {
+    if (tokenReadRef.current) return;
+    tokenReadRef.current = true;
     const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const value = fragment.get("token") ?? "";
     setToken(value);
     // Remove the bearer token from the address bar and subsequent browser history.
-    window.history.replaceState(null, "", window.location.pathname);
+    window.history.replaceState(window.history.state, "", window.location.pathname);
     setLinkLoaded(true);
   }, []);
   const [error, setError] = useState("");

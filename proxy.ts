@@ -39,13 +39,22 @@ export function proxy(request: NextRequest) {
   });
   response.headers.set("Content-Security-Policy", policy);
   response.headers.set("Cache-Control", "private, no-store, max-age=0");
+  response.headers.set("Referrer-Policy", "no-referrer");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  if (isProduction) {
+    response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  }
   return response;
 }
 
 export const config = {
   matcher: [
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+      source: "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
