@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, Bookmark, Boxes, Command, FileText, FolderOpen, LockKeyhole, Pin, Plus, Search, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import { BookOpen, Bookmark, Boxes, Command, FileText, FolderOpen, LoaderCircle, LockKeyhole, Pin, Plus, Search, Settings, ShieldCheck, Trash2, X } from "lucide-react";
 import { TopicDialog } from "@/components/topic-dialog";
 import { FontSelector, ThemeToggle } from "@/components/theme-provider";
 import { readResumeLocation, saveResumeLocation } from "@/lib/resume-location";
 import { flushPendingLocalDraftWrites } from "@/lib/local-recovery";
+import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 
 const nav = [
   { label: "LIBRARY", items: [{ href: "/library", label: "Overview", icon: Boxes }, { href: "/topics", label: "All topics", icon: FolderOpen }, { href: "/notes", label: "All notes", icon: FileText }, { href: "/pinned", label: "Pinned notes", icon: Pin }, { href: "/search", label: "Search archive", icon: Search }] },
@@ -21,7 +22,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [showTopic, setShowTopic] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [operationNotice, setOperationNotice] = useState<{ kind: OperationStatusKind; message: string } | null>(null);
+  const operationNoticeTimerRef = useRef<number | null>(null);
   const redirectingToUnlockRef = useRef(false);
+  useEffect(() => {
+    const showOperationNotice = (event: Event) => {
+      const detail = (event as CustomEvent<{ kind?: unknown; message?: unknown }>).detail;
+      const allowedKinds: OperationStatusKind[] = ["loading", "waiting", "success", "error", "failure"];
+      if (!detail || typeof detail.message !== "string" || !allowedKinds.includes(detail.kind as OperationStatusKind)) return;
+
+      setOperationNotice({ kind: detail.kind as OperationStatusKind, message: detail.message });
+      if (operationNoticeTimerRef.current !== null) window.clearTimeout(operationNoticeTimerRef.current);
+      operationNoticeTimerRef.current = window.setTimeout(() => {
+        setOperationNotice(null);
+        operationNoticeTimerRef.current = null;
+      }, detail.kind === "error" || detail.kind === "failure" ? 7000 : 3800);
+    };
+
+    window.addEventListener("mnemosyne:operation-status", showOperationNotice);
+    return () => {
+      window.removeEventListener("mnemosyne:operation-status", showOperationNotice);
+      if (operationNoticeTimerRef.current !== null) window.clearTimeout(operationNoticeTimerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     const nativeFetch = window.fetch.bind(window);
 
@@ -167,10 +191,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
     try {
       await flushPendingLocalDraftWrites();
-      await fetch("/api/vault/lock", { method: "POST" });
+      const response = await fetch("/api/vault/lock", { method: "POST" });
+      if (!response.ok) throw new Error("The server did not confirm the lock request.");
       router.replace("/unlock");
       router.refresh();
-    } finally { setLocking(false); }
+    } catch {
+      notifyOperation("error", "The vault could not be locked. Check your connection and try again.");
+    } finally {
+      setLocking(false);
+    }
   }
   const current = nav.flatMap((group) => group.items).find((item) => pathname === item.href || (item.href !== "/library" && pathname.startsWith(`${item.href}/`)));
   return <div className="app-shell">
@@ -179,7 +208,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {nav.map((group) => <div key={group.label}><div className="nav-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const active = current?.href === item.href; return <Link href={item.href} key={item.href} className={`nav-link ${active ? "active" : ""}`}><Icon /><span>{item.label}</span></Link>; })}</div>)}
       <div className="sidebar-spacer" />
       <div className="vault-status"><div className="status-row"><span className="dot" /> Vault encrypted</div><div className="vault-caption">Your private archive is unlocked for this session.</div></div>
-      <div className="sidebar-bottom"><div className="profile"><div className="avatar">M</div><div className="profile-copy"><div className="profile-name">Personal vault</div><div className="profile-sub">Local archive</div></div></div><button className="icon-button" onClick={lockVault} disabled={locking} title="Lock vault" aria-label="Lock vault"><LockKeyhole /></button></div>
+      <div className="sidebar-bottom"><div className="profile"><div className="avatar">M</div><div className="profile-copy"><div className="profile-name">Personal vault</div><div className="profile-sub">Local archive</div></div></div><button className="icon-button" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault"} aria-label={locking ? "Locking vault" : "Lock vault"}><span className="sr-only">{locking ? "Locking vault…" : "Lock vault"}</span>{locking ? <LoaderCircle className="operation-spinner" /> : <LockKeyhole />}</button></div>
     </aside>
     <div className="main-area">
       <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{current?.label ?? (pathname.includes("/edit") ? "Edit note" : pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ?? "Overview")}</span></div>
@@ -188,5 +217,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {children}
     </div>
     {showTopic && <TopicDialog onClose={() => setShowTopic(false)} />}
+    {operationNotice && (
+      <div className="operation-toast">
+        <OperationStatus kind={operationNotice.kind} message={operationNotice.message} />
+        <button
+          type="button"
+          className="operation-toast-close"
+          onClick={() => {
+            setOperationNotice(null);
+            if (operationNoticeTimerRef.current !== null) window.clearTimeout(operationNoticeTimerRef.current);
+          }}
+          aria-label="Dismiss notification"
+        >
+          <X />
+        </button>
+      </div>
+    )}
   </div>;
 }
