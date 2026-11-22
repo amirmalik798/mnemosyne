@@ -100,22 +100,22 @@ export default async function TopicPage({ params, searchParams }: Props) {
 
   return (
     <main className="page topic-detail-page">
-      <div style={{ marginBottom: 19 }}>
-        <Link href="/topics" className="breadcrumb"><ArrowLeft size={14}/> All topics</Link>
+      <div className="topic-detail-back">
+        <Link href="/topics" className="breadcrumb topic-detail-back-link"><ArrowLeft size={14}/> All topics</Link>
       </div>
-      <section className="panel topic-detail-hero" aria-labelledby="topic-detail-title" style={{ padding: 0, overflow: "hidden", marginBottom: 30 }}>
-        <div className="topic-detail-cover" style={{ height: 220, position: "relative", background: "radial-gradient(circle at 75% 15%,rgba(203,180,126,.22),transparent 35%),linear-gradient(120deg,#263B45,#17232D)" }}>
+      <section className="panel topic-detail-hero" aria-labelledby="topic-detail-title">
+        <div className="topic-detail-cover">
           {cover ? <img src={cover} alt={`${title} cover`} decoding="async" fetchPriority="high" style={{ width:"100%",height:"100%",objectFit:"cover",opacity:.8 }} /> : <div className="cover-placeholder"><span className="cover-glyph" style={{ fontSize: 90 }}>{title.charAt(0)}</span></div>}
-          <div style={{ position:"absolute",inset:"45% 0 0",background:"linear-gradient(transparent,rgba(11,16,22,.94))" }}/>
-          <div className="topic-detail-cover-copy" style={{ position:"absolute",left:28,bottom:24 }}>
-            <div className="eyebrow">{category || "Collection"}</div>
+          <div className="topic-detail-cover-overlay" aria-hidden="true" />
+          <div className="topic-detail-cover-copy">
+            <div className="eyebrow topic-detail-category">{category || "Collection"}</div>
             <h1 id="topic-detail-title" className="page-title" dir="auto" lang={detectTextLanguage(title)} style={{ margin:"7px 0 4px" }}>{title}</h1>
-            <div dir="auto" lang={detectTextLanguage(subject)} style={{ fontSize:11,color:"#D0DAD5" }}>{subject}</div>
+            {subject.trim() && <div className="topic-detail-subject" dir="auto" lang={detectTextLanguage(subject)}>{subject}</div>}
           </div>
         </div>
-        <div className="topic-detail-summary" style={{ padding:"20px 27px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:15 }}>
-          <p className="page-subtitle" dir="auto" lang={detectTextLanguage(description)} style={{ margin:0 }}>{description || "A dedicated space for the notes and references in this collection."}</p>
-          <div className="topic-detail-actions" style={{ display:"flex",gap:8,flexShrink:0,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end" }}>
+        <div className="topic-detail-summary">
+          <p className="page-subtitle topic-detail-description" dir="auto" lang={detectTextLanguage(description)}>{description || "A dedicated space for the notes and references in this collection."}</p>
+          <div className="topic-detail-actions" role="group" aria-label="Collection actions">
             <TopicImageDownload topicId={id} imageCount={imageCount}/>
             <TopicEditDialog topic={{ id, title, subject, description, category, coverUrl: cover, noteCount: totalNotesIncludingTrash }} />
             <Link href={`/notes/new?topicId=${id}`} className="primary-btn topic-action-button" aria-label="Create a note in this topic" title="Create a note in this topic"><FilePlus size={16}/><span>New note</span></Link>
@@ -126,7 +126,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
         <div className="topic-detail-notes-heading">
           <div className="eyebrow">Collection entries</div>
           <h2 id="topic-detail-notes-heading" className="panel-title" style={{ margin:"7px 0 0" }}>{totalNotes} {totalNotes===1?"note":"notes"}</h2>
-          <p className="topic-detail-note-guidance">Select a note to open it. Pin it, move or copy it to another topic, or send it to Recently deleted.</p>
+          <p className="topic-detail-note-guidance">Open a note to continue reading or writing. Use its actions to organize the collection.</p>
         </div>
         <div className="archive-toolbar-actions">
           <ArchiveSortControl basePath={`/topics/${id}`} currentSort={sort} />
@@ -134,7 +134,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
         </div>
       </div>
       <section className="panel topic-detail-note-panel" aria-labelledby="topic-detail-notes-heading">
-        <div className="note-list">
+        <div className="note-list topic-detail-note-list">
           {notes.length ? notes.map((note)=><NoteRow key={note.id} note={note} showOpenCue />) : <EmptyState title="An open page" copy="This topic has no notes yet. Begin with a thought, a passage or a question you want to explore." action={<Link href={`/notes/new?topicId=${id}`} className="primary-btn topic-detail-first-note"><FilePlus size={16} aria-hidden="true"/><span>Write first note</span></Link>} />}
         </div>
       </section>
