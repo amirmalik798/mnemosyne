@@ -48,6 +48,15 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 CREATE INDEX IF NOT EXISTS user_sessions_expires_idx ON user_sessions(expires_at);
 CREATE INDEX IF NOT EXISTS user_sessions_user_idx ON user_sessions(user_id, last_active_at DESC);
 
+-- Records which account inherited the previous one-vault archive. The
+-- migration marker makes the ownership assignment explicit and repeatable,
+-- including installations where the old vault has not created any topics yet.
+CREATE TABLE IF NOT EXISTS legacy_archive_owner (
+  id SMALLINT PRIMARY KEY CHECK (id = 1),
+  user_id UUID NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Retain the old single-vault tables only as a one-time migration source.
 CREATE TABLE IF NOT EXISTS vault_settings (
   id SMALLINT PRIMARY KEY CHECK (id = 1),
@@ -146,9 +155,13 @@ BEGIN
     EXISTS (SELECT 1 FROM asset_blobs WHERE user_id IS NULL)
   INTO has_unassigned_data;
 
-  IF has_legacy_vault AND has_unassigned_data THEN
-    IF legacy_email = '' OR length(legacy_email) > 254 OR legacy_email !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' THEN
-      RAISE EXCEPTION 'Existing single-user archive detected. Set MNEMOSYNE_LEGACY_OWNER_EMAIL to the original owner email before running npm run db:migrate. Existing encrypted records have not been modified.';
+  SELECT user_id INTO legacy_user_id
+  FROM legacy_archive_owner
+  WHERE id = 1;
+
+  IF legacy_user_id IS NULL AND has_legacy_vault THEN
+    IF legacy_email = '' OR length(legacy_email) > 254 OR legacy_email !~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$' THEN
+      RAISE EXCEPTION 'Existing single-user vault detected. Set MNEMOSYNE_LEGACY_OWNER_EMAIL to the original owner email before running npm run db:migrate. Existing encrypted records have not been modified.';
     END IF;
 
     SELECT id, password_hash INTO legacy_user_id
@@ -161,17 +174,23 @@ BEGIN
       RETURNING id INTO legacy_user_id;
     ELSE
       IF (SELECT password_hash IS NOT NULL FROM users WHERE id = legacy_user_id) THEN
-        RAISE EXCEPTION 'The configured legacy owner email already belongs to a regular account. Use the exact email reserved for the previous archive or resolve the account collision before migrating.';
+        RAISE EXCEPTION 'The configured legacy owner email already belongs to a regular account. Resolve the email collision before migrating the old archive.';
       END IF;
     END IF;
 
+    INSERT INTO legacy_archive_owner (id, user_id) VALUES (1, legacy_user_id);
+  ELSIF legacy_user_id IS NULL AND has_unassigned_data THEN
+    RAISE EXCEPTION 'Unassigned archive rows exist but neither the original vault settings nor a legacy-owner record is available. Restore the original vault settings before migrating; no ownership has been guessed.';
+  END IF;
+
+  -- Once the legacy owner has been explicitly recorded, any remaining
+  -- unassigned legacy rows belong to that same account. This is safe to rerun.
+  IF legacy_user_id IS NOT NULL THEN
     UPDATE topics SET user_id = legacy_user_id WHERE user_id IS NULL;
     UPDATE notes SET user_id = legacy_user_id WHERE user_id IS NULL;
     UPDATE assets SET user_id = legacy_user_id WHERE user_id IS NULL;
     UPDATE asset_blobs b SET user_id = a.user_id
     FROM assets a WHERE a.id = b.asset_id AND b.user_id IS NULL;
-  ELSIF NOT has_legacy_vault AND has_unassigned_data THEN
-    RAISE EXCEPTION 'Unassigned archive rows exist but the legacy vault key record is missing. Restore the original vault_settings row before migrating; no ownership has been guessed.';
   END IF;
 
   IF EXISTS (SELECT 1 FROM topics WHERE user_id IS NULL)

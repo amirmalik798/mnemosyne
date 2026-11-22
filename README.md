@@ -51,7 +51,7 @@ Use HTTPS for the app and Apps Script in production. Remote PostgreSQL requires 
 
 Do not run Next.js as `postgres` or another superuser. A superuser bypasses RLS. The application role must not own protected tables or have schema-creation privileges.
 
-Run `npm run db:migrate` using `DATABASE_URL` with a database superuser or a dedicated migration role that has `BYPASSRLS`. The schema forces row-level security even for table owners; legacy backfills and cross-account image-maintenance scripts must use a trusted administrative connection that can bypass those policies. Never put this privileged connection in the running Next.js app. Then connect as a database administrator and create the restricted runtime role. Replace the password and database name:
+Run `npm run db:migrate` using `DATABASE_URL` with a database superuser or a dedicated migration role that has `BYPASSRLS`. The schema forces row-level security even for table owners; legacy backfills and cross-account image-maintenance scripts must use a trusted administrative connection that can bypass those policies. Never put this privileged connection in the running Next.js app. The first migration requires `MNEMOSYNE_LEGACY_OWNER_EMAIL` whenever the old `vault_settings` record exists, even if the old archive is currently empty. A one-row `legacy_archive_owner` marker records the assignment so future migrations remain repeatable without reassigning data. Then connect as a database administrator and create the restricted runtime role. Replace the password and database name:
 
 ```sql
 CREATE ROLE mnemosyne_app

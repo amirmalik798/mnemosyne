@@ -212,7 +212,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     let scrollTimer: ReturnType<typeof setTimeout> | undefined;
     const persistScroll = () => {
       if (scrollTimer) clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(() => saveResumeLocation(), 220);
+      scrollTimer = setTimeout(() => saveResumeLocation(user.id), 220);
     };
     const persistWhenHidden = () => saveResumeLocation(user.id);
     // A reload, full-page navigation, or closing one tab is not an explicit
