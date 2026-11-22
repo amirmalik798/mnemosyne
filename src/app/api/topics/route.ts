@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireVaultSession, assertSameOrigin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
-import { apiError, requireJsonObject, stringField } from "@/lib/http";
+import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 export const runtime = "nodejs";
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const session = await requireVaultSession();
-    const body = requireJsonObject(await request.json());
+    const body = await readJsonObject(request, 16 * 1024);
     const title = stringField(body, "title", 120, true);
     const subject = stringField(body, "subject", 120);
     const description = stringField(body, "description", 1000);
