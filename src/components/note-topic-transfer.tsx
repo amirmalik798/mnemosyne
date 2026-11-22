@@ -64,7 +64,6 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : `Could not ${action} this note.`;
       setError(message);
-      notifyOperation("failure", message);
     } finally {
       setBusy(false);
       setProcessingMessage("");
