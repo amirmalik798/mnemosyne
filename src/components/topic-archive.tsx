@@ -68,10 +68,13 @@ export function TopicArchive({
           </p>
         </div>
         {selectedCategory && (
-          <div className="topic-browser-count" aria-live="polite">
+          <div
+            className="topic-browser-count"
+            aria-label={`${totalTopics} of ${allTopicsCount} collections shown`}
+          >
             <strong>{totalTopics}</strong>
-            <span>{totalTopics === 1 ? "collection" : "collections"}</span>
-            <span>of {allTopicsCount}</span>
+            <span aria-hidden="true">/</span>
+            <span>{allTopicsCount}</span>
           </div>
         )}
         <ArchiveSortControl
