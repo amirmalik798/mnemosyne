@@ -67,8 +67,15 @@ function getEditorStatusKind(message: string): OperationStatusKind {
     value.includes("attention") ||
     value.includes("session ended")
   ) return "error";
+  if (value.includes("browser may clear")) return "waiting";
   if (value.includes("saving") || value.includes("uploading")) return "processing";
-  if (value.includes("unsaved") || value.includes("recovered") || value.includes("draft") || value.includes("need saving") || value.includes("preparing")) return "waiting";
+  if (
+    value.includes("unsaved") ||
+    value.includes("recovered") ||
+    value.includes("draft") ||
+    value.includes("need saving") ||
+    value.includes("preparing")
+  ) return "waiting";
   return "success";
 }
 
@@ -580,8 +587,20 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   }, [noteId]);
 
   // Ask the browser to retain this origin's IndexedDB data when supported.
+  // If the browser declines, explain that device recovery can be evicted even
+  // though the server-side archive remains the durable copy.
   useEffect(() => {
-    void requestPersistentLocalStorage();
+    let cancelled = false;
+    void requestPersistentLocalStorage().then((persisted) => {
+      if (!cancelled && !persisted) {
+        setRecoveryStatus((current) =>
+          current === "Preparing local recovery…"
+            ? "This browser may clear local recovery data. Keep note saves confirmed in your archive."
+            : current,
+        );
+      }
+    });
+    return () => { cancelled = true; };
   }, []);
 
   // Restore a newer local draft before enabling autosave. The copy is encrypted
