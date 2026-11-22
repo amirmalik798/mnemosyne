@@ -7,12 +7,55 @@ import { formatArchiveDate } from "@/lib/date-format";
 export type TopicItem = { id: string; title: string; subject: string; description: string; category: string; coverUrl: string | null; noteCount: number; updatedAt: string | Date; dateAt?: string | Date; dateLabel?: string };
 export type NoteItem = { id: string; topicId: string; topicTitle: string; title: string; subject: string; preview?: string; pinned?: boolean; updatedAt: string | Date; dateAt?: string | Date; dateLabel?: string };
 
-export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; variant?: "default" | "dashboard" }) {
+export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; variant?: "default" | "dashboard" | "archive" }) {
   const glyph = topic.title.trim().charAt(0).toUpperCase() || "M";
-  return <Link className={`topic-card ${variant === "dashboard" ? "topic-card-dashboard" : ""}`} href={`/topics/${topic.id}`}>
-    <div className="topic-cover">{topic.coverUrl ? <img src={topic.coverUrl} alt={`${topic.title} cover`} loading="lazy" decoding="async" /> : <div className="cover-placeholder"><span className="cover-glyph">{glyph}</span></div>}<span className="cover-category">{topic.category || "Collection"}</span></div>
-    <div className="topic-body"><h2 className="topic-title" dir="auto" lang={detectTextLanguage(topic.title)}>{topic.title}</h2><div className="topic-subject" dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject || "A personal collection"}</div><p className="topic-description" dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description || "A place to gather notes, references and ideas worth keeping."}</p><div className="topic-meta"><span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span><span>{topic.dateLabel ? `${topic.dateLabel} · ` : ""}{formatArchiveDate(topic.dateAt ?? topic.updatedAt)}</span></div></div>
-  </Link>;
+  const archiveCard = variant === "archive";
+  const title = topic.title.trim() || "Untitled collection";
+  const category = topic.category.trim() || (archiveCard ? "Uncategorized" : "Collection");
+
+  return (
+    <Link
+      className={`topic-card ${variant === "dashboard" ? "topic-card-dashboard" : ""} ${archiveCard ? "topic-card-archive" : ""}`}
+      href={`/topics/${topic.id}`}
+      aria-label={archiveCard ? `Open ${title} collection` : undefined}
+    >
+      <div className="topic-cover">
+        {topic.coverUrl
+          ? <img src={topic.coverUrl} alt={archiveCard ? "" : `${title} cover`} loading="lazy" decoding="async" />
+          : <div className="cover-placeholder"><span className="cover-glyph">{glyph}</span></div>}
+        <span className="cover-category">{category}</span>
+      </div>
+      <div className="topic-body">
+        <h2 className="topic-title" dir="auto" lang={detectTextLanguage(title)}>{title}</h2>
+        {archiveCard ? (
+          <>
+            {topic.subject.trim()
+              ? <div className="topic-subject" dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject}</div>
+              : <div className="topic-subject topic-card-missing" aria-label="No subject added">No subject added</div>}
+            {topic.description.trim()
+              ? <p className="topic-description" dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description}</p>
+              : <p className="topic-description topic-card-missing topic-card-description-missing">No description yet. Add context in collection settings.</p>}
+            <div className="topic-meta">
+              <span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span>
+              <span>{topic.dateLabel ? `${topic.dateLabel} · ` : ""}{formatArchiveDate(topic.dateAt ?? topic.updatedAt)}</span>
+            </div>
+            <div className="topic-card-open-cue">
+              <span>Open collection</span><ArrowUpRight size={16} aria-hidden="true" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="topic-subject" dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject || "A personal collection"}</div>
+            <p className="topic-description" dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description || "A place to gather notes, references and ideas worth keeping."}</p>
+            <div className="topic-meta">
+              <span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span>
+              <span>{topic.dateLabel ? `${topic.dateLabel} · ` : ""}{formatArchiveDate(topic.dateAt ?? topic.updatedAt)}</span>
+            </div>
+          </>
+        )}
+      </div>
+    </Link>
+  );
 }
 
 export function NoteRow({ note, compactActions = false, showOpenCue = false }: { note: NoteItem; compactActions?: boolean; showOpenCue?: boolean }) {

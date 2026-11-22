@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BookOpen, Brain, Briefcase, Cpu, FlaskConical, Folder, Globe, GraduationCap, Layers3, Palette, Tag, X } from "lucide-react";
+import { ArrowUpRight, BookOpen, Brain, Briefcase, Cpu, FlaskConical, Folder, Globe, GraduationCap, Layers3, Palette, Tag, X } from "lucide-react";
 import { EmptyState, TopicCard, type TopicItem } from "@/components/archive-ui";
 import { ArchiveSortControl } from "@/components/archive-sort-control";
 import { DEFAULT_ARCHIVE_SORT, type ArchiveSort } from "@/lib/archive-sort";
+import { OpenTopicDialogButton } from "@/components/open-topic-dialog-button";
 
 const UNCATEGORIZED = "__uncategorized__";
 
@@ -30,6 +31,7 @@ export function TopicArchive({
   allTopicsCount,
   selectedCategory,
   sort,
+  unavailableOnPage,
 }: {
   topics: TopicItem[];
   categories: string[];
@@ -39,8 +41,11 @@ export function TopicArchive({
   allTopicsCount: number;
   selectedCategory: string;
   sort: ArchiveSort;
+  unavailableOnPage: number;
 }) {
   const router = useRouter();
+  const selectedCategoryLabel = selectedCategory === UNCATEGORIZED ? "Uncategorized" : selectedCategory;
+  const gridLayout = topics.length === 1 ? "single" : topics.length === 2 ? "pair" : "many";
 
   function chooseCategory(value: string) {
     const nextValue = selectedCategory.toLocaleLowerCase() === value.toLocaleLowerCase()
@@ -80,8 +85,8 @@ export function TopicArchive({
           className={selectedCategory === "" ? "topic-filter-chip active" : "topic-filter-chip"}
           onClick={() => chooseCategory("")}
           aria-pressed={selectedCategory === ""}
-          aria-label={`Show all categories (${allTopicsCount} topics)`}
-          title={`All categories · ${allTopicsCount} topics`}
+          aria-label={`Show all topics (${allTopicsCount})`}
+          title={`All topics · ${allTopicsCount}`}
         >
           <Layers3 size={16} aria-hidden="true" />
           <strong>All topics</strong>
@@ -124,23 +129,52 @@ export function TopicArchive({
         )}
       </div>
 
+      {selectedCategory && (
+        <div className="topic-filter-status" role="status" aria-live="polite">
+          <div className="topic-filter-status-copy">
+            <span className="topic-filter-status-dot" aria-hidden="true" />
+            <span>Showing <strong>{selectedCategoryLabel}</strong> topics</span>
+            <span className="topic-filter-status-count">{totalTopics} of {allTopicsCount}</span>
+          </div>
+          <button type="button" className="topic-filter-clear" onClick={() => chooseCategory("")}>
+            <X size={14} aria-hidden="true" /><span>Clear filter</span>
+          </button>
+        </div>
+      )}
+
       {topics.length > 0 ? (
-        <div className="topic-grid">
-          {topics.map((topic) => <TopicCard key={topic.id} topic={topic} />)}
+        <div className={`topic-grid topic-archive-grid topic-archive-grid--${gridLayout}`} data-layout={gridLayout} aria-label={`Showing ${topics.length} collections`}>
+          {topics.map((topic) => <TopicCard key={topic.id} topic={topic} variant="archive" />)}
         </div>
       ) : (
         <div className="topic-filter-empty">
-          <EmptyState
-            title={selectedCategory ? "No topics in this category" : "No topics created"}
-            copy={selectedCategory
-              ? "Choose another category or return to the full collection."
-              : "Create a collection for a subject, project, book or idea you want to develop."}
-            action={selectedCategory ? (
-              <button type="button" className="secondary-btn icon-only-btn" onClick={() => chooseCategory("")} aria-label="Clear category filter" title="Clear category filter">
-                <X size={17} />
-              </button>
-            ) : null}
-          />
+          {unavailableOnPage > 0 ? (
+            <EmptyState
+              title="Some collections are unavailable"
+              copy="The encrypted details for these collections could not be verified, so they have not been displayed. No records were changed or deleted. Review the archive integrity notice above before taking further action."
+              action={selectedCategory ? (
+                <button type="button" className="secondary-btn topic-filter-clear topic-filter-clear-empty" onClick={() => chooseCategory("")}>
+                  <X size={14} aria-hidden="true" /><span>Clear category filter</span>
+                </button>
+              ) : null}
+            />
+          ) : selectedCategory ? (
+            <EmptyState
+              title={`No topics in ${selectedCategoryLabel}`}
+              copy="There are no collections filed under this category yet. Clear the filter to see all your topics."
+              action={
+                <button type="button" className="secondary-btn topic-filter-clear topic-filter-clear-empty" onClick={() => chooseCategory("")}>
+                  <X size={14} aria-hidden="true" /><span>Clear category filter</span>
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              title="Your archive starts here"
+              copy="Create a collection for a subject, project, book or idea you want to develop. You can add notes, references and a cover whenever you're ready."
+              action={<OpenTopicDialogButton className="primary-btn topic-archive-create-action" label="Create your first topic" />}
+            />
+          )}
         </div>
       )}
     </section>

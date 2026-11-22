@@ -184,6 +184,7 @@ export default async function TopicsPage({ searchParams }: Props) {
         allTopicsCount={allTopicsCount}
         selectedCategory={selectedCategory}
         sort={sort}
+        unavailableOnPage={unavailableTopicIds.size}
       />
       <ArchivePagination
         currentPage={currentPage}
