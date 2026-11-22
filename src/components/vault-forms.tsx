@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-provider";
 
 function AuthFrame({ children, kicker, title, description }: { children: React.ReactNode; kicker: string; title: string; description: string }) {
-  return <main className="auth-page"><section className="auth-card">
+  return <main className="auth-page"><div className="auth-theme-toggle"><ThemeToggle /></div><section className="auth-card">
     <div className="auth-brand"><div className="auth-mark">M</div><div className="eyebrow">{kicker}</div><h1 className="auth-title">{title}</h1><p className="auth-caption">{description}</p></div>
     {children}
   </section></main>;
