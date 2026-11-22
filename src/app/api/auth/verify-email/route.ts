@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError } from "@/lib/http";
 import type { PoolClient } from "pg";
 import { assertSameOrigin } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -39,8 +40,7 @@ export async function POST(request: Request) {
     if (message === "RATE_LIMITED") return NextResponse.json({ error: "Too many verification attempts. Try again later." }, { status: 429 });
     if (message.startsWith("VALIDATION:")) return NextResponse.json({ error: message.slice(11) }, { status: 400 });
     if (message === "FORBIDDEN_ORIGIN") return NextResponse.json({ error: "Request origin was rejected." }, { status: 403 });
-    console.error("Email verification failed.", { name: error instanceof Error ? error.name : "UnknownError" });
-    return NextResponse.json({ error: "Email verification is temporarily unavailable." }, { status: 500 });
+    return apiError(error);
   } finally {
     client?.release();
   }
