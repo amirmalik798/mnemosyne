@@ -35,6 +35,8 @@ const requiredColumns: Array<[string, string]> = [
   ["assets", "original_name_enc"],
   ["assets", "mime_type"],
   ["assets", "byte_size"],
+  ["asset_blobs", "asset_id"],
+  ["asset_blobs", "encrypted_bytes"],
 ];
 
 async function main() {
@@ -46,16 +48,16 @@ async function main() {
     const missing = await pool.query(
       "WITH required(table_name, column_name) AS (" +
         " SELECT * FROM unnest($1::text[], $2::text[])" +
-        ") " +
-        "SELECT required.table_name, required.column_name " +
-        "FROM required " +
-        "WHERE NOT EXISTS (" +
-        " SELECT 1 FROM information_schema.columns AS actual " +
-        " WHERE actual.table_schema = current_schema() " +
-        " AND actual.table_name = required.table_name " +
-        " AND actual.column_name = required.column_name" +
-        ") " +
-        "ORDER BY required.table_name, required.column_name",
+      ") " +
+      "SELECT required.table_name, required.column_name " +
+      "FROM required " +
+      "WHERE NOT EXISTS (" +
+      " SELECT 1 FROM information_schema.columns AS actual " +
+      " WHERE actual.table_schema = current_schema() " +
+      " AND actual.table_name = required.table_name " +
+      " AND actual.column_name = required.column_name" +
+      ") " +
+      "ORDER BY required.table_name, required.column_name",
       [requiredColumns.map(([table]) => table), requiredColumns.map(([, column]) => column)],
     );
 
