@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { detectImageMime, removeEncryptedStorageFile, saveEncryptedAsset } from "@/lib/storage";
+import { detectImageMime, saveEncryptedAsset } from "@/lib/storage";
 import { apiError, readBoundedFormData } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -11,7 +11,7 @@ type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: Context) {
   let client: PoolClient | undefined;
-  let savedStorageKey: string | undefined;
+  let savedAssetId: string | undefined;
   let commitAttempted = false;
 
   try {
@@ -26,8 +26,8 @@ export async function POST(request: Request, context: Context) {
     const mime = detectImageMime(bytes);
     if (!mime) throw new Error("VALIDATION:The file is not a valid PNG, JPEG, WebP or GIF image.");
 
-    // Serialize uploads with note deletion and other note mutations. The
-    // asset row and parent note therefore cannot be committed independently.
+    // Serialize uploads with note deletion and other note mutations. Asset
+    // metadata and its encrypted database blob share this transaction.
     client = await db.connect();
     await client.query("BEGIN");
     const note = await client.query(
@@ -45,7 +45,7 @@ export async function POST(request: Request, context: Context) {
       key: session.key,
       query: (text, values) => client!.query(text, values),
     });
-    savedStorageKey = saved.storageKey;
+    savedAssetId = saved.id;
 
     commitAttempted = true;
     await client.query("COMMIT");
@@ -59,13 +59,9 @@ export async function POST(request: Request, context: Context) {
     }, { status: 201 });
   } catch (error) {
     if (client) await client.query("ROLLBACK").catch(() => undefined);
-    if (savedStorageKey && !commitAttempted) {
-      await removeEncryptedStorageFile(savedStorageKey);
-    } else if (savedStorageKey && commitAttempted) {
-      // Keep the file if COMMIT's response was lost; PostgreSQL may have
-      // committed the asset row already.
-      console.error("[Mnemosyne] Note asset upload commit outcome is uncertain; encrypted file retained.", {
-        storageKey: savedStorageKey,
+    if (commitAttempted) {
+      console.error("[Mnemosyne] Note image upload commit outcome is uncertain; metadata and encrypted blob are in one database transaction.", {
+        assetId: savedAssetId,
       });
     }
     return apiError(error);
