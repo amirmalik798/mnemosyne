@@ -211,7 +211,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [noteId, setNoteId] = useState<string | null>(initialNote?.id ?? null);
   const [topicId, setTopicId] = useState(initialNote?.topicId ?? defaultTopicId ?? topics[0]?.id ?? "");
   const [availableTopics, setAvailableTopics] = useState<Topic[]>(topics);
-  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [topicsLoading, setTopicsLoading] = useState(topics.length === 0);
   const [topicsError, setTopicsError] = useState("");
   const [title, setTitle] = useState(initialNote?.title ?? "");
   const [subject, setSubject] = useState(initialNote?.subject ?? "");
@@ -405,7 +405,9 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       }
       if (cancelled || controller.signal.aborted) return;
       setAvailableTopics(collected);
-      if (!topicId && collected[0]) setTopicId(collected[0].id);
+      if (!collected.some((topic) => topic.id === topicId) && collected[0]) {
+        setTopicId(collected[0].id);
+      }
     }
 
     void loadAllTopicOptions()
@@ -422,7 +424,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       cancelled = true;
       controller.abort();
     };
-  }, [topics, topicId]);
+  }, [topics]);
 
   // Synchronize uncontrolled formatting inputs after they mount and whenever
   // the editor instance changes. Selection changes keep these refs current.
@@ -923,7 +925,17 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   }
 
   const words = (editor?.getText() ?? "").trim().split(/\s+/).filter(Boolean).length;
-  if (!topics.length) return <main className="page"><div className="empty-state"><h3>Create a topic first</h3><p>Every note belongs to a topic. Create a collection, then come back to write.</p><Link href="/topics" className="primary-btn">Go to topics</Link></div></main>;
+  if (!availableTopics.length && !topicsLoading) {
+    return (
+      <main className="page">
+        <div className="empty-state">
+          <h3>{topicsError ? "Could not load your topics" : "Create a topic first"}</h3>
+          <p>{topicsError || "Every note belongs to a topic. Create a collection, then come back to write."}</p>
+          <Link href="/topics" className="primary-btn">Go to topics</Link>
+        </div>
+      </main>
+    );
+  }
 
   return <main className="page"><div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:25 }}><Link href={noteId ? `/notes/${noteId}` : "/notes"} className="breadcrumb"><ArrowLeft size={14}/> {noteId ? "Back to note" : "All notes"}</Link><div style={{ display:"flex", gap:8 }}><OperationStatus kind={getEditorStatusKind(status)} message={status} compact /><button className="primary-btn" onClick={() => void save(false)} disabled={busy || imageUploading || !title.trim()} title={!title.trim() ? "Enter a note title before saving." : "Save note"}><Save size={14}/>{busy ? "Saving…" : "Save note"}</button></div></div>
     <div className="note-layout"><section className="editor-main"><div className="eyebrow">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} placeholder="Untitled note" maxLength={180} disabled={busy || imageUploading} aria-label="Note title"/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); markDirty(); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy || imageUploading} aria-label="Note subject"/>
