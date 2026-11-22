@@ -13,7 +13,6 @@ type Context = { params: Promise<{ id: string }> };
 type AssetRow = {
   id: string;
   storage_key: string | null;
-  encrypted_bytes: Buffer | null;
   original_name_enc: Buffer;
   mime_type: string;
   byte_size: string | number;
@@ -74,8 +73,7 @@ export async function GET(_request: Request, context: Context) {
     }
 
     const assetResult = await queryAsUser(session.userId, 
-      "SELECT a.id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size, b.encrypted_bytes FROM assets a " +
-      "LEFT JOIN asset_blobs b ON b.asset_id=a.id " +
+      "SELECT a.id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size FROM assets a " +
       "WHERE owner_type='note' AND owner_id=$1 AND id=ANY($2::uuid[]) ORDER BY created_at ASC",
       [id, Array.from(referencedAssetIds)],
     );
@@ -94,13 +92,22 @@ export async function GET(_request: Request, context: Context) {
       totalBytes += Number(asset.byte_size);
       entries.push({
         name: noteFolder + "/" + String(index + 1).padStart(2, "0") + "-" + filename,
-        read: () => readVerifiedImageAsset({
-          encryptedBytes: asset.encrypted_bytes,
-          storageKey: asset.storage_key,
-          key: session.key,
-          mimeType: asset.mime_type,
-          byteSize: asset.byte_size,
-        }),
+        read: async () => {
+          // Fetch ciphertext only when the ZIP stream reaches this image.
+          // This keeps memory use bounded to one image instead of the whole archive.
+          const blobResult = await queryAsUser(
+            session.userId,
+            "SELECT encrypted_bytes FROM asset_blobs WHERE asset_id=$1",
+            [asset.id],
+          );
+          return readVerifiedImageAsset({
+            encryptedBytes: (blobResult.rows[0]?.encrypted_bytes as Buffer | undefined) ?? null,
+            storageKey: asset.storage_key,
+            key: session.key,
+            mimeType: asset.mime_type,
+            byteSize: asset.byte_size,
+          });
+        },
       });
     });
 
