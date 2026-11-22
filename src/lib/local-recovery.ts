@@ -316,5 +316,8 @@ export async function removeLocalNoteDraft(id: string): Promise<void> {
 }
 
 export async function flushPendingLocalDraftWrites(): Promise<void> {
-  await Promise.all(Array.from(pendingWrites.values()).map((write) => write.catch(() => undefined)));
+  // Callers must know when a pending encrypted recovery write failed. Treating
+  // a rejected write as a successful flush can make the app lock or navigate
+  // away while the latest draft was never persisted.
+  await Promise.all(Array.from(pendingWrites.values()));
 }
