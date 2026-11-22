@@ -569,7 +569,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         method: noteId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       if (response.status === 401) {
-        setStatus("Vault session ended. Returning to unlock…");
+        setStatus("Your session ended. Returning to sign in…");
         return null;
       }
       const data = await response.json();
@@ -612,8 +612,8 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       return savedId;
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not save note.";
-      if (message === "Please unlock your vault.") {
-        setStatus("Vault session ended. Returning to unlock…");
+      if (message === "Please sign in to your account.") {
+        setStatus("Your session ended. Returning to sign in…");
       } else {
         if (!quiet) {
           setError(message);
@@ -720,7 +720,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
             credentials: "same-origin",
           });
           if (response.status === 401) {
-            setStatus("Vault session ended. Returning to unlock…");
+            setStatus("Your session ended. Returning to sign in…");
             return;
           }
           const data = await response.json().catch(() => null);
@@ -787,7 +787,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         }),
       });
       if (saveResponse.status === 401) {
-        setStatus("Vault session ended. Returning to unlock…");
+        setStatus("Your session ended. Returning to sign in…");
         return;
       }
       const saveData = await saveResponse.json().catch(() => null);
@@ -836,8 +836,8 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Image upload failed.";
-      if (message === "Please unlock your vault.") {
-        setStatus("Vault session ended. Returning to unlock…");
+      if (message === "Please sign in to your account.") {
+        setStatus("Your session ended. Returning to sign in…");
       } else {
         setError(message);
         setStatus(insertedCount > 0 ? "Images added; save needs attention" : "Upload failed");

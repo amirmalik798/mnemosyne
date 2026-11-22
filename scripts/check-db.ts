@@ -39,7 +39,7 @@ async function main() {
   const pool = new Pool(createDatabasePoolConfig(runtimeEnv, { max: 1 }));
 
   try {
-    const [connection, missing, role, rls, owners, schemaPrivilege, privileges] = await Promise.all([
+    const [connection, missing, role, rls, owners, schemaPrivilege, privileges, privilegedMemberships] = await Promise.all([
       pool.query("SELECT current_database() AS database, current_schema() AS schema"),
       pool.query(
         "WITH required(table_name, column_name) AS (SELECT * FROM unnest($1::text[], $2::text[])) " +
@@ -51,6 +51,15 @@ async function main() {
       pool.query(
         "SELECT current_user AS role_name, r.rolsuper, r.rolbypassrls " +
         "FROM pg_roles r WHERE r.rolname=current_user",
+      ),
+      pool.query(
+        "WITH RECURSIVE inherited_roles(role_oid) AS (" +
+        "SELECT oid FROM pg_roles WHERE rolname=current_user " +
+        "UNION SELECT m.roleid FROM pg_auth_members m " +
+        "JOIN inherited_roles ir ON ir.role_oid=m.member" +
+        ") SELECT r.rolname FROM inherited_roles ir " +
+        "JOIN pg_roles r ON r.oid=ir.role_oid " +
+        "WHERE r.rolsuper OR r.rolbypassrls",
       ),
       pool.query(
         "SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity " +
@@ -84,9 +93,9 @@ async function main() {
     }
 
     const activeRole = role.rows[0];
-    if (!activeRole || activeRole.rolsuper || activeRole.rolbypassrls) {
+    if (!activeRole || activeRole.rolsuper || activeRole.rolbypassrls || privilegedMemberships.rows.length > 0) {
       throw new Error(
-        "APP_DATABASE_URL must use a non-superuser PostgreSQL role with NOBYPASSRLS. A superuser or BYPASSRLS role can read every account.",
+        "APP_DATABASE_URL must use a non-superuser PostgreSQL role with NOBYPASSRLS. A superuser, BYPASSRLS role, or inherited privileged role can read every account.",
       );
     }
 
