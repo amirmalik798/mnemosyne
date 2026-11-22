@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { FontSelector, ThemeToggle } from "@/components/theme-provider";
+import { getResumeDestination } from "@/lib/resume-location";
 
 function AuthFrame({ children, kicker, title, description }: { children: React.ReactNode; kicker: string; title: string; description: string }) {
   return <main className="auth-page"><div className="auth-display-controls"><FontSelector /><ThemeToggle /></div><section className="auth-card">
@@ -55,7 +56,7 @@ export function VaultUnlock() {
       const response = await fetch("/api/vault/unlock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to unlock the vault.");
-      router.replace("/library"); router.refresh();
+      router.replace(getResumeDestination()); router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Unlock failed."); }
     finally { setBusy(false); }
   }
