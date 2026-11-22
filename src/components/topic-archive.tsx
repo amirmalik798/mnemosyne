@@ -79,7 +79,7 @@ export function TopicArchive({
         <div className="topic-browser-count" aria-live="polite">
           <strong>{filteredTopics.length}</strong>
           <span>{filteredTopics.length === 1 ? "topic" : "topics"}</span>
-          {selectedCategory && <span>of {topics.length}</span>}
+          {selectedCategory.type !== "all" && <span>of {topics.length}</span>}
         </div>
       </div>
 
