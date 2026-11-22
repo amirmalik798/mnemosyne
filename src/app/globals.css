@@ -4290,3 +4290,118 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
 @media (prefers-reduced-motion: reduce) {
   .command-palette-item kbd { transition: none; }
 }
+
+
+/* Consistent, readable actions for create/edit, transfer, vault and security flows. */
+.topic-dialog-action,
+.topic-edit-action,
+.transfer-footer-action,
+.transfer-retry-button,
+.auth-primary-action {
+  min-width: 112px;
+  min-height: 42px;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 13px;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.topic-dialog-action > svg,
+.topic-edit-action > svg,
+.transfer-footer-action > svg,
+.transfer-retry-button > svg,
+.auth-primary-action > svg {
+  flex: 0 0 auto;
+}
+.topic-dialog-action > span,
+.topic-edit-action > span,
+.transfer-footer-action > span,
+.transfer-retry-button > span,
+.auth-primary-action > span {
+  font-size: 11px;
+  font-weight: 650;
+}
+.topic-edit-action { min-width: 112px; }
+.transfer-footer-action { min-width: 112px; }
+.transfer-retry-button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 10px;
+}
+.auth-primary-action {
+  width: 100%;
+  min-height: 48px;
+  height: 48px;
+  font-size: 12px;
+}
+.auth-primary-action > span { font-size: 12px; }
+.security-password-input {
+  position: relative;
+  min-width: 0;
+}
+.security-password-input .field {
+  padding-right: 48px;
+}
+.security-password-input .auth-password-toggle {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.editor-validation-hint {
+  margin: -5px 0 12px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.editor-validation-hint::before {
+  content: "•";
+  margin-right: 7px;
+  color: var(--icon-accent-action);
+}
+.category-combobox-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.category-combobox-create > span {
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 650;
+}
+.transfer-footer-action:disabled,
+.topic-dialog-action:disabled,
+.topic-edit-action:disabled,
+.auth-primary-action:disabled {
+  opacity: .58;
+}
+@media (max-width: 560px) {
+  .topic-dialog-action,
+  .topic-edit-action,
+  .transfer-footer-action {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding-inline: 9px;
+    white-space: normal;
+  }
+  .transfer-dialog-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    align-items: stretch;
+  }
+  .transfer-dialog-actions > button {
+    width: 100%;
+    min-width: 0;
+  }
+  .topic-edit-action > span,
+  .topic-dialog-action > span,
+  .transfer-footer-action > span {
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+  .category-combobox-create {
+    justify-content: flex-start;
+  }
+}
