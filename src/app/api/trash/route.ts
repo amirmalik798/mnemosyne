@@ -3,7 +3,7 @@ import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { deleteAssetsFor } from "@/lib/storage";
-import { apiError, requireJsonObject, stringField } from "@/lib/http";
+import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 export async function GET() {
   try {
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     await requireVaultSession();
-    const body = requireJsonObject(await request.json());
+    const body = await readJsonObject(request, 16 * 1024);
     const id = stringField(body, "id", 64, true);
     const action = stringField(body, "action", 20, true);
     const exists = await db.query("SELECT id FROM notes WHERE id=$1 AND deleted_at IS NOT NULL", [id]);
