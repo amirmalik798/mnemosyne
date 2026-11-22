@@ -7,8 +7,15 @@ import { safeFontFamily, safeTextColor } from "@/lib/note-formatting-utils";
 
 type RichNode = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: Array<{ type: string; attrs?: Record<string, unknown> }>; content?: RichNode[] };
 
+const nodeTextCache = new WeakMap<object, string>();
+const BIDI_BLOCK_TYPES = new Set(["paragraph", "heading", "blockquote", "bulletList", "orderedList", "listItem"]);
+
 function getNodeText(node: RichNode): string {
-  return `${node.text ?? ""} ${(node.content ?? []).map(getNodeText).join(" ")}`.trim();
+  const cached = nodeTextCache.get(node);
+  if (cached !== undefined) return cached;
+  const value = `${node.text ?? ""} ${(node.content ?? []).map(getNodeText).join(" ")}`.trim();
+  nodeTextCache.set(node, value);
+  return value;
 }
 
 function blockBidiProps(node: RichNode) {
@@ -74,11 +81,13 @@ function renderNode(
   index: React.Key,
   onImageClick: (src: string, alt: string) => void,
 ): React.ReactNode {
+  if (node.type === "text") return <React.Fragment key={index}>{renderText(node, index)}</React.Fragment>;
   const children = (node.content ?? []).map((child, i) =>
     renderNode(child, `${String(index)}-${i}`, onImageClick),
   );
-  const bidi = blockBidiProps(node);
-  if (node.type === "text") return <React.Fragment key={index}>{renderText(node, index)}</React.Fragment>;
+  // Only block nodes need direction analysis. Text leaves and inline media
+  // previously walked their entire subtree even though those results were unused.
+  const bidi = BIDI_BLOCK_TYPES.has(node.type ?? "") ? blockBidiProps(node) : {};
   if (node.type === "paragraph") return <p key={index} {...bidi}>{children}</p>;
   if (node.type === "heading") {
     const level = Math.min(3, Math.max(1, Number(node.attrs?.level ?? 2)));
@@ -104,7 +113,7 @@ function renderNode(
           aria-label={`View image: ${alt}`}
           onClick={() => onImageClick(src, alt)}
         >
-          <img src={src} alt={alt} />
+          <img src={src} alt={alt} loading="lazy" decoding="async" />
         </button>
       </figure>
     );
