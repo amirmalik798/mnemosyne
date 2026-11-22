@@ -195,6 +195,15 @@ const BidiDirection = Extension.create({
   },
 });
 
+const NOTE_EDITOR_EXTENSIONS = [
+  StarterKit,
+  TextStyleMark,
+  TextHighlightMark,
+  BidiDirection,
+  EditableNoteImage.configure({ inline: false, allowBase64: false }),
+  Placeholder.configure({ placeholder: "Begin with a thought…\\n\\nWrite freely. Structure can come later." }),
+];
+
 export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: Topic[]; initialNote?: Note; defaultTopicId?: string }) {
   const router = useRouter();
   const imageRef = useRef<HTMLInputElement>(null);
@@ -314,7 +323,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
 
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [StarterKit, TextStyleMark, TextHighlightMark, BidiDirection, EditableNoteImage.configure({ inline: false, allowBase64: false }), Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." })],
+    extensions: NOTE_EDITOR_EXTENSIONS,
     content: initialNote?.content ?? EMPTY_DOC,
     editorProps: {
       attributes: { class: "rich-editor", spellcheck: "true", "aria-label": "Note content", dir: "ltr" },
