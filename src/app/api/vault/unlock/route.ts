@@ -98,6 +98,7 @@ export async function POST(request: Request) {
     await client.query("COMMIT");
   } catch (error) {
     if (client) await client.query("ROLLBACK").catch(() => undefined);
+    vaultKey?.fill(0);
     return apiError(error);
   } finally {
     client?.release();
