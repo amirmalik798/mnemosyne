@@ -7,6 +7,7 @@ import { BookOpen, Bookmark, Boxes, Command, FileText, FolderOpen, LockKeyhole, 
 import { TopicDialog } from "@/components/topic-dialog";
 import { FontSelector, ThemeToggle } from "@/components/theme-provider";
 import { readResumeLocation, saveResumeLocation } from "@/lib/resume-location";
+import { flushPendingLocalDraftWrites } from "@/lib/local-recovery";
 
 const nav = [
   { label: "LIBRARY", items: [{ href: "/library", label: "Overview", icon: Boxes }, { href: "/topics", label: "All topics", icon: FolderOpen }, { href: "/notes", label: "All notes", icon: FileText }, { href: "/pinned", label: "Pinned notes", icon: Pin }, { href: "/search", label: "Search archive", icon: Search }] },
@@ -26,6 +27,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
       timer = setTimeout(async () => {
         saveResumeLocation();
+        window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
+        await flushPendingLocalDraftWrites();
         await fetch("/api/vault/lock", { method: "POST" });
         window.location.assign("/unlock");
       }, 20 * 60 * 1000);
@@ -89,8 +92,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   async function lockVault() {
     setLocking(true);
     saveResumeLocation();
-    try { await fetch("/api/vault/lock", { method: "POST" }); router.replace("/unlock"); router.refresh(); }
-    finally { setLocking(false); }
+    window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
+    try {
+      await flushPendingLocalDraftWrites();
+      await fetch("/api/vault/lock", { method: "POST" });
+      router.replace("/unlock");
+      router.refresh();
+    } finally { setLocking(false); }
   }
   const current = nav.flatMap((group) => group.items).find((item) => pathname === item.href || (item.href !== "/library" && pathname.startsWith(`${item.href}/`)));
   return <div className="app-shell">
