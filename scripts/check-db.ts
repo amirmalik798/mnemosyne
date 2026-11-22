@@ -28,6 +28,8 @@ const runtimeTables = [
   "asset_blobs",
 ];
 
+const protectedTables = ["topics", "notes", "assets", "asset_blobs"];
+
 async function main() {
   const appUrl = process.env.APP_DATABASE_URL;
   if (!appUrl) {
@@ -35,11 +37,22 @@ async function main() {
       "APP_DATABASE_URL is required. Configure a dedicated PostgreSQL runtime role with NOBYPASSRLS; keep DATABASE_URL for migrations only.",
     );
   }
-  const runtimeEnv = { ...process.env, DATABASE_URL: appUrl };
-  const pool = new Pool(createDatabasePoolConfig(runtimeEnv, { max: 1 }));
+
+  const pool = new Pool(
+    createDatabasePoolConfig({ ...process.env, DATABASE_URL: appUrl }, { max: 1 }),
+  );
 
   try {
-    const [connection, missing, role, rls, owners, schemaPrivilege, privileges, privilegedMemberships] = await Promise.all([
+    const [
+      connection,
+      missing,
+      role,
+      rls,
+      owners,
+      schemaPrivilege,
+      privileges,
+      privilegedMemberships,
+    ] = await Promise.all([
       pool.query("SELECT current_database() AS database, current_schema() AS schema"),
       pool.query(
         "WITH required(table_name, column_name) AS (SELECT * FROM unnest($1::text[], $2::text[])) " +
@@ -53,19 +66,10 @@ async function main() {
         "FROM pg_roles r WHERE r.rolname=current_user",
       ),
       pool.query(
-        "WITH RECURSIVE inherited_roles(role_oid) AS (" +
-        "SELECT oid FROM pg_roles WHERE rolname=current_user " +
-        "UNION SELECT m.roleid FROM pg_auth_members m " +
-        "JOIN inherited_roles ir ON ir.role_oid=m.member" +
-        ") SELECT r.rolname FROM inherited_roles ir " +
-        "JOIN pg_roles r ON r.oid=ir.role_oid " +
-        "WHERE r.rolsuper OR r.rolbypassrls",
-      ),
-      pool.query(
         "SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity " +
         "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace " +
         "WHERE n.nspname=current_schema() AND c.relname=ANY($1::text[])",
-        [["topics", "notes", "assets", "asset_blobs"]],
+        [protectedTables],
       ),
       pool.query(
         "SELECT c.relname, pg_get_userbyid(c.relowner) AS owner " +
@@ -83,6 +87,19 @@ async function main() {
         "CROSS JOIN unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE']::text[]) AS p(privilege)",
         [runtimeTables],
       ),
+      pool.query(
+        "WITH RECURSIVE inherited_roles(role_oid) AS (" +
+        "SELECT oid FROM pg_roles WHERE rolname=current_user " +
+        "UNION SELECT m.roleid FROM pg_auth_members m " +
+        "JOIN inherited_roles ir ON ir.role_oid=m.member" +
+        ") SELECT r.rolname FROM inherited_roles ir " +
+        "JOIN pg_roles r ON r.oid=ir.role_oid " +
+        "WHERE r.rolsuper OR r.rolbypassrls OR EXISTS (" +
+        "SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace " +
+        "WHERE c.relowner=r.oid AND n.nspname=current_schema() " +
+        "AND c.relname=ANY($1::text[]))",
+        [runtimeTables],
+      ),
     ]);
 
     if (missing.rows.length) {
@@ -93,21 +110,20 @@ async function main() {
     }
 
     const activeRole = role.rows[0];
-    if (!activeRole || activeRole.rolsuper || activeRole.rolbypassrls || privilegedMemberships.rows.length > 0) {
+    if (!activeRole || activeRole.rolsuper || activeRole.rolbypassrls || privilegedMemberships.rows.length) {
       throw new Error(
-        "APP_DATABASE_URL must use a non-superuser PostgreSQL role with NOBYPASSRLS. A superuser, BYPASSRLS role, or inherited privileged role can read every account.",
+        "APP_DATABASE_URL must use a non-superuser NOBYPASSRLS role with no membership in privileged or protected-table-owner roles.",
       );
     }
 
-    const protectedTables = new Set(
+    const rlsEnabled = new Set(
       rls.rows
         .filter((row) => row.relrowsecurity && row.relforcerowsecurity)
         .map((row) => row.relname),
     );
-    const missingRls = ["topics", "notes", "assets", "asset_blobs"]
-      .filter((table) => !protectedTables.has(table));
+    const missingRls = protectedTables.filter((table) => !rlsEnabled.has(table));
     if (missingRls.length) {
-      throw new Error("Row-level security is not enforced on: " + missingRls.join(", "));
+      throw new Error("Row-level security is not enabled and forced on: " + missingRls.join(", "));
     }
 
     const runtimeOwnedTables = owners.rows
@@ -115,7 +131,7 @@ async function main() {
       .map((row) => row.relname);
     if (runtimeOwnedTables.length) {
       throw new Error(
-        "APP_DATABASE_URL must not own protected tables: " +
+        "APP_DATABASE_URL must not own application tables: " +
         runtimeOwnedTables.join(", ") +
         ". Use a separate migration owner.",
       );
@@ -125,31 +141,38 @@ async function main() {
       throw new Error("APP_DATABASE_URL must not have CREATE privilege on the application schema.");
     }
 
-    const requiredConstraints = [
-      "notes_user_topic_fk",
-      "asset_blobs_user_asset_fk",
-    ];
+    const requiredConstraints = ["notes_user_topic_fk", "asset_blobs_user_asset_fk"];
     const constraintResult = await pool.query(
-      "SELECT conname FROM pg_constraint WHERE connamespace=current_schema()::regnamespace AND conname=ANY($1::text[])",
+      "SELECT conname FROM pg_constraint " +
+      "WHERE connamespace=current_schema()::regnamespace AND conname=ANY($1::text[])",
       [requiredConstraints],
     );
     const presentConstraints = new Set(constraintResult.rows.map((row) => row.conname));
     const missingConstraints = requiredConstraints.filter((name) => !presentConstraints.has(name));
     if (missingConstraints.length) {
-      throw new Error("Required same-account database constraints are missing: " + missingConstraints.join(", ") + ". Run npm run db:migrate.");
+      throw new Error(
+        "Required same-account database constraints are missing: " +
+        missingConstraints.join(", ") +
+        ". Run npm run db:migrate.",
+      );
     }
 
+    const requiredTriggers = ["assets_validate_owner", "topics_validate_cover"];
     const triggerResult = await pool.query(
       "SELECT t.tgname FROM pg_trigger t " +
       "JOIN pg_class c ON c.oid=t.tgrelid " +
       "JOIN pg_namespace n ON n.oid=c.relnamespace " +
       "WHERE NOT t.tgisinternal AND n.nspname=current_schema() AND t.tgname=ANY($1::text[])",
-      [["assets_validate_owner", "topics_validate_cover"]],
+      [requiredTriggers],
     );
     const presentTriggers = new Set(triggerResult.rows.map((row) => row.tgname));
-    const missingTriggers = ["assets_validate_owner", "topics_validate_cover"].filter((name) => !presentTriggers.has(name));
+    const missingTriggers = requiredTriggers.filter((name) => !presentTriggers.has(name));
     if (missingTriggers.length) {
-      throw new Error("Required account-ownership triggers are missing: " + missingTriggers.join(", ") + ". Run npm run db:migrate.");
+      throw new Error(
+        "Required account-ownership triggers are missing: " +
+        missingTriggers.join(", ") +
+        ". Run npm run db:migrate.",
+      );
     }
 
     const missingPrivileges = privileges.rows

@@ -160,7 +160,7 @@ BEGIN
   WHERE id = 1;
 
   IF legacy_user_id IS NULL AND has_legacy_vault THEN
-    IF legacy_email = '' OR length(legacy_email) > 254 OR legacy_email !~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$' THEN
+    IF legacy_email = '' OR length(legacy_email) > 254 OR legacy_email !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' THEN
       RAISE EXCEPTION 'Existing single-user vault detected. Set MNEMOSYNE_LEGACY_OWNER_EMAIL to the original owner email before running npm run db:migrate. Existing encrypted records have not been modified.';
     END IF;
 
