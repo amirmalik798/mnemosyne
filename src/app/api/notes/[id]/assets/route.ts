@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { detectImageMime, saveEncryptedAsset } from "@/lib/storage";
-import { apiError } from "@/lib/http";
+import { apiError, readBoundedFormData } from "@/lib/http";
 
 export const runtime = "nodejs";
 
@@ -15,12 +15,7 @@ export async function POST(request: Request, context: Context) {
     const { id } = await context.params;
     const note = await db.query("SELECT id FROM notes WHERE id=$1 AND deleted_at IS NULL", [id]);
     if (!note.rows[0]) throw new Error("NOT_FOUND");
-    let form: FormData;
-    try {
-      form = await request.formData();
-    } catch {
-      throw new Error("VALIDATION:The upload could not be read. Check the file size and try again.");
-    }
+    const form = await readBoundedFormData(request, 20 * 1024 * 1024 + 256 * 1024);
     const file = form.get("file");
     if (!(file instanceof File)) throw new Error("VALIDATION:Choose an image file.");
     if (file.size > 20 * 1024 * 1024) throw new Error("VALIDATION:Images must be 20 MB or smaller.");
