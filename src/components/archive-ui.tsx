@@ -101,7 +101,7 @@ export function ArchiveIntegrityNotice({ count, itemLabel }: { count: number; it
     <div style={{ color: "var(--red)", fontWeight: 600, marginBottom: 8 }}>
       Some encrypted {itemLabel} could not be authenticated
     </div>
-    <p style={{ color: "var(--muted)", fontSize: 11, lineHeight: 1.7, margin: 0 }}>
+    <p style={{ color: "var(--muted)", fontSize: 12.5, lineHeight: 1.7, margin: 0 }}>
       {count} {itemLabel} {count === 1 ? "record was" : "records were"} skipped because one or more encrypted fields could not be verified. No records were changed or deleted. Do not reset or reinitialize the vault. Check that the original vault settings and master password are being used; if the original vault key was replaced, restore the original vault settings from a trusted backup.
     </p>
   </section>;
