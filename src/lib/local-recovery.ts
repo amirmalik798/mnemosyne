@@ -10,6 +10,7 @@ export type LocalNoteDraft = {
   pinned: boolean;
   content: unknown;
   selection: { from: number; to: number };
+  focusTarget: "title" | "subject" | "editor" | "tags" | null;
   savedAt: number;
   serverUpdatedAt: number | null;
 };
