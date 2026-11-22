@@ -27,7 +27,6 @@ export function ConfirmationDialog({
   const descriptionId = useId();
   const dialogRef = useRef<HTMLElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
   const onCancelRef = useRef(onCancel);
   onCancelRef.current = onCancel;
 
@@ -99,7 +98,7 @@ export function ConfirmationDialog({
           <button ref={cancelRef} type="button" className="secondary-btn confirmation-dialog-cancel" onClick={onCancel}>
             {options.cancelLabel ?? "Cancel"}
           </button>
-          <button ref={confirmRef} type="button" className={isDanger ? "danger-btn confirmation-dialog-confirm" : "primary-btn confirmation-dialog-confirm"} onClick={onConfirm}>
+          <button type="button" className={isDanger ? "danger-btn confirmation-dialog-confirm" : "primary-btn confirmation-dialog-confirm"} onClick={onConfirm}>
             {options.confirmLabel ?? "Confirm"}
           </button>
         </div>
