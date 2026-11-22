@@ -86,10 +86,11 @@ export async function DELETE(request: Request, context: Context) {
 
   try {
     assertSameOrigin(request);
-    await requireVaultSession();
+    const session = await requireVaultSession();
     const { id } = await context.params;
     client = await db.connect();
     await client.query("BEGIN");
+    await setUserContext(client, session.userId);
 
     const result = await client.query(
       "SELECT cover_asset_id FROM topics WHERE id = $1 FOR NO KEY UPDATE",
