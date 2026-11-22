@@ -200,7 +200,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
         const coverResponse = await uploadFormDataWithProgress<{ error?: string }>(`/api/topics/${data.topic.id}/cover`, form, (progress) => setUploadProgress(progress.percentage));
         const coverData = coverResponse.data;
         if (!coverResponse.ok) {
-          throw new Error(coverData.error || "The topic was created, but its cover could not be uploaded. Edit the topic to try again.");
+          throw new Error(coverData?.error || "The topic was created, but its cover could not be uploaded. Edit the topic to try again.");
         }
       }
 

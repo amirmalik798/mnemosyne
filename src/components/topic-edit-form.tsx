@@ -92,7 +92,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
         const coverResponse = await uploadFormDataWithProgress<{ error?: string }>(`/api/topics/${topic.id}/cover`, form, (progress) => setUploadProgress(progress.percentage));
         const coverData = coverResponse.data;
         if (!coverResponse.ok) {
-          throw new Error(coverData.error || "Topic details were saved, but the cover image could not be uploaded.");
+          throw new Error(coverData?.error || "Topic details were saved, but the cover image could not be uploaded.");
         }
       }
 
@@ -224,6 +224,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
           </div>
 
           {busy && <div style={{ marginTop: 15 }}><OperationStatus kind="processing" message={processingMessage} /></div>}
+          {uploadProgress !== null && <UploadProgress label="Uploading topic cover" percentage={uploadProgress} detail={file?.name} />}
           {error && <div style={{ marginTop: 12 }}><OperationStatus kind="failure" message={error} /></div>}
 
           <div className="form-actions" style={{ justifyContent: "space-between" }}>
