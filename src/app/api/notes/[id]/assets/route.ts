@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, setUserContext } from "@/lib/db";
 import { detectImageMime, saveEncryptedAsset } from "@/lib/storage";
 import { apiError, readBoundedFormData } from "@/lib/http";
 
@@ -30,6 +30,7 @@ export async function POST(request: Request, context: Context) {
     // metadata and its encrypted database blob share this transaction.
     client = await db.connect();
     await client.query("BEGIN");
+    await setUserContext(client, session.userId);
     const note = await client.query(
       "SELECT id FROM notes WHERE id = $1 AND deleted_at IS NULL FOR NO KEY UPDATE",
       [id],
@@ -40,6 +41,7 @@ export async function POST(request: Request, context: Context) {
       bytes,
       name: file.name.slice(0, 200),
       mimeType: mime,
+      userId: session.userId,
       ownerType: "note",
       ownerId: id,
       key: session.key,
