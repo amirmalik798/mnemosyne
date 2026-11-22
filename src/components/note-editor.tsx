@@ -9,15 +9,14 @@ import { Plugin } from "@tiptap/pm/state";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { ImageLightbox } from "@/components/image-lightbox";
+import { TextHighlightMark, TextStyleMark } from "@/lib/note-formatting";
 import {
   DEFAULT_HIGHLIGHT_COLOR,
   DEFAULT_TEXT_COLOR,
   NOTE_FONT_OPTIONS,
   safeFontFamily,
   safeTextColor,
-  TextHighlightMark,
-  TextStyleMark,
-} from "@/lib/note-formatting";
+} from "@/lib/note-formatting-utils";
 import { detectTextLanguage, getBidiAttributes } from "@/lib/bidi";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
