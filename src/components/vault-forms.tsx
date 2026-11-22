@@ -24,7 +24,7 @@ export function VaultSetup() {
   const [busy, setBusy] = useState(false);
   async function submit(event: React.FormEvent) {
     event.preventDefault(); setError("");
-    if (password.length < 12) return setError("Use at least 12 characters for your master password.");
+    if (password.length < 16) return setError("Use at least 16 characters for your master password.");
     if (password !== confirmation) return setError("Your passwords do not match.");
     setBusy(true);
     try {
@@ -37,7 +37,7 @@ export function VaultSetup() {
   }
   return <AuthFrame kicker="Your private archive" title="Create your vault" description="A quiet place for the ideas you want to keep.">
     <form className="auth-form" onSubmit={submit}>
-      <div className="form-field"><label className="form-label" htmlFor="master-password">Master password</label><div style={{ position: "relative" }}><input id="master-password" className="field" type={show ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 12 characters" required minLength={12} style={{ paddingRight: 42 }} /><button type="button" className="icon-button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} style={{ position: "absolute", right: 5, top: 4 }}>{show ? <EyeOff /> : <Eye />}</button></div><span className="form-hint">Use a long, unique passphrase. Mnemosyne cannot recover a forgotten master password without a recovery mechanism.</span></div>
+      <div className="form-field"><label className="form-label" htmlFor="master-password">Master password</label><div style={{ position: "relative" }}><input id="master-password" className="field" type={show ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 16 characters" required minLength={16} style={{ paddingRight: 42 }} /><button type="button" className="icon-button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} style={{ position: "absolute", right: 5, top: 4 }}>{show ? <EyeOff /> : <Eye />}</button></div><span className="form-hint">Use a long, unique passphrase. Mnemosyne cannot recover a forgotten master password without a recovery mechanism.</span></div>
       <div className="form-field"><label className="form-label" htmlFor="confirm-password">Confirm master password</label><input id="confirm-password" className="field" type={show ? "text" : "password"} autoComplete="new-password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} placeholder="Enter it again" required /></div>
       <div className="form-field">
         <label className="form-label" htmlFor="vault-setup-token">One-time setup key</label>
