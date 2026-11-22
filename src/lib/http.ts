@@ -69,6 +69,7 @@ export function apiError(error: unknown) {
     { error: `Something went wrong. Please try again. Reference: ${reference}`, reference },
     { status: 500, headers: { "X-Error-Reference": reference } },
   );
+}
 
 export function requireJsonObject(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("VALIDATION:Invalid request body.");
