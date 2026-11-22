@@ -9,7 +9,12 @@ export function apiError(error: unknown) {
   if (message === "NOT_FOUND") return NextResponse.json({ error: "The requested item was not found." }, { status: 404 });
   if (message === "CONFLICT") return NextResponse.json({ error: "This item cannot be deleted while it contains notes." }, { status: 409 });
   if (message.startsWith("VALIDATION:")) return NextResponse.json({ error: message.slice(11) }, { status: 400 });
-  console.error("API error:", error);
+  const errorName = error instanceof Error ? error.name : "UnknownError";
+  const errorCode = error && typeof error === "object" && "code" in error
+    && typeof (error as { code?: unknown }).code === "string"
+    ? (error as { code: string }).code
+    : undefined;
+  console.error("API error occurred.", { name: errorName, code: errorCode });
   return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
 }
 
