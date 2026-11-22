@@ -30,18 +30,30 @@ export function ArchivePagination({
 
   return (
     <nav className="archive-pagination" aria-label="Archive pages">
-      <span className="archive-pagination-summary">Showing {firstItem}–{lastItem} of {totalItems}</span>
+      <span className="archive-pagination-summary" role="status" aria-live="polite">
+        Showing {firstItem}–{lastItem} of {totalItems}
+      </span>
       <div className="archive-pagination-controls">
         {currentPage > 1 ? (
-          <Link className="secondary-btn" href={href(currentPage - 1)}>Previous</Link>
+          <Link className="secondary-btn" href={href(currentPage - 1)} aria-label={`Go to page ${currentPage - 1}`}>
+            Previous
+          </Link>
         ) : (
-          <span className="secondary-btn" aria-disabled="true">Previous</span>
+          <button type="button" className="secondary-btn" disabled aria-label="Previous page unavailable">
+            Previous
+          </button>
         )}
-        <span className="archive-pagination-page">Page {currentPage} of {totalPages}</span>
+        <span className="archive-pagination-page" aria-current="page" role="status" aria-live="polite">
+          Page {currentPage} of {totalPages}
+        </span>
         {currentPage < totalPages ? (
-          <Link className="secondary-btn" href={href(currentPage + 1)}>Next</Link>
+          <Link className="secondary-btn" href={href(currentPage + 1)} aria-label={`Go to page ${currentPage + 1}`}>
+            Next
+          </Link>
         ) : (
-          <span className="secondary-btn" aria-disabled="true">Next</span>
+          <button type="button" className="secondary-btn" disabled aria-label="Next page unavailable">
+            Next
+          </button>
         )}
       </div>
     </nav>

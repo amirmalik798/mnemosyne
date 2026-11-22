@@ -122,10 +122,10 @@ export function NoteReaderActions({
     <>
       <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} />
       <button type="button" className="secondary-btn" onClick={() => void copy()} disabled={busy || copying} aria-busy={copying}>
-        {copying ? <LoaderCircle className="operation-spinner" size={14} /> : <Copy size={14} />} {copying ? "Copying…" : "Copy"}
+        {copying ? <LoaderCircle className="operation-spinner" size={14} /> : <Copy size={14} />} {copying ? "Copying…" : "Copy Markdown"}
       </button>
       <button type="button" className="secondary-btn" onClick={exportNote} disabled={busy || copying}>
-        <Download size={14} /> Export
+        <Download size={14} /> Export Markdown
       </button>
       <button
         type="button"

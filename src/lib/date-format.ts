@@ -14,3 +14,20 @@ export function formatArchiveDate(value: string | Date, includeYear = false): st
     ? `${day} ${month} ${date.getUTCFullYear()}`
     : `${day} ${month}`;
 }
+
+
+/**
+ * Include the archive's canonical UTC time so timestamps remain clear and
+ * stable regardless of the server or browser's local timezone.
+ */
+export function formatArchiveDateTime(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return "—";
+
+  const day = date.getUTCDate();
+  const month = MONTHS[date.getUTCMonth()];
+  const year = date.getUTCFullYear();
+  const hours = String(date.getUTCHours()).padStart(2, "0");
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+  return `${day} ${month} ${year}, ${hours}:${minutes} UTC`;
+}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
 import { useConfirmation } from "@/components/confirmation-dialog";
+import { formatArchiveDate } from "@/lib/date-format";
 
 type Item = { id: string; title: string; subject: string; topicTitle: string; deletedAt: string };
 type PendingAction = { id: string; action: "restore" | "delete" } | null;
@@ -133,15 +134,15 @@ export function TrashWorkspace() {
                     <div className="note-row-title">{item.title}</div>
                     <div className="note-row-sub">{item.topicTitle}{item.subject ? ` · ${item.subject}` : ""}</div>
                   </div>
-                  <div className="note-row-meta">Deleted {new Date(item.deletedAt).toLocaleDateString()}</div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button className="secondary-btn" disabled={busy !== null} onClick={() => void action(item.id, "restore")}>
+                  <div className="note-row-meta"><time dateTime={new Date(item.deletedAt).toISOString()}>Deleted {formatArchiveDate(item.deletedAt, true)}</time></div>
+                  <div className="trash-row-actions">
+                    <button type="button" className="secondary-btn" disabled={busy !== null} onClick={() => void action(item.id, "restore")} aria-label={`Restore ${item.title}`}>
                       {restoring ? <LoaderCircle className="operation-spinner" size={13} /> : <RotateCcw size={13} />}
                       {restoring ? "Restoring…" : "Restore"}
                     </button>
-                    <button className="danger-btn" disabled={busy !== null} onClick={() => void action(item.id, "delete")}>
+                    <button type="button" className="danger-btn" disabled={busy !== null} onClick={() => void action(item.id, "delete")} aria-label={`Permanently delete ${item.title}`} title="This permanently deletes the note and its encrypted images">
                       {deleting ? <LoaderCircle className="operation-spinner" size={13} /> : <Trash2 size={13} />}
-                      {deleting ? "Deleting…" : "Delete"}
+                      {deleting ? "Deleting…" : "Delete permanently"}
                     </button>
                   </div>
                 </div>
