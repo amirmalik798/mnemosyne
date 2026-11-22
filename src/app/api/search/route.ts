@@ -219,8 +219,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ topics, notes });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unexpected error";
-    if (message === "UNAUTHORIZED") return NextResponse.json({ error: "Please unlock your vault." }, { status: 401 });
     return apiError(error);
   }
 }
