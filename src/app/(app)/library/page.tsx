@@ -100,7 +100,7 @@ export default async function LibraryPage() {
           Some encrypted records could not be authenticated
         </div>
         <p style={{ color: "var(--muted)", fontSize: 11, lineHeight: 1.7, margin: 0 }}>
-          {decryptionIssues.length} recent {decryptionIssues.length === 1 ? "record was" : "records were"} skipped because its encrypted data could not be verified. No records were changed or deleted.
+          {decryptionIssues.length} recent {decryptionIssues.length === 1 ? "record was" : "records were"} skipped because the encrypted data could not be verified. No records were changed or deleted.
           Lock the vault and unlock it once to refresh the active session. If this warning returns, leave the affected data untouched and investigate the record identifiers and field names in the server logs. A known-good backup may be needed if the stored ciphertext is damaged.
         </p>
       </section>
