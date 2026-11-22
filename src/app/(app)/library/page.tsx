@@ -189,32 +189,6 @@ export default async function LibraryPage() {
         </section>
       )}
 
-      <section className="overview-section" aria-labelledby="overview-collections-title">
-        <div className="overview-section-heading">
-          <div>
-            <div className="eyebrow">Your archive</div>
-            <h2 className="overview-section-title" id="overview-collections-title">Your collections</h2>
-            <p className="overview-section-copy">Your subjects and projects, gathered in one place.</p>
-          </div>
-          <Link className="overview-text-link" href="/topics">View all topics <ArrowUpRight size={15} aria-hidden="true" /></Link>
-        </div>
-
-        {topics.length ? (
-          <div className="topic-grid overview-topic-grid">
-            {topics.map((topic) => <TopicCard key={topic.id} topic={topic} variant="dashboard" />)}
-            <OpenTopicDialogButton className="overview-create-topic-card" label="Create a collection" icon="plus" />
-          </div>
-        ) : topicDecryptionFailed ? (
-          <EmptyState title="Some topics are unavailable" copy="Their encrypted data could not be authenticated. The original records remain untouched; investigate the warning above before creating replacement topics." />
-        ) : (
-          <EmptyState
-            title="Your archive begins here"
-            copy="Create a collection for a subject you want to explore. Add notes, references and images as your thinking develops."
-            action={<OpenTopicDialogButton className="primary-btn overview-quick-action" />}
-          />
-        )}
-      </section>
-
       <section className="overview-section overview-continue-section" aria-labelledby="overview-continue-title">
         <div className="overview-section-heading">
           <div>
@@ -250,6 +224,32 @@ export default async function LibraryPage() {
             </div>
             <Link href="/notes/new" className="secondary-btn overview-quick-action"><FilePlus size={15} aria-hidden="true" /><span>Write a note</span></Link>
           </div>
+        )}
+      </section>
+
+      <section className="overview-section" aria-labelledby="overview-collections-title">
+        <div className="overview-section-heading">
+          <div>
+            <div className="eyebrow">Your archive</div>
+            <h2 className="overview-section-title" id="overview-collections-title">Your collections</h2>
+            <p className="overview-section-copy">Your subjects and projects, gathered in one place.</p>
+          </div>
+          <Link className="overview-text-link" href="/topics">View all topics <ArrowUpRight size={15} aria-hidden="true" /></Link>
+        </div>
+
+        {topics.length ? (
+          <div className="topic-grid overview-topic-grid">
+            {topics.map((topic) => <TopicCard key={topic.id} topic={topic} variant="dashboard" />)}
+            <OpenTopicDialogButton className="overview-create-topic-card" label="Create a collection" icon="plus" />
+          </div>
+        ) : topicDecryptionFailed ? (
+          <EmptyState title="Some topics are unavailable" copy="Their encrypted data could not be authenticated. The original records remain untouched; investigate the warning above before creating replacement topics." />
+        ) : (
+          <EmptyState
+            title="Your archive begins here"
+            copy="Create a collection for a subject you want to explore. Add notes, references and images as your thinking develops."
+            action={<OpenTopicDialogButton className="primary-btn overview-quick-action" />}
+          />
         )}
       </section>
 
