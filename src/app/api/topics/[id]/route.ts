@@ -3,7 +3,7 @@ import { requireVaultSession, assertSameOrigin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { deleteAssetsFor } from "@/lib/storage";
-import { apiError, requireJsonObject, stringField } from "@/lib/http";
+import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -37,7 +37,7 @@ export async function PATCH(request: Request, context: Context) {
     assertSameOrigin(request);
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const body = requireJsonObject(await request.json());
+    const body = await readJsonObject(request, 16 * 1024);
     const existing = await db.query("SELECT id FROM topics WHERE id = $1", [id]);
     if (!existing.rows[0]) throw new Error("NOT_FOUND");
     const title = stringField(body, "title", 120, true);
