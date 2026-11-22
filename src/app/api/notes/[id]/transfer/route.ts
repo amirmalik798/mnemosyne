@@ -4,13 +4,14 @@ import type { PoolClient } from "pg";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
-import { cloneEncryptedNoteAsset, removeEncryptedStorageFile } from "@/lib/storage";
+import { cloneEncryptedNoteAsset } from "@/lib/storage";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
 type AssetRow = {
   id: string;
-  storage_key: string;
+  storage_key: string | null;
+  encrypted_bytes: Buffer | null;
   original_name_enc: Buffer;
   mime_type: string;
   byte_size: string | number;
@@ -57,8 +58,8 @@ function replaceImageAssetIds(value: unknown, replacements: Map<string, string>)
 
 export async function POST(request: Request, context: Context) {
   let client: PoolClient | undefined;
-  const createdStorageKeys: string[] = [];
   let commitAttempted = false;
+  let newNoteId: string | undefined;
   try {
     assertSameOrigin(request);
     const session = await requireVaultSession();
@@ -97,13 +98,17 @@ export async function POST(request: Request, context: Context) {
 
     const sourceContent = JSON.parse(decryptText(source.content_enc, session.key)) as unknown;
     const sourceAssetIds = [...collectImageAssetIds(sourceContent)];
-    const newNoteId = randomUUID();
+    newNoteId = randomUUID();
     const assetMap = new Map<string, string>();
 
     if (sourceAssetIds.length > 0) {
       const assetsResult = await client.query(
-        `SELECT id, storage_key, original_name_enc, mime_type, byte_size
-         FROM assets WHERE owner_type='note' AND owner_id=$1 AND id=ANY($2::uuid[]) FOR SHARE`,
+        `SELECT a.id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size,
+                b.encrypted_bytes
+         FROM assets a
+         LEFT JOIN asset_blobs b ON b.asset_id = a.id
+         WHERE a.owner_type = 'note' AND a.owner_id = $1 AND a.id = ANY($2::uuid[])
+         FOR SHARE OF a`,
         [id, sourceAssetIds],
       );
       const assets = assetsResult.rows as AssetRow[];
@@ -117,7 +122,6 @@ export async function POST(request: Request, context: Context) {
           key: session.key,
           query: (text, values) => client!.query(text, values),
         });
-        createdStorageKeys.push(cloned.storageKey);
         assetMap.set(asset.id, cloned.id);
       }
     }
@@ -144,16 +148,10 @@ export async function POST(request: Request, context: Context) {
     await client.query("COMMIT");
     return NextResponse.json({ success: true, action, noteId: newNoteId, topicId: destinationTopicId }, { status: 201 });
   } catch (error) {
-    if (client) {
-      await client.query("ROLLBACK").catch(() => undefined);
-    }
-    if (!commitAttempted) {
-      await Promise.all(createdStorageKeys.map(removeEncryptedStorageFile));
-    } else if (createdStorageKeys.length > 0) {
-      // COMMIT may have reached PostgreSQL even if its response was lost.
-      // Keep the encrypted copies to avoid committed rows pointing at missing files.
-      console.error("[Mnemosyne] Note-copy transaction outcome is uncertain; cloned encrypted files were retained.", {
-        fileCount: createdStorageKeys.length,
+    if (client) await client.query("ROLLBACK").catch(() => undefined);
+    if (commitAttempted) {
+      console.error("[Mnemosyne] Note transfer commit outcome is uncertain; copied note, asset metadata and encrypted blobs share one database transaction.", {
+        noteId: newNoteId,
       });
     }
     return apiError(error);
