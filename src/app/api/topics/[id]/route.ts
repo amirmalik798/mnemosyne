@@ -55,16 +55,15 @@ export async function PATCH(request: Request, context: Context) {
     const session = await requireVaultSession();
     const { id } = await context.params;
     const body = await readJsonObject(request, 16 * 1024);
-    const existing = await queryAsUser(session.userId, "SELECT id FROM topics WHERE id = $1", [id]);
-    if (!existing.rows[0]) throw new Error("NOT_FOUND");
     const title = stringField(body, "title", 120, true);
     const subject = stringField(body, "subject", 120);
     const description = stringField(body, "description", 1000);
     const category = stringField(body, "category", 60);
-    await queryAsUser(session.userId, 
-      `UPDATE topics SET title_enc=$1, subject_enc=$2, description_enc=$3, category_enc=$4, updated_at=NOW() WHERE id=$5`,
+    const updated = await queryAsUser(session.userId,
+      `UPDATE topics SET title_enc=$1, subject_enc=$2, description_enc=$3, category_enc=$4, updated_at=NOW() WHERE id=$5 RETURNING id`,
       [encryptText(title, session.key), encryptText(subject, session.key), encryptText(description, session.key), encryptText(category, session.key), id],
     );
+    if (!updated.rows[0]) throw new Error("NOT_FOUND");
     return NextResponse.json({ success: true });
   } catch (error) { return apiError(error); }
 }

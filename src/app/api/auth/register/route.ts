@@ -37,6 +37,9 @@ export async function POST(request: Request) {
     if (password.length < 16 || password.length > 256) {
       throw new Error("VALIDATION:Use a password between 16 and 256 characters.");
     }
+    if (!password.trim()) {
+      throw new Error("VALIDATION:Password cannot contain only whitespace.");
+    }
     if (password !== confirmation) throw new Error("VALIDATION:Your passwords do not match.");
 
     await enforceAuthRateLimit(request, "register", 8, 3600, email);

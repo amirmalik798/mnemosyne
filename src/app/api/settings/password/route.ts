@@ -18,9 +18,14 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const session = await requireVaultSession();
     const body = await readJsonObject(request, 8 * 1024);
-    const currentPassword = stringField(body, "currentPassword", 256, true);
-    const newPassword = stringField(body, "newPassword", 256, true);
-    if (newPassword.length < 16) throw new Error("VALIDATION:Use at least 16 characters for your new password.");
+    const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
+    const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+    if (!currentPassword || currentPassword.length > 256) {
+      throw new Error("VALIDATION:Enter your current password (256 characters or fewer).");
+    }
+    if (newPassword.length < 16 || newPassword.length > 256 || !newPassword.trim()) {
+      throw new Error("VALIDATION:Use a password between 16 and 256 characters that is not only whitespace.");
+    }
 
     client = await db.connect();
     await client.query("BEGIN");

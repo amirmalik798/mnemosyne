@@ -6,30 +6,7 @@ import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 import { useConfirmation } from "@/components/confirmation-dialog";
 
-type Node = { type?: string; text?: string; attrs?: Record<string, unknown>; content?: Node[]; marks?: Array<{type:string;attrs?:Record<string,unknown>}> };
-function toMarkdown(node: Node): string {
-  if (node.type === "text") {
-    let text = node.text ?? "";
-    for (const mark of node.marks ?? []) {
-      if (mark.type === "bold") text = `**${text}**`;
-      if (mark.type === "italic") text = `*${text}*`;
-      if (mark.type === "strike") text = `~~${text}~~`;
-      if (mark.type === "code") text = `\`${text}\``;
-      if (mark.type === "link") { const href=String(mark.attrs?.href??""); if(/^https?:\/\//i.test(href)) text=`[${text}](${href})`; }
-    }
-    return text;
-  }
-  const inner=(node.content??[]).map(toMarkdown).join("");
-  if(node.type==="paragraph")return `${inner}\n\n`;
-  if(node.type==="heading"){const level=Math.min(3,Math.max(1,Number(node.attrs?.level??2)));return `${"#".repeat(level)} ${inner}\n\n`;}
-  if(node.type==="blockquote")return inner.split("\n").filter(Boolean).map(line=>`> ${line}`).join("\n")+"\n\n";
-  if(node.type==="bulletList"||node.type==="orderedList")return inner;
-  if(node.type==="listItem")return `- ${inner.trim()}\n`;
-  if(node.type==="horizontalRule")return "---\n\n";
-  if(node.type==="hardBreak")return "  \n";
-  if(node.type==="image"){const src=String(node.attrs?.src??"");const alt=String(node.attrs?.alt??"Image");return src.startsWith("/api/assets/")?`![${alt}](${window.location.origin}${src})\n\n`:"";}
-  return inner;
-}
+import { noteToMarkdown } from "@/lib/markdown-export";
 export function NoteReaderActions({
   id,
   title,
@@ -51,8 +28,7 @@ export function NoteReaderActions({
   const [copying, setCopying] = useState(false);
 
   function markdown() {
-    const root = content && typeof content === "object" ? content as Node : { content: [] };
-    return `# ${title}\n\n${(root.content ?? []).map(toMarkdown).join("")}`.trim() + "\n";
+    return noteToMarkdown(title, content, window.location.origin);
   }
 
   async function copy() {

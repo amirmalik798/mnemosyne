@@ -28,12 +28,21 @@ export async function GET(_request: Request, context: Context) {
       mimeType: asset.mime_type,
       byteSize: asset.byte_size,
     });
-    const filename = decryptText(asset.original_name_enc, session.key).replace(/[\r\n"\\]/g, "_");
+    const filename = decryptText(asset.original_name_enc, session.key)
+      .normalize("NFC")
+      .replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, "_")
+      .trim()
+      .slice(0, 200) || "image";
+    const fallbackFilename = filename
+      .replace(/[^\x20-\x7e]/g, "_")
+      .replace(/["\\]/g, "_") || "image";
+    const encodedFilename = encodeURIComponent(filename)
+      .replace(/['()*]/g, (character) => "%" + character.charCodeAt(0).toString(16).toUpperCase());
     return new NextResponse(new Uint8Array(bytes), {
       headers: {
         "Content-Type": asset.mime_type,
         "Content-Length": String(bytes.length),
-        "Content-Disposition": `inline; filename="${filename}"`,
+        "Content-Disposition": `inline; filename="${fallbackFilename}"; filename*=UTF-8''${encodedFilename}`,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },

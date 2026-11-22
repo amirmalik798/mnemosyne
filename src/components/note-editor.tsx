@@ -261,6 +261,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
   const imageRef = useRef<HTMLInputElement>(null);
   const savingRef = useRef(false);
+  const savePromiseRef = useRef<{ version: number; promise: Promise<string | null> } | null>(null);
   const [noteId, setNoteId] = useState<string | null>(initialNote?.id ?? null);
   const [topicId, setTopicId] = useState(initialNote?.topicId ?? defaultTopicId ?? topics[0]?.id ?? "");
   const [availableTopics, setAvailableTopics] = useState<Topic[]>(topics);
@@ -722,13 +723,34 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   ): Promise<string | null> => {
     if (!topicId) { setError("Create a topic before writing a note."); return null; }
     if (!title.trim()) { if (!quiet) setError("Give your note a title before saving."); return null; }
-    if (savingRef.current) return noteId;
+    const pendingSave = savePromiseRef.current;
+    if (pendingSave) {
+      const pendingResult = await pendingSave.promise;
+      if (!pendingResult) return null;
+      if (changeVersionRef.current !== pendingSave.version) {
+        // A newer edit arrived while the previous request was saving. Do not
+        // report that stale snapshot as saved; the autosave effect will retry.
+        setStatus("Newer changes still need saving");
+        setAutosaveRevision((revision) => revision + 1);
+        return null;
+      }
+      return pendingResult;
+    }
+    if (savingRef.current) return null;
+
     const savedVersion = changeVersionRef.current;
     const showBusyState = !quiet;
     savingRef.current = true;
     if (showBusyState) setBusy(true);
     setError("");
     setStatus(quiet ? "Saving in background…" : "Saving…");
+    let resolveSave!: (result: string | null) => void;
+    const currentSavePromise = new Promise<string | null>((resolve) => {
+      resolveSave = resolve;
+    });
+    const saveEntry = { version: savedVersion, promise: currentSavePromise };
+    savePromiseRef.current = saveEntry;
+    let saveResult: string | null = null;
     try {
       const currentContent = editorRef.current?.getJSON() ?? contentRef.current;
       contentRef.current = currentContent;
@@ -804,6 +826,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         setAutosaveRevision((revision) => revision + 1);
       }
       if (options.refreshOnSave !== false) router.refresh();
+      saveResult = savedId;
       return savedId;
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not save note.";
@@ -822,6 +845,8 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     } finally {
       savingRef.current = false;
       if (showBusyState) setBusy(false);
+      if (savePromiseRef.current === saveEntry) savePromiseRef.current = null;
+      resolveSave(saveResult);
     }
   }, [topicId, title, subject, tagsInput, pinned, noteId, dirty, router, scheduleLocalRecovery]);
 
@@ -845,6 +870,17 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     if (!editor) {
       setError("The note editor is not ready yet. Try again in a moment.");
       return;
+    }
+
+    // Finish any already-running autosave before uploading a new asset. Its
+    // stale document snapshot must not run afterward and remove that asset as
+    // an image no longer referenced by the note.
+    if (savingRef.current) {
+      const saved = await save(false, { navigateOnCreate: false, refreshOnSave: false });
+      if (!saved) {
+        setError("A previous save has newer changes still pending. Wait for it to finish, then retry the image upload.");
+        return;
+      }
     }
 
     const supportedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -1119,6 +1155,14 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       tone: "danger",
     });
     if (!accepted) return;
+
+    if (dirty || savingRef.current) {
+      const saved = await save(false);
+      if (!saved) {
+        setError("Your latest changes could not be confirmed as saved. Resolve the save issue before moving this note to Recently deleted.");
+        return;
+      }
+    }
 
     setBusy(true);
     setError("");
@@ -1496,7 +1540,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         onClose={closeImagePreview}
       />
       <div className="editor-footer"><span>{words} words</span><OperationStatus kind={getEditorStatusKind(recoveryStatus)} message={recoveryStatus} compact /><span>Private encrypted note</span></div>
-    </section><aside className="editor-side" hidden={!inspectorOpen}><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><label className="property-label" htmlFor="note-topic-select">Belongs to</label><select id="note-topic-select" dir="auto" lang={detectTextLanguage(availableTopics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy || imageUploading} onChange={(e)=>{setTopicId(e.target.value);markDirty();}}>{availableTopics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select>{topicsLoading && <OperationStatus kind="loading" message="Loading your topics…" compact />}{topicsError && <OperationStatus kind="failure" message={topicsError} compact />}</div><div className="property-block"><label className="property-label" htmlFor="note-tags">Tags</label><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy || imageUploading} onChange={(e)=>{setTagsInput(e.target.value);markDirty();}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button type="button" className="secondary-btn editor-property-action" disabled={busy || imageUploading} aria-pressed={pinned} aria-label={pinned ? "Unpin note" : "Pin note"} title={pinned ? "Unpin note" : "Pin note"} onClick={()=>{setPinned(!pinned);markDirty();}}>{pinned ? <PinOff size={17}/> : <Pin size={17}/>}<span>{pinned ? "Pinned note" : "Pin note"}</span></button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={availableTopics.length ? availableTopics : undefined} showLabel beforeTransfer={async()=>{if(busy || imageUploading)return false;return dirty?Boolean(await save(false)):true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p><div className="editor-interface-font"><div className="property-label">Interface typeface</div><FontSelector /></div></section>
+    </section><aside className="editor-side" hidden={!inspectorOpen}><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><label className="property-label" htmlFor="note-topic-select">Belongs to</label><select id="note-topic-select" dir="auto" lang={detectTextLanguage(availableTopics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy || imageUploading} onChange={(e)=>{setTopicId(e.target.value);markDirty();}}>{availableTopics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select>{topicsLoading && <OperationStatus kind="loading" message="Loading your topics…" compact />}{topicsError && <OperationStatus kind="failure" message={topicsError} compact />}</div><div className="property-block"><label className="property-label" htmlFor="note-tags">Tags</label><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy || imageUploading} onChange={(e)=>{setTagsInput(e.target.value);markDirty();}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button type="button" className="secondary-btn editor-property-action" disabled={busy || imageUploading} aria-pressed={pinned} aria-label={pinned ? "Unpin note" : "Pin note"} title={pinned ? "Unpin note" : "Pin note"} onClick={()=>{setPinned(!pinned);markDirty();}}>{pinned ? <PinOff size={17}/> : <Pin size={17}/>}<span>{pinned ? "Pinned note" : "Pin note"}</span></button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={availableTopics.length ? availableTopics : undefined} showLabel beforeTransfer={async()=>{if(busy || imageUploading)return false;return dirty || savingRef.current ? Boolean(await save(false)) : true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p><div className="editor-interface-font"><div className="property-label">Interface typeface</div><FontSelector /></div></section>
       {noteId && <section className="panel note-revisions">
         <details>
           <summary>Recent local versions · {revisionSnapshots.length}</summary>

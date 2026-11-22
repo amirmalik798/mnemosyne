@@ -20,7 +20,8 @@ export function SecuritySettings() {
     setError("");
     setSuccess("");
 
-    if (newPassword.length < 16) return setError("Use at least 16 characters for your new password.");
+    if (newPassword.length < 16 || newPassword.length > 256) return setError("Use a password between 16 and 256 characters.");
+    if (!newPassword.trim()) return setError("Your new password cannot contain only whitespace.");
     if (newPassword !== confirm) return setError("The new passwords do not match.");
 
     setBusy(true);
@@ -62,11 +63,11 @@ export function SecuritySettings() {
         </div>
         <div className="form-field">
           <label className="form-label" htmlFor="new-master-password">New password</label>
-          <div className="security-password-input"><input id="new-master-password" className="field" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(event) => setNew(event.target.value)} required minLength={16} autoComplete="new-password" disabled={busy} /><button type="button" className="auth-password-toggle" onClick={() => setShowNewPassword((value) => !value)} disabled={busy} aria-label={showNewPassword ? "Hide new password" : "Show new password"} aria-pressed={showNewPassword}>{showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
+          <div className="security-password-input"><input id="new-master-password" className="field" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(event) => setNew(event.target.value)} required minLength={16} maxLength={256} autoComplete="new-password" disabled={busy} /><button type="button" className="auth-password-toggle" onClick={() => setShowNewPassword((value) => !value)} disabled={busy} aria-label={showNewPassword ? "Hide new password" : "Show new password"} aria-pressed={showNewPassword}>{showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
         </div>
         <div className="form-field">
           <label className="form-label" htmlFor="confirm-master-password">Confirm new password</label>
-          <div className="security-password-input"><input id="confirm-master-password" className="field" type={showConfirmPassword ? "text" : "password"} value={confirm} onChange={(event) => setConfirm(event.target.value)} required minLength={16} autoComplete="new-password" disabled={busy} /><button type="button" className="auth-password-toggle" onClick={() => setShowConfirmPassword((value) => !value)} disabled={busy} aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword}>{showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
+          <div className="security-password-input"><input id="confirm-master-password" className="field" type={showConfirmPassword ? "text" : "password"} value={confirm} onChange={(event) => setConfirm(event.target.value)} required minLength={16} maxLength={256} autoComplete="new-password" disabled={busy} /><button type="button" className="auth-password-toggle" onClick={() => setShowConfirmPassword((value) => !value)} disabled={busy} aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword}>{showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
         </div>
       </div>
 
