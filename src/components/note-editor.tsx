@@ -11,6 +11,7 @@ import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { TextHighlightMark, TextStyleMark } from "@/lib/note-formatting";
 import {
+  colorPickerValue,
   DEFAULT_HIGHLIGHT_COLOR,
   DEFAULT_TEXT_COLOR,
   NOTE_FONT_OPTIONS,
@@ -278,10 +279,10 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     const highlight = current.getAttributes("textHighlight") as { color?: unknown };
 
     if (textColorInputRef.current) {
-      textColorInputRef.current.value = safeTextColor(textStyle.color) ?? DEFAULT_TEXT_COLOR;
+      textColorInputRef.current.value = colorPickerValue(textStyle.color, DEFAULT_TEXT_COLOR);
     }
     if (highlightColorInputRef.current) {
-      highlightColorInputRef.current.value = safeTextColor(highlight.color) ?? DEFAULT_HIGHLIGHT_COLOR;
+      highlightColorInputRef.current.value = colorPickerValue(highlight.color, DEFAULT_HIGHLIGHT_COLOR);
     }
     if (fontFamilySelectRef.current) {
       fontFamilySelectRef.current.value = safeFontFamily(textStyle.fontFamily) ?? "";
@@ -332,6 +333,12 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   useEffect(() => {
     editor?.setEditable(!busy && !imageUploading);
   }, [editor, busy, imageUploading]);
+
+  // Synchronize uncontrolled formatting inputs after they mount and whenever
+  // the editor instance changes. Selection changes keep these refs current.
+  useEffect(() => {
+    if (editor) syncFormattingControls(editor);
+  }, [editor, syncFormattingControls]);
 
   // Ask the browser to retain this origin's IndexedDB data when supported.
   useEffect(() => {
