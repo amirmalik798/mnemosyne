@@ -3697,6 +3697,15 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
   max-width: 74ch;
   margin-inline: auto;
 }
+/* The subject uses a smaller font than the title, so a shared ch cap
+   incorrectly narrows and centers it. Keep its text aligned to the title. */
+.note-editor-page .editor-subject {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: 0;
+  text-align: start;
+}
 /* Keep the focused writing canvas aligned with the title and toolbar.
    A 74ch cap here was measured against the smaller UI font, shrinking the
    whole editor surface and creating an unintended left/right inset. */
