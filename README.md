@@ -59,7 +59,7 @@ Mnemosyne is a single-user, password-protected knowledge archive for topics, ric
    npm run db:check
    ~~~
 
-6. For an existing installation that has image files in **STORAGE_DIR**, stop application writes and import them into PostgreSQL:
+6. For an existing installation that has image files in **STORAGE_DIR**, stop all older application instances (or put them in maintenance mode) and import the files into PostgreSQL. Older application versions cannot read database-backed blobs:
 
    ~~~bash
    npm run assets:migrate-to-db
@@ -109,7 +109,7 @@ On a note reader or editor screen, use **Move / copy**. Choose **Move note** or 
 
 - PostgreSQL stores encrypted topic and note content, metadata, encrypted original image bytes and encrypted original upload filenames.
 - The **asset_blobs** table stores image ciphertext as PostgreSQL **BYTEA**. The separate **assets** table stores ownership and image metadata; normal note and topic queries do not fetch the large blob payloads.
-- For older installations, stop application writes, take a database backup and preserve the complete **STORAGE_DIR** before running **npm run assets:migrate-to-db**. The importer copies each legacy encrypted file byte-for-byte into PostgreSQL and clears its legacy path pointer in the same transaction.
+- For older installations, stop all older application instances (or put them in maintenance mode), take a database backup and preserve the complete **STORAGE_DIR** before running **npm run assets:migrate-to-db**. The importer copies each legacy encrypted file byte-for-byte into PostgreSQL and clears its legacy path pointer in the same transaction.
 - The importer is safe to rerun after interruption. It does not decrypt, recompress or resize images, and it never deletes the original files.
 - Run **npm run storage:check** after the import. Keep the old **STORAGE_DIR** until the database backup has been verified and image reads have been tested. You can then remove the old directory manually; the application no longer needs it for normal image uploads, reads or deletion.
 - Back up PostgreSQL and **SESSION_ENCRYPTION_SECRET** together. The database backup now contains the encrypted images as well as the encrypted notes and topics.
@@ -138,13 +138,15 @@ openssl rand -hex 32
 
 Use a different value for **SESSION_ENCRYPTION_SECRET** and **VAULT_SETUP_TOKEN**. Never paste real secrets into source control, issue reports or logs.
 
+For the one-time transition from filesystem storage, keep older application instances stopped until the importer and integrity check finish. Then start the new application version. The import command can be rerun safely if interrupted.
+
 Before deploying an application update:
 
 ~~~bash
 git pull --ff-only origin main
 npm run db:migrate
 npm run db:check
-# Imports any remaining legacy image files; safe to rerun and does not delete source files.
+# One-time for existing file-backed assets; safe to rerun and does not delete source files.
 npm run assets:migrate-to-db
 npm run storage:check
 npm run test:unit
