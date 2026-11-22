@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
-import { OperationStatus, notifyOperation } from "@/components/operation-status";
+import { OperationStatus } from "@/components/operation-status";
 
 export function SecuritySettings() {
   const [currentPassword, setCurrent] = useState("");
@@ -34,11 +34,9 @@ export function SecuritySettings() {
       setNew("");
       setConfirm("");
       setSuccess("Your master password has been changed.");
-      notifyOperation("success", "Your master password has been changed.");
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not change password.";
       setError(message);
-      notifyOperation("failure", message);
     } finally {
       setBusy(false);
     }
