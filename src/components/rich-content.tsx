@@ -3,7 +3,7 @@
 import React, { useCallback, useState } from "react";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { detectTextDirection, detectTextLanguage } from "@/lib/bidi";
-import { safeFontFamily, safeTextColor } from "@/lib/note-formatting";
+import { safeFontFamily, safeTextColor } from "@/lib/note-formatting-utils";
 
 type RichNode = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: Array<{ type: string; attrs?: Record<string, unknown> }>; content?: RichNode[] };
 
