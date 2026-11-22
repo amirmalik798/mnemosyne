@@ -164,7 +164,7 @@ BEGIN
       RAISE EXCEPTION 'Existing single-user vault detected. Set MNEMOSYNE_LEGACY_OWNER_EMAIL to the original owner email before running npm run db:migrate. Existing encrypted records have not been modified.';
     END IF;
 
-    SELECT id, password_hash INTO legacy_user_id
+    SELECT id INTO legacy_user_id
     FROM users WHERE email = legacy_email FOR UPDATE;
 
     IF legacy_user_id IS NULL THEN
@@ -173,8 +173,24 @@ BEGIN
       FROM vault_settings WHERE id = 1
       RETURNING id INTO legacy_user_id;
     ELSE
-      IF (SELECT password_hash IS NOT NULL FROM users WHERE id = legacy_user_id) THEN
+      IF EXISTS (
+        SELECT 1 FROM users
+        WHERE id = legacy_user_id AND password_hash IS NOT NULL
+      ) THEN
         RAISE EXCEPTION 'The configured legacy owner email already belongs to a regular account. Resolve the email collision before migrating the old archive.';
+      END IF;
+
+      IF EXISTS (
+        SELECT 1
+        FROM users u
+        JOIN vault_settings v ON v.id = 1
+        WHERE u.id = legacy_user_id
+          AND (
+            u.password_salt IS DISTINCT FROM v.password_salt
+            OR u.wrapped_key IS DISTINCT FROM v.wrapped_key
+          )
+      ) THEN
+        RAISE EXCEPTION 'The selected legacy owner account does not contain the original vault key envelope. Restore the original account key data before migrating.';
       END IF;
     END IF;
 
