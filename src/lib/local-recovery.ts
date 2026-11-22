@@ -35,7 +35,7 @@ let deviceKeyPromise: Promise<CryptoKey> | null = null;
 function openRecoveryDatabase(): Promise<IDBDatabase> {
   if (recoveryDatabasePromise) return recoveryDatabasePromise;
 
-  recoveryDatabasePromise = new Promise((resolve, reject) => {
+  const opening = new Promise<IDBDatabase>((resolve, reject) => {
     let blocked = false;
     if (typeof window === "undefined" || !("indexedDB" in window)) {
       reject(new Error("Local recovery storage is unavailable in this browser."));
@@ -74,7 +74,8 @@ function openRecoveryDatabase(): Promise<IDBDatabase> {
     throw error;
   });
 
-  return recoveryDatabasePromise;
+  recoveryDatabasePromise = opening;
+  return opening;
 }
 
 function transactionComplete(transaction: IDBTransaction): Promise<void> {

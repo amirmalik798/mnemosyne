@@ -1,9 +1,10 @@
 import type { PoolConfig } from "pg";
 
-type DatabaseEnvironment = Pick<
-  NodeJS.ProcessEnv,
-  "DATABASE_URL" | "PGSSLMODE" | "NODE_ENV"
->;
+type DatabaseEnvironment = {
+  DATABASE_URL?: string;
+  PGSSLMODE?: string;
+  NODE_ENV?: string;
+};
 
 type DatabasePoolOptions = {
   max?: number;

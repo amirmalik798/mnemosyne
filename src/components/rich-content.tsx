@@ -43,13 +43,14 @@ function blockBidiProps(node: RichNode) {
 }
 
 function renderText(node: RichNode, key: React.Key): React.ReactNode {
+  const keyString = String(key);
   let result: React.ReactNode = node.text ?? "";
   for (const mark of node.marks ?? []) {
-    if (mark.type === "bold") result = <strong key={`${key}-b`}>{result}</strong>;
-    else if (mark.type === "italic") result = <em key={`${key}-i`}>{result}</em>;
-    else if (mark.type === "underline") result = <u key={`${key}-u`}>{result}</u>;
-    else if (mark.type === "strike") result = <s key={`${key}-s`}>{result}</s>;
-    else if (mark.type === "code") result = <code key={`${key}-c`}>{result}</code>;
+    if (mark.type === "bold") result = <strong key={`${keyString}-b`}>{result}</strong>;
+    else if (mark.type === "italic") result = <em key={`${keyString}-i`}>{result}</em>;
+    else if (mark.type === "underline") result = <u key={`${keyString}-u`}>{result}</u>;
+    else if (mark.type === "strike") result = <s key={`${keyString}-s`}>{result}</s>;
+    else if (mark.type === "code") result = <code key={`${keyString}-c`}>{result}</code>;
     else if (mark.type === "textStyle") {
       const color = safeTextColor(mark.attrs?.color);
       const fontFamily = safeFontFamily(mark.attrs?.fontFamily);
@@ -57,21 +58,21 @@ function renderText(node: RichNode, key: React.Key): React.ReactNode {
       if (color) style.color = color;
       if (fontFamily) style.fontFamily = fontFamily;
       if (color || fontFamily) {
-        result = <span key={`${key}-style`} style={style}>{result}</span>;
+        result = <span key={`${keyString}-style`} style={style}>{result}</span>;
       }
     }
     else if (mark.type === "textHighlight") {
       const color = safeTextColor(mark.attrs?.color) ?? "#fff1a8";
       result = (
         <mark
-          key={`${key}-highlight`}
+          key={`${keyString}-highlight`}
           style={{ backgroundColor: color, borderRadius: "0.15em", padding: "0.02em 0.12em" }}
         >
           {result}
         </mark>
       );
     }
-    else if (mark.type === "link") { const href = String(mark.attrs?.href ?? ""); if (/^https?:\/\//i.test(href)) result = <a key={`${key}-a`} href={href} target="_blank" rel="noreferrer">{result}</a>; }
+    else if (mark.type === "link") { const href = String(mark.attrs?.href ?? ""); if (/^https?:\/\//i.test(href)) result = <a key={`${keyString}-a`} href={href} target="_blank" rel="noreferrer">{result}</a>; }
   }
   return result;
 }

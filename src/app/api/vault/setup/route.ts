@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { PoolClient } from "pg";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { derivePasswordKey, encryptBytes, newVaultKey, sessionEncryptionKey } from "@/lib/crypto";
 import { createSession, isVaultInitialized, assertSameOrigin } from "@/lib/auth";
@@ -10,7 +11,7 @@ export const runtime = "nodejs";
 const SETUP_ADVISORY_LOCK_ID = 724_918_237_442;
 
 export async function POST(request: Request) {
-  let client: Awaited<ReturnType<typeof db.connect>> | undefined;
+  let client: PoolClient | undefined;
   let wrappingKey: Buffer | undefined;
   let vaultKey: Buffer | undefined;
 

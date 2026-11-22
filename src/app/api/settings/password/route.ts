@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { PoolClient } from "pg";
 import { randomBytes } from "node:crypto";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -8,7 +9,7 @@ import { apiError, readJsonObject, stringField } from "@/lib/http";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  let client: Awaited<ReturnType<typeof db.connect>> | undefined;
+  let client: PoolClient | undefined;
   let oldWrappingKey: Buffer | undefined;
   let newWrappingKey: Buffer | undefined;
   let unlocked: Buffer | undefined;

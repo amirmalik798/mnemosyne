@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { PoolClient } from "pg";
 import { derivePasswordKey, decryptBytes } from "@/lib/crypto";
 import { createSession, assertSameOrigin } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -12,7 +13,7 @@ const LOCKOUT_MINUTES = 10;
 const MAX_PASSWORD_REQUEST_BYTES = 8 * 1024;
 
 export async function POST(request: Request) {
-  let client: Awaited<ReturnType<typeof db.connect>> | undefined;
+  let client: PoolClient | undefined;
   let vaultKey: Buffer | null = null;
 
   try {

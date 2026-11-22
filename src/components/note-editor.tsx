@@ -221,7 +221,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const editorRef = useRef<TiptapEditor | null>(null);
   const selectionRef = useRef({ from: 1, to: 1 });
   const changeVersionRef = useRef(0);
-  const autosaveRevisionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveRevisionTimerRef = useRef<number | null>(null);
   const [autosaveRevision, setAutosaveRevision] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState(initialNote ? "Saved" : "Draft");
@@ -229,7 +229,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [draftReady, setDraftReady] = useState(false);
   const [focusTarget, setFocusTarget] = useState<"title" | "subject" | "editor" | "tags" | null>(null);
   const pendingDraftRef = useRef<{ key: string; draft: LocalNoteDraft } | null>(null);
-  const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recoveryTimerRef = useRef<number | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [imageSelected, setImageSelected] = useState(false);
@@ -350,7 +350,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       // Debounce the React autosave trigger instead of putting the full
       // ProseMirror JSON tree into React state on every keystroke.
       if (autosaveRevisionTimerRef.current !== null) {
-        clearTimeout(autosaveRevisionTimerRef.current);
+        window.clearTimeout(autosaveRevisionTimerRef.current);
       }
       autosaveRevisionTimerRef.current = window.setTimeout(() => {
         autosaveRevisionTimerRef.current = null;
@@ -512,7 +512,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     if (!draftReady || !recoveryIsPending) return;
     const flush = () => {
       if (recoveryTimerRef.current !== null) {
-        clearTimeout(recoveryTimerRef.current);
+        window.clearTimeout(recoveryTimerRef.current);
         recoveryTimerRef.current = null;
       }
       const draft: LocalNoteDraft = {
@@ -594,7 +594,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       // when no newer edit happened while this request was in flight.
       if (savedVersion === changeVersionRef.current) {
         if (recoveryTimerRef.current !== null) {
-          clearTimeout(recoveryTimerRef.current);
+          window.clearTimeout(recoveryTimerRef.current);
           recoveryTimerRef.current = null;
         }
         pendingDraftRef.current = null;
@@ -812,7 +812,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       }
 
       if (recoveryTimerRef.current !== null) {
-        clearTimeout(recoveryTimerRef.current);
+        window.clearTimeout(recoveryTimerRef.current);
         recoveryTimerRef.current = null;
       }
       pendingDraftRef.current = null;
