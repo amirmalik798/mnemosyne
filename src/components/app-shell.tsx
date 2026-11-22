@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Bookmark, Boxes, Command, FileText, FolderOpen, LockKeyhole, Pin, Plus, Search, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import { TopicDialog } from "@/components/topic-dialog";
 import { FontSelector, ThemeToggle } from "@/components/theme-provider";
+import { readResumeLocation, saveResumeLocation } from "@/lib/resume-location";
 
 const nav = [
   { label: "LIBRARY", items: [{ href: "/library", label: "Overview", icon: Boxes }, { href: "/topics", label: "All topics", icon: FolderOpen }, { href: "/notes", label: "All notes", icon: FileText }, { href: "/pinned", label: "Pinned notes", icon: Pin }, { href: "/search", label: "Search archive", icon: Search }] },
@@ -14,6 +15,8 @@ const nav = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchKey = searchParams.toString();
   const router = useRouter();
   const [showTopic, setShowTopic] = useState(false);
   const [locking, setLocking] = useState(false);
@@ -22,6 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const lockForInactivity = () => {
       clearTimeout(timer);
       timer = setTimeout(async () => {
+        saveResumeLocation();
         await fetch("/api/vault/lock", { method: "POST" });
         window.location.assign("/unlock");
       }, 20 * 60 * 1000);
@@ -32,6 +36,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => { clearTimeout(timer); events.forEach((event) => window.removeEventListener(event, lockForInactivity)); };
   }, []);
 
+  // Remember the exact protected route and scroll position. On return from
+  // the vault lock screen, restore the same workspace view.
+  useEffect(() => {
+    const currentHref = window.location.pathname + window.location.search + window.location.hash;
+    const saved = readResumeLocation();
+
+    if (saved?.href === currentHref) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => window.scrollTo(saved.scrollX, saved.scrollY));
+      });
+    } else {
+      saveResumeLocation({ resetScroll: true });
+    }
+
+    let scrollTimer: ReturnType<typeof setTimeout> | undefined;
+    const persistScroll = () => {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => saveResumeLocation(), 220);
+    };
+    const persistWhenHidden = () => saveResumeLocation();
+    const lockWhenLeaving = (event: PageTransitionEvent) => {
+      if (event.persisted) return;
+      saveResumeLocation();
+      // A browser-tab close or full page shutdown should invalidate the
+      // server session. Next.js in-app navigation does not fire pagehide.
+      void fetch("/api/vault/lock", {
+        method: "POST",
+        credentials: "same-origin",
+        keepalive: true,
+      }).catch(() => undefined);
+    };
+
+    window.addEventListener("scroll", persistScroll, { passive: true });
+    window.addEventListener("pagehide", lockWhenLeaving);
+    document.addEventListener("visibilitychange", persistWhenHidden);
+    return () => {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      window.removeEventListener("scroll", persistScroll);
+      window.removeEventListener("pagehide", lockWhenLeaving);
+      document.removeEventListener("visibilitychange", persistWhenHidden);
+    };
+  }, [pathname, searchKey]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); router.push("/search"); }
@@ -41,6 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [router]);
   async function lockVault() {
     setLocking(true);
+    saveResumeLocation();
     try { await fetch("/api/vault/lock", { method: "POST" }); router.replace("/unlock"); router.refresh(); }
     finally { setLocking(false); }
   }
