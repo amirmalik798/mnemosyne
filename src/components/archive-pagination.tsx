@@ -40,7 +40,7 @@ export function ArchivePagination({
             <ChevronLeft size={18} />
           </Link>
         ) : (
-          <button type="button" className="secondary-btn icon-only-btn" disabled aria-label="Previous page unavailable" title="Previous page unavailable">
+          <button type="button" className="secondary-btn icon-only-btn" disabled aria-label="Previous page" title="Previous page">
             <ChevronLeft size={18} />
           </button>
         )}
@@ -52,7 +52,7 @@ export function ArchivePagination({
             <ChevronRight size={18} />
           </Link>
         ) : (
-          <button type="button" className="secondary-btn icon-only-btn" disabled aria-label="Next page unavailable" title="Next page unavailable">
+          <button type="button" className="secondary-btn icon-only-btn" disabled aria-label="Next page" title="Next page">
             <ChevronRight size={18} />
           </button>
         )}

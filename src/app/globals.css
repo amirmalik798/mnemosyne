@@ -3725,3 +3725,151 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
     height: 38px;
   }
 }
+
+
+/* App-wide action labels: icon controls keep their icons, but no longer rely
+   on hover tooltips to explain what they do. Accessible names remain intact. */
+.icon-only-btn:not(.transfer-choice):not(.note-image-delete) {
+  width: auto;
+  min-width: 40px;
+  height: auto;
+  min-height: 40px;
+  flex: 0 1 auto;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px !important;
+  font-size: 11px !important;
+  line-height: 1.35;
+  text-align: left;
+  white-space: nowrap;
+}
+.icon-only-btn:not(.transfer-choice):not(.note-image-delete)::after {
+  content: attr(aria-label);
+  display: inline-block;
+  max-width: min(180px, 32vw);
+  overflow: hidden;
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.icon-only-btn:not(.transfer-choice):not(.note-image-delete) > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.icon-only-btn:disabled::after {
+  opacity: .72;
+}
+.note-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.note-row-actions .note-row-action {
+  gap: 7px;
+}
+.top-actions .icon-only-btn {
+  flex: 0 1 auto;
+}
+.icon-only-btn.auth-submit {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  height: 48px;
+  flex: 1 1 100%;
+  justify-content: center;
+  gap: 10px;
+  padding-inline: 16px !important;
+  text-align: center;
+}
+.icon-only-btn.auth-submit::after {
+  max-width: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+.tool-btn {
+  width: auto;
+  min-width: 40px;
+  min-height: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 9px;
+  white-space: nowrap;
+}
+.tool-btn::after {
+  content: attr(title);
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  color: currentColor;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+}
+.editor-bubble-menu .tool-btn {
+  min-width: 34px;
+  padding-inline: 8px;
+}
+.cover-upload[aria-label] {
+  flex-wrap: wrap;
+  row-gap: 7px;
+}
+.cover-upload[aria-label]::after {
+  content: attr(aria-label);
+  flex: 1 0 100%;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+@media (max-width: 760px) {
+  .icon-only-btn:not(.auth-submit):not(.transfer-choice):not(.note-image-delete)::after,
+  .tool-btn::after,
+  .cover-upload[aria-label]::after {
+    display: none;
+  }
+  .icon-only-btn:not(.auth-submit):not(.transfer-choice):not(.note-image-delete) {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    flex: 0 0 40px;
+    gap: 0;
+    padding: 0 !important;
+    font-size: 0 !important;
+    text-align: center;
+  }
+  .note-row-actions {
+    flex-wrap: wrap;
+  }
+  .tool-btn {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+}
+@media (max-width: 560px) {
+  .icon-only-btn:not(.auth-submit):not(.transfer-choice):not(.note-image-delete),
+  .tool-btn {
+    min-width: 42px;
+    min-height: 42px;
+    width: 42px;
+    height: 42px;
+  }
+  .icon-only-btn.auth-submit {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    height: 48px;
+    flex-basis: 100%;
+  }
+}
