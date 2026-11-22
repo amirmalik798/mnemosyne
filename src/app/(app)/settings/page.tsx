@@ -8,7 +8,7 @@ export default function SettingsPage() {
         <div>
           <div className="eyebrow">Your environment</div>
           <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">Manage access to your private archive.</p>
+          <p className="page-subtitle">Personalize how your archive looks and reads, and manage its security.</p>
         </div>
       </div>
 
