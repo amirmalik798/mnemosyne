@@ -219,7 +219,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
                 <h2 id="transfer-title" className="transfer-title">Move or copy note</h2>
                 <p id="transfer-description" className="transfer-subtitle">Choose what should happen to this note and where it belongs.</p>
               </div>
-              <button type="button" className="icon-button icon-only-btn" onClick={closeDialog} disabled={busy} aria-label="Close dialog" title="Close dialog">
+              <button type="button" className="transfer-dialog-close dialog-close-button" onClick={closeDialog} disabled={busy} aria-label="Close dialog" title="Close dialog">
                 <X size={16} />
               </button>
             </header>
