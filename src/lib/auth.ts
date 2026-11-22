@@ -28,7 +28,8 @@ export async function createSession(vaultKey: Buffer): Promise<void> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    expires: expiresAt,
+    // Browser-session cookie: closing the browser normally requires the
+    // master password again. The server-side session still has a 12-hour cap.
   });
 }
 
