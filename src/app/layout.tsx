@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Mnemosyne — The Private Knowledge Archive",
   description: "A quiet, beautifully organized home for your notes, ideas and lasting knowledge.",
   applicationName: "Mnemosyne",
+  robots: { index: false, follow: false, noarchive: true, nosnippet: true },
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
