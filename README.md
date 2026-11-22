@@ -123,3 +123,15 @@ Mnemosyne — The Private Knowledge Archive
 
 Initial repository commit. The complete application source and setup instructions will follow.
 >>>>>>> origin/main
+
+
+## Theme and visual system
+
+Mnemosyne includes two complete visual themes based on the Obsidian and Papyrus design system:
+
+- **Dark Obsidian** — `#07090D` canvas, midnight surfaces, archival cards, parchment text and antique brass-gold accents.
+- **Light Papyrus** — `#FAF8F3` alabaster canvas, white manuscript cards, warm vellum panels, literary ink and gilded bronze accents.
+
+Use the theme control in the top navigation to switch modes. The choice is saved in browser local storage and applied before the first page paint to reduce theme flicker. The vault setup and unlock screens expose the same theme control.
+
+The visual system uses Cinzel for the brand mark, EB Garamond for editorial headings and long-form reading, Plus Jakarta Sans for interface text, JetBrains Mono for technical labels, Amiri/Noto Naskh Arabic for Arabic text, and Noto Nastaliq Urdu for Urdu prose. The Arabic-script fonts remain compatible with the existing automatic per-field and per-paragraph RTL/LTR behaviour.
