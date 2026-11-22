@@ -418,7 +418,9 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         throw new Error("The server uploaded the image but did not return its address.");
       }
 
-      // Insert while this editor instance is still mounted.
+      // The initial draft save temporarily made ProseMirror read-only.
+      // Re-enable it before inserting the returned asset into this same view.
+      editor?.setEditable(true);
       editor?.chain().focus().setImage({ src: data.asset.url, alt: file.name }).run();
       const updatedContent = editor?.getJSON() ?? content;
       setContent(updatedContent);
@@ -463,8 +465,6 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     } catch (e) {
       setError(e instanceof Error ? e.message : "Image upload failed.");
       setStatus("Upload failed");
-      // If the empty draft note was already created, take the user to it so
-      // the user can retry the image upload without losing their note.
       // Keep the current editor mounted on upload failure so the user can
       // retry without losing the text or the selected file context.
     } finally {
