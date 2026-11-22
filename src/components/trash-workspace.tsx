@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
+import { useConfirmation } from "@/components/confirmation-dialog";
 
 type Item = { id: string; title: string; subject: string; topicTitle: string; deletedAt: string };
 type PendingAction = { id: string; action: "restore" | "delete" } | null;
@@ -18,6 +19,7 @@ export function TrashWorkspace() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<PendingAction>(null);
   const router = useRouter();
+  const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
 
   async function load(append = false) {
     if (append) setLoadingMore(true);
@@ -54,7 +56,16 @@ export function TrashWorkspace() {
 
   async function action(id: string, actionType: "restore" | "delete") {
     if (busy) return;
-    if (actionType === "delete" && !confirm("Permanently delete this note and its encrypted images? This cannot be undone.")) return;
+    if (actionType === "delete") {
+      const accepted = await requestConfirmation({
+        eyebrow: "Permanent deletion",
+        title: "Permanently delete this note?",
+        description: "This permanently removes the note and its encrypted images. This action cannot be undone.",
+        confirmLabel: "Delete permanently",
+        tone: "danger",
+      });
+      if (!accepted) return;
+    }
 
     setBusy({ id, action: actionType });
     setError("");
@@ -144,6 +155,7 @@ export function TrashWorkspace() {
           </div>
         </section>
       )}
+      {confirmationDialog}
       {!loading && !loadError && hasMore && (
         <div className="archive-pagination-controls" style={{ justifyContent: "center", marginTop: 18 }}>
           <button type="button" className="secondary-btn" onClick={() => void load(true)} disabled={loadingMore}>
