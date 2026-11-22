@@ -264,7 +264,13 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   // Flush a final local snapshot when the tab is hidden or closed. The
   // frequent IndexedDB writes above remain the primary power-loss protection.
   useEffect(() => {
-    if (!draftReady || !dirty) return;
+    const recoveryIsPending =
+      dirty ||
+      recoveryStatus === "Saving recovery copy…" ||
+      recoveryStatus === "Recovery copy saved on this device" ||
+      recoveryStatus === "Recovered from this device" ||
+      recoveryStatus === "Local recovery could not be saved";
+    if (!draftReady || !recoveryIsPending) return;
     const flush = () => {
       if (recoveryTimerRef.current !== null) {
         clearTimeout(recoveryTimerRef.current);
@@ -301,7 +307,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       window.removeEventListener("mnemosyne:flush-local-drafts", flush);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [draftReady, dirty, draftStorageKey, noteId, topicId, title, subject, tagsInput, pinned, content, selection, focusTarget, initialNote?.updatedAt]);
+  }, [draftReady, dirty, recoveryStatus, draftStorageKey, noteId, topicId, title, subject, tagsInput, pinned, content, selection, focusTarget, initialNote?.updatedAt]);
 
   const save = useCallback(async (quiet = false): Promise<string | null> => {
     if (!topicId) { setError("Create a topic before writing a note."); return null; }
