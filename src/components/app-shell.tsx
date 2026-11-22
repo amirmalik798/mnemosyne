@@ -19,7 +19,7 @@ const nav = [
   { label: "PERSONAL", items: [{ href: "/trash", label: "Recently deleted", icon: Trash2 }, { href: "/settings", label: "Settings", icon: Settings }] },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, user }: { children: React.ReactNode; user: { email: string; displayName: string } }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const nativeFetch = window.fetch.bind(window);
 
     const redirectToUnlock = () => {
-      if (redirectingToUnlockRef.current || window.location.pathname === "/unlock") return;
+      if (redirectingToUnlockRef.current || window.location.pathname === "/login") return;
       redirectingToUnlockRef.current = true;
 
       // Preserve the current workspace while the expired session is re-authenticated.
@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       saveResumeLocation();
       window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
       void flushPendingLocalDraftWrites();
-      window.location.replace("/unlock");
+      window.location.replace("/login");
     };
 
     const guardedFetch: typeof window.fetch = async (input, init) => {
@@ -211,7 +211,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       await flushPendingLocalDraftWrites();
       const response = await fetch("/api/vault/lock", { method: "POST" });
       if (!response.ok) throw new Error("The server did not confirm the lock request.");
-      router.replace("/unlock");
+      router.replace("/login");
       router.refresh();
     } catch {
       notifyOperation("error", "The vault could not be locked. Check your connection and try again.");
@@ -225,8 +225,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Link href="/library" className="brand"><span className="brand-mark">M</span><span><span className="brand-name">Mnemosyne</span><span className="brand-sub">Private knowledge archive</span></span></Link>
       {nav.map((group) => <div key={group.label}><div className="nav-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const active = current?.href === item.href; return <Link href={item.href} key={item.href} className={`nav-link ${active ? "active" : ""}`}><Icon /><span>{item.label}</span></Link>; })}</div>)}
       <div className="sidebar-spacer" />
-      <div className="vault-status"><div className="status-row"><span className="dot" /> Vault encrypted</div><div className="vault-caption">Your private archive is unlocked for this session.</div></div>
-      <div className="sidebar-bottom"><div className="profile"><div className="avatar">M</div><div className="profile-copy"><div className="profile-name">Personal vault</div><div className="profile-sub">Local archive</div></div></div></div>
+      <div className="vault-status"><div className="status-row"><span className="dot" /> Vault encrypted</div><div className="vault-caption">Your personal archive is unlocked for this session.</div></div>
+      <div className="sidebar-bottom"><div className="profile"><div className="avatar">{(user.displayName.trim().charAt(0) || user.email.charAt(0)).toUpperCase()}</div><div className="profile-copy"><div className="profile-name">{user.displayName}</div><div className="profile-sub">{user.email}</div></div></div></div>
     </aside>
     <div className="main-area">
       <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{current?.label ?? (pathname.includes("/edit") ? "Edit note" : pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ?? "Overview")}</span></div>

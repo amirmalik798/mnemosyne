@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession, assertSameOrigin } from "@/lib/auth";
-import { db, queryAsUser } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { readVerifiedImageAsset, deleteAssetById } from "@/lib/storage";
 import { apiError } from "@/lib/http";
@@ -22,7 +22,6 @@ export async function GET(_request: Request, context: Context) {
     if (!result.rows[0]) throw new Error("NOT_FOUND");
     const asset = result.rows[0];
     const bytes = await readVerifiedImageAsset({
-      encryptedBytes: asset.encrypted_bytes as Buffer | null,
       encryptedBytes: asset.encrypted_bytes as Buffer | null,
       storageKey: asset.storage_key as string | null,
       key: session.key,

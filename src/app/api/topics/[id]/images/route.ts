@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession } from "@/lib/auth";
-import { db, queryAsUser } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { readVerifiedImageAsset } from "@/lib/storage";
 import { apiError } from "@/lib/http";

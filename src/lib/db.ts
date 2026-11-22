@@ -4,7 +4,7 @@ import { createDatabasePoolConfig } from "@/lib/db-config";
 
 // Runtime queries must use a least-privileged PostgreSQL role through
 // APP_DATABASE_URL. DATABASE_URL is reserved for schema migrations.
-const runtimeDatabaseUrl = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
+const runtimeDatabaseUrl = process.env.APP_DATABASE_URL;
 if (!runtimeDatabaseUrl) throw new Error("APP_DATABASE_URL is required for the Mnemosyne application.");
 
 const runtimeEnv = { ...process.env, DATABASE_URL: runtimeDatabaseUrl };

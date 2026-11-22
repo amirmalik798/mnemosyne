@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
-import { randomBytes } from "node:crypto";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { derivePasswordKey, decryptBytes, encryptBytes } from "@/lib/crypto";
+import { derivePasswordKey, decryptBytes, encryptBytes, hashPassword, verifyPassword } from "@/lib/crypto";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -25,37 +24,48 @@ export async function POST(request: Request) {
     client = await db.connect();
     await client.query("BEGIN");
     const result = await client.query(
-      "SELECT password_salt, wrapped_key FROM vault_settings WHERE id = 1 FOR UPDATE",
+      "SELECT password_hash, password_salt, wrapped_key FROM users WHERE id=$1 FOR UPDATE",
+      [session.userId],
     );
     if (!result.rows[0]) throw new Error("NOT_FOUND");
 
-    oldWrappingKey = await derivePasswordKey(currentPassword, result.rows[0].password_salt as Buffer);
-    try {
-      unlocked = decryptBytes(result.rows[0].wrapped_key as Buffer, oldWrappingKey);
-    } catch {
+    const account = result.rows[0];
+    if (typeof account.password_hash !== "string" || !(await verifyPassword(account.password_hash, currentPassword))) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "Your current password is incorrect." }, { status: 401 });
+    }
+
+    oldWrappingKey = await derivePasswordKey(currentPassword, account.password_salt as Buffer);
+    try {
+      unlocked = decryptBytes(account.wrapped_key as Buffer, oldWrappingKey);
+    } catch {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "Your current password could not unlock the account key." }, { status: 401 });
     } finally {
       oldWrappingKey.fill(0);
+      oldWrappingKey = undefined;
     }
 
     if (!unlocked.equals(session.key)) {
       await client.query("ROLLBACK");
-      return NextResponse.json({ error: "The current password could not be verified." }, { status: 401 });
+      return NextResponse.json({ error: "The active session key does not match the account key." }, { status: 401 });
     }
 
-    const salt = randomBytes(16);
+    const salt = Buffer.from(await import("node:crypto").then(({ randomBytes }) => randomBytes(16)));
     newWrappingKey = await derivePasswordKey(newPassword, salt);
     const wrappedKey = encryptBytes(session.key, newWrappingKey);
+    const passwordHash = await hashPassword(newPassword);
     newWrappingKey.fill(0);
+    newWrappingKey = undefined;
 
     await client.query(
-      "UPDATE vault_settings SET password_salt=$1, wrapped_key=$2, failed_attempts=0, locked_until=NULL, updated_at=NOW() WHERE id=1",
-      [salt, wrappedKey],
+      "UPDATE users SET password_hash=$1, password_salt=$2, wrapped_key=$3, failed_attempts=0, locked_until=NULL, updated_at=NOW() WHERE id=$4",
+      [passwordHash, salt, wrappedKey, session.userId],
     );
-    // Revoke every other browser/device session in the same transaction as
-    // the credential rotation. Keep only the session that changed the password.
-    await client.query("DELETE FROM vault_sessions WHERE id <> $1", [session.id]);
+    await client.query(
+      "DELETE FROM user_sessions WHERE user_id=$1 AND id<>$2",
+      [session.userId, session.id],
+    );
     await client.query("COMMIT");
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -33,7 +33,7 @@ export function SecuritySettings() {
       setCurrent("");
       setNew("");
       setConfirm("");
-      setSuccess("Your master password has been changed.");
+      setSuccess("Your account password has been changed.");
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not change password.";
       setError(message);
@@ -47,7 +47,7 @@ export function SecuritySettings() {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 19 }}>
         <div className="note-icon"><ShieldCheck /></div>
         <div>
-          <h2 className="panel-title" style={{ margin: 0 }}>Master password</h2>
+          <h2 className="panel-title" style={{ margin: 0 }}>Account password</h2>
           <p className="form-hint">Change the password used to unlock your vault.</p>
         </div>
       </div>
@@ -67,14 +67,14 @@ export function SecuritySettings() {
         </div>
       </div>
 
-      {busy && <div style={{ marginTop: 13 }}><OperationStatus kind="loading" message="Updating your master password securely…" /></div>}
+      {busy && <div style={{ marginTop: 13 }}><OperationStatus kind="loading" message="Updating your account password securely…" /></div>}
       {error && <div style={{ marginTop: 13 }}><OperationStatus kind="failure" message={error} /></div>}
       {success && <div style={{ marginTop: 13 }}><OperationStatus kind="success" message={success} /></div>}
 
       <div className="form-actions">
         <button className="primary-btn" type="submit" disabled={busy}>
           {busy ? <LoaderCircle className="operation-spinner" size={14} /> : <KeyRound size={14} />}
-          {busy ? "Updating…" : "Change master password"}
+          {busy ? "Updating…" : "Change account password"}
         </button>
       </div>
     </form>
