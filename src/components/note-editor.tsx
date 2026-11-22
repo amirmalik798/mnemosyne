@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EditorContent, useEditor } from "@tiptap/react";
+import { Extension } from "@tiptap/core";
+import { Plugin } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
-import { applyBidiAttributes, detectTextLanguage } from "@/lib/bidi";
+import { detectTextDirection, detectTextLanguage } from "@/lib/bidi";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -14,6 +17,55 @@ import { ArrowLeft, Bold, ImagePlus, Italic, List, ListOrdered, Pin, Quote, Redo
 type Topic = { id: string; title: string };
 type Note = { id: string; topicId: string; title: string; subject: string; content: any; tags: string[]; pinned: boolean };
 const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
+
+/**
+ * Derive each block's direction from the actual ProseMirror document.
+ * Decorations are recalculated after document transactions, including paste,
+ * so direction is applied after clipboard content has been normalized and
+ * inserted—not by racing or mutating ProseMirror's managed DOM.
+ */
+const BidiDirection = Extension.create({
+  name: "bidiDirection",
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          decorations(state) {
+            const decorations: Decoration[] = [];
+
+            state.doc.descendants((node, position) => {
+              const directionAwareNode =
+                node.isTextblock ||
+                node.type.name === "listItem" ||
+                node.type.name === "bulletList" ||
+                node.type.name === "orderedList";
+
+              if (!directionAwareNode) return;
+
+              const text = node.textContent;
+              if (!text.trim()) return;
+
+              const direction = detectTextDirection(text);
+              const language = detectTextLanguage(text);
+              const alignment = direction === "rtl" ? "right" : "left";
+
+              decorations.push(
+                Decoration.node(position, position + node.nodeSize, {
+                  dir: direction,
+                  lang: language,
+                  style: `direction: ${direction}; text-align: ${alignment}; unicode-bidi: plaintext;`,
+                }),
+              );
+            });
+
+            return DecorationSet.create(state.doc, decorations);
+          },
+        },
+      }),
+    ];
+  },
+});
 
 export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: Topic[]; initialNote?: Note; defaultTopicId?: string }) {
   const router = useRouter();
@@ -33,17 +85,12 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [imageSelected, setImageSelected] = useState(false);
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [StarterKit, Image.configure({ inline: false, allowBase64: false }), Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." })],
+    extensions: [StarterKit, BidiDirection, Image.configure({ inline: false, allowBase64: false }), Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." })],
     content: initialNote?.content ?? EMPTY_DOC,
     editorProps: {
       attributes: { class: "rich-editor", spellcheck: "true", "aria-label": "Note content", dir: "ltr" },
-      handlePaste: (view) => {
-        queueMicrotask(() => applyBidiAttributes(view.dom));
-        return false;
-      },
     },
-    onCreate: ({ editor: current }) => applyBidiAttributes(current.view.dom),
-    onUpdate: ({ editor: current }) => { applyBidiAttributes(current.view.dom); setContent(current.getJSON()); setDirty(true); setStatus("Unsaved changes"); },
+    onUpdate: ({ editor: current }) => { setContent(current.getJSON()); setDirty(true); setStatus("Unsaved changes"); },
     onSelectionUpdate: ({ editor: current }) => setImageSelected(current.isActive("image")),
   });
 
