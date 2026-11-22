@@ -8,6 +8,8 @@ import { apiError, readJsonObject, stringField } from "@/lib/http";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  let wrappingKey: Buffer | undefined;
+  let vaultKey: Buffer | undefined;
   try {
     assertSameOrigin(request);
     if (await isVaultInitialized()) return NextResponse.json({ error: "The vault has already been set up." }, { status: 409 });
@@ -35,8 +37,8 @@ export async function POST(request: Request) {
     const confirmation = stringField(body, "confirmation", 256, true);
     if (password !== confirmation) throw new Error("VALIDATION:Your passwords do not match.");
     const salt = randomBytes(16);
-    const wrappingKey = await derivePasswordKey(password, salt);
-    const vaultKey = newVaultKey();
+    wrappingKey = await derivePasswordKey(password, salt);
+    vaultKey = newVaultKey();
     const wrappedKey = encryptBytes(vaultKey, wrappingKey);
     const created = await db.query(
       "INSERT INTO vault_settings (id, password_salt, wrapped_key) VALUES (1, $1, $2) ON CONFLICT (id) DO NOTHING RETURNING id",
@@ -46,8 +48,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The vault has already been set up." }, { status: 409 });
     }
     await createSession(vaultKey);
-    wrappingKey.fill(0);
-    vaultKey.fill(0);
     return NextResponse.json({ success: true });
-  } catch (error) { return apiError(error); }
+  } catch (error) {
+    return apiError(error);
+  } finally {
+    wrappingKey?.fill(0);
+    vaultKey?.fill(0);
+  }
 }
