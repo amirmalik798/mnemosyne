@@ -36,5 +36,5 @@ test("returns an empty preview for empty or invalid document values", () => {
 });
 
 test("truncates by Unicode characters without splitting surrogate pairs", () => {
-  assert.equal(extractNotePreview({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A😀BCDEFGHI" }] }] }, 8), "A😀BCDE…");
+  assert.equal(extractNotePreview({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A😀BCDEFGHI" }] }] }, 8), "A😀BCDEF…");
 });
