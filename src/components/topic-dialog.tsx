@@ -5,6 +5,7 @@ import { Check, ChevronDown, ImagePlus, LoaderCircle, Plus, X, UploadCloud } fro
 import { useRouter } from "next/navigation";
 import { detectTextLanguage } from "@/lib/bidi";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
 
 export function TopicDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -189,20 +190,20 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
       <div className="form-field full"><label className="form-label">Custom thumbnail</label><input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => chooseFile(e.target.files?.[0] ?? null)} /><button type="button" className="cover-upload" onClick={() => fileRef.current?.click()}>{preview ? <><img src={preview} alt="Cover preview" /><span className="cover-upload-text"><strong style={{ color: "var(--text)" }}>{file?.name}</strong><br />Click to replace cover · 8 MB maximum</span></> : <><span className="brand-mark"><ImagePlus /></span><span className="cover-upload-text"><strong style={{ color: "var(--text)" }}>Choose a cover image</strong><br />PNG, JPEG, WebP or GIF · up to 8 MB</span><UploadCloud size={18} /></>}</button></div>
     </div>{busy && <OperationStatus kind="loading" message={processingMessage} />} {error && <OperationStatus kind="failure" message={error} />}<div className="form-actions"><button type="button" className="secondary-btn" onClick={requestClose} disabled={busy}>Cancel</button><button type="submit" className="primary-btn" disabled={busy}>{busy ? <><LoaderCircle className="operation-spinner" size={14} /> {processingMessage.includes("Uploading") ? "Uploading cover…" : "Creating…"}</> : "Create topic"}</button></div></form>
   </section>
-    {confirmDiscard && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmDiscard(false); }}>
-      <section className="modal" role="alertdialog" aria-modal="true" aria-labelledby="discard-topic-title" aria-describedby="discard-topic-description" style={{ maxWidth: 420 }}>
-        <div className="modal-head">
-          <div>
-            <div className="eyebrow">Unsaved changes</div>
-            <h2 className="modal-title" id="discard-topic-title">Discard this topic?</h2>
-            <p className="modal-subtitle" id="discard-topic-description">Your topic details and selected cover image have not been saved. Close this dialog and discard your changes?</p>
-          </div>
-        </div>
-        <div className="form-actions" style={{ marginTop: 0 }}>
-          <button type="button" className="secondary-btn" onClick={() => setConfirmDiscard(false)} autoFocus>Keep editing</button>
-          <button type="button" className="danger-btn" onClick={onClose}>Discard changes</button>
-        </div>
-      </section>
-    </div>}
+    {confirmDiscard && <ConfirmationDialog
+      options={{
+        eyebrow: "Unsaved changes",
+        title: "Discard this topic?",
+        description: "Your topic details and selected cover image have not been saved. Close this dialog and discard your changes?",
+        cancelLabel: "Keep editing",
+        confirmLabel: "Discard changes",
+        tone: "danger",
+      }}
+      onCancel={() => setConfirmDiscard(false)}
+      onConfirm={() => {
+        setConfirmDiscard(false);
+        onClose();
+      }}
+    />}
   </div>; 
 }
