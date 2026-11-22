@@ -149,10 +149,10 @@ export default async function LibraryPage() {
   const recentlyTouched = recentNotes
     .filter((note) => note.id !== featuredNote?.id)
     .slice(0, 4);
-  const recentlyTouchedIds = new Set(recentlyTouched.map((note) => note.id));
-  const pinnedForReference = pinnedNotes
-    .filter((note) => note.id !== featuredNote?.id && !recentlyTouchedIds.has(note.id))
-    .slice(0, 3);
+
+  // Keep this as an independent shortcut section. A pinned note may also
+  // appear in Recently touched so its pinned state is visible in context.
+  const pinnedForReference = pinnedNotes.slice(0, 3);
   const topicDecryptionFailed = decryptionIssues.some((issue) => issue.type === "topic");
   const noteDecryptionFailed = decryptionIssues.some((issue) => issue.type === "note");
 
