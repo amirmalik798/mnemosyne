@@ -201,7 +201,7 @@ const NOTE_EDITOR_EXTENSIONS = [
   TextHighlightMark,
   BidiDirection,
   EditableNoteImage.configure({ inline: false, allowBase64: false }),
-  Placeholder.configure({ placeholder: "Begin with a thought…\\n\\nWrite freely. Structure can come later." }),
+  Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." }),
 ];
 
 export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: Topic[]; initialNote?: Note; defaultTopicId?: string }) {
