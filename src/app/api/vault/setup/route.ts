@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { derivePasswordKey, encryptBytes, newVaultKey } from "@/lib/crypto";
+import { derivePasswordKey, encryptBytes, newVaultKey, sessionEncryptionKey } from "@/lib/crypto";
 import { createSession, isVaultInitialized, assertSameOrigin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     if (password.length < 16) throw new Error("VALIDATION:Use at least 16 characters for your master password.");
     const confirmation = stringField(body, "confirmation", 256, true);
     if (password !== confirmation) throw new Error("VALIDATION:Your passwords do not match.");
+    const sessionKeyCheck = sessionEncryptionKey();
+    sessionKeyCheck.fill(0);
     const salt = randomBytes(16);
     wrappingKey = await derivePasswordKey(password, salt);
     vaultKey = newVaultKey();
