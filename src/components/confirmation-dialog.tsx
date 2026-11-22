@@ -90,7 +90,7 @@ export function ConfirmationDialog({
             {isDanger ? <AlertTriangle size={21} /> : <ShieldCheck size={21} />}
           </span>
           <span className="confirmation-dialog-eyebrow">{options.eyebrow ?? (isDanger ? "Please confirm" : "Confirmation required")}</span>
-          <button type="button" className="confirmation-dialog-close icon-only-btn" onClick={onCancel} aria-label="Close confirmation" title="Close confirmation">
+          <button type="button" className="confirmation-dialog-close dialog-close-button" onClick={onCancel} aria-label="Close confirmation" title="Close confirmation">
             <X size={17} />
           </button>
         </div>
