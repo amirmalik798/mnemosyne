@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireVaultSession, assertSameOrigin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
-import { readEncryptedAsset, deleteAssetById } from "@/lib/storage";
+import { readVerifiedImageAsset, deleteAssetById } from "@/lib/storage";
 import { apiError } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
@@ -14,7 +14,12 @@ export async function GET(_request: Request, context: Context) {
     const result = await db.query("SELECT * FROM assets WHERE id=$1", [id]);
     if (!result.rows[0]) throw new Error("NOT_FOUND");
     const asset = result.rows[0];
-    const bytes = await readEncryptedAsset(asset.storage_key, session.key);
+    const bytes = await readVerifiedImageAsset({
+      storageKey: asset.storage_key,
+      key: session.key,
+      mimeType: asset.mime_type,
+      byteSize: asset.byte_size,
+    });
     const filename = decryptText(asset.original_name_enc, session.key).replace(/[\r\n\"\\]/g, "_");
     return new NextResponse(new Uint8Array(bytes), {
       headers: {
