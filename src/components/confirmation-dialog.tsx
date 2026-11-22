@@ -25,8 +25,11 @@ export function ConfirmationDialog({
 }: ConfirmationDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
 
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement
@@ -38,19 +41,24 @@ export function ConfirmationDialog({
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
-        onCancel();
+        onCancelRef.current();
         return;
       }
 
       if (event.key !== "Tab") return;
-      const first = cancelRef.current;
-      const last = confirmRef.current;
-      if (!first || !last) return;
+      const container = dialogRef.current;
+      const focusable = container?.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      );
+      if (!focusable?.length || !container) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
 
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && (active === first || !container.contains(active))) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (active === last || !container.contains(active))) {
         event.preventDefault();
         first.focus();
       }
@@ -61,13 +69,14 @@ export function ConfirmationDialog({
       document.removeEventListener("keydown", handleKeyDown, true);
       previouslyFocused?.focus();
     };
-  }, [onCancel]);
+  }, []);
 
   const isDanger = options.tone !== "neutral";
 
   return (
     <div className="confirmation-backdrop">
       <section
+        ref={dialogRef}
         className={`confirmation-dialog ${isDanger ? "confirmation-dialog-danger" : "confirmation-dialog-neutral"}`}
         role="alertdialog"
         aria-modal="true"
@@ -123,8 +132,10 @@ export function useConfirmation() {
     resolverRef.current = null;
   }, []);
 
+  const accept = useCallback(() => settle(true), [settle]);
+  const cancel = useCallback(() => settle(false), [settle]);
   const dialog = options
-    ? <ConfirmationDialog options={options} onConfirm={() => settle(true)} onCancel={() => settle(false)} />
+    ? <ConfirmationDialog options={options} onConfirm={accept} onCancel={cancel} />
     : null;
 
   return { confirm, dialog };
