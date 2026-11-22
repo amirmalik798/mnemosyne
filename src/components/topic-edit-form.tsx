@@ -228,13 +228,13 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
           {error && <div style={{ marginTop: 12 }}><OperationStatus kind="failure" message={error} /></div>}
 
           <div className="form-actions" style={{ justifyContent: "space-between" }}>
-            <button type="button" className="danger-btn icon-only-btn" onClick={() => void remove()} disabled={busy} aria-label="Delete topic" title="Delete topic">
-              {busy && processingMessage === "Deleting topic…" ? <LoaderCircle className="operation-spinner" size={17} /> : <Trash2 size={17} />}
+            <button type="button" className="danger-btn topic-edit-action" onClick={() => void remove()} disabled={busy} aria-label="Delete topic">
+              {busy && processingMessage === "Deleting topic…" ? <LoaderCircle className="operation-spinner" size={17} aria-hidden="true" /> : <Trash2 size={17} aria-hidden="true" />}<span>{busy && processingMessage === "Deleting topic…" ? "Deleting…" : "Delete topic"}</span>
             </button>
             <div style={{ display: "flex", gap: 8 }}>
-              <Link className="secondary-btn icon-only-btn" href={`/topics/${topic.id}`} aria-label="Cancel editing topic" title="Cancel editing topic" aria-disabled={busy} onClick={(event) => { if (busy) event.preventDefault(); }}><X size={17} /></Link>
-              <button className="primary-btn icon-only-btn" type="submit" disabled={busy} aria-label={busy ? "Saving topic changes" : "Save topic changes"} title={busy ? "Saving topic changes" : "Save topic changes"}>
-                {busy ? <LoaderCircle className="operation-spinner" size={17} /> : <Save size={17} />}
+              <Link className="secondary-btn topic-edit-action" href={`/topics/${topic.id}`} aria-label="Cancel editing topic" aria-disabled={busy} onClick={(event) => { if (busy) event.preventDefault(); }}><X size={16} aria-hidden="true" /><span>Cancel</span></Link>
+              <button className="primary-btn topic-edit-action" type="submit" disabled={busy} aria-label={busy ? "Saving topic changes" : "Save topic changes"}>
+                {busy ? <LoaderCircle className="operation-spinner" size={17} aria-hidden="true" /> : <Save size={17} aria-hidden="true" />}<span>{busy ? "Saving…" : "Save changes"}</span>
               </button>
             </div>
           </div>

@@ -241,7 +241,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
               ) : topicsError ? (
                 <div>
                   <OperationStatus kind="failure" message={topicsError} />
-                  <button type="button" className="secondary-btn icon-only-btn" onClick={() => void loadTopics()} aria-label="Retry loading topics" title="Retry loading topics"><RefreshCw size={17} /></button>
+                  <button type="button" className="secondary-btn transfer-retry-button" onClick={() => void loadTopics()}><RefreshCw size={15} aria-hidden="true" /><span>Retry loading topics</span></button>
                 </div>
               ) : destinations.length > 0 ? (
                 <select
@@ -258,7 +258,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
               ) : (
                 <div className="transfer-no-destination">
                   <p>Create another topic before you can move or copy this note to a different collection.</p>
-                  <a href="/topics" className="secondary-btn icon-only-btn" aria-label="Create a topic" title="Create a topic"><FolderPlus size={17} /></a>
+                  <a href="/topics" className="secondary-btn transfer-retry-button"><FolderPlus size={15} aria-hidden="true" /><span>Create a topic</span></a>
                 </div>
               )}
               <p className="form-hint">
@@ -271,9 +271,9 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
             {busy && <OperationStatus kind="processing" message={processingMessage || "Working…"} />}
             {error && <OperationStatus kind="failure" message={error} />}
             <footer className="transfer-dialog-actions">
-              <button type="button" className="secondary-btn icon-only-btn" onClick={closeDialog} disabled={busy} aria-label="Cancel" title="Cancel"><X size={17} /></button>
-              <button type="button" className="primary-btn icon-only-btn" onClick={() => void submit()} disabled={busy || topicsLoading || Boolean(topicsError) || !destinationTopicId} aria-label={busy ? processingMessage || "Working" : action === "move" ? "Move note" : "Create copy"} title={busy ? processingMessage || "Working" : action === "move" ? "Move note" : "Create copy"}>
-                {busy ? <LoaderCircle className="operation-spinner" size={17} /> : action === "move" ? <FolderInput size={17} /> : <Copy size={17} />}
+              <button type="button" className="secondary-btn transfer-footer-action" onClick={closeDialog} disabled={busy}><X size={16} aria-hidden="true" /><span>Cancel</span></button>
+              <button type="button" className="primary-btn transfer-footer-action" onClick={() => void submit()} disabled={busy || topicsLoading || Boolean(topicsError) || !destinationTopicId} aria-label={busy ? processingMessage || "Working" : action === "move" ? "Move note" : "Create copy"} aria-busy={busy}>
+                {busy ? <LoaderCircle className="operation-spinner" size={17} aria-hidden="true" /> : action === "move" ? <FolderInput size={17} aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />}<span>{busy ? processingMessage || "Working…" : action === "move" ? "Move note" : "Create copy"}</span>
               </button>
             </footer>
           </section>

@@ -72,8 +72,8 @@ export function SecuritySettings() {
       {success && <div style={{ marginTop: 13 }}><OperationStatus kind="success" message={success} /></div>}
 
       <div className="form-actions">
-        <button className="primary-btn icon-only-btn" type="submit" disabled={busy} aria-label={busy ? "Updating account password" : "Change account password"} title={busy ? "Updating account password" : "Change account password"}>
-          {busy ? <LoaderCircle className="operation-spinner" size={14} /> : <KeyRound size={14} />}
+        <button className="primary-btn auth-primary-action" type="submit" disabled={busy} aria-label={busy ? "Updating account password" : "Change account password"} aria-busy={busy}>
+          {busy ? <LoaderCircle className="operation-spinner" size={15} aria-hidden="true" /> : <KeyRound size={15} aria-hidden="true" />}<span>{busy ? "Updating password…" : "Change password"}</span>
         </button>
       </div>
     </form>
