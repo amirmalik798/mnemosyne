@@ -5,7 +5,7 @@ import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { cloneEncryptedNoteAsset, removeEncryptedStorageFile } from "@/lib/storage";
-import { apiError, requireJsonObject, stringField } from "@/lib/http";
+import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
 type AssetRow = {
@@ -64,7 +64,7 @@ export async function POST(request: Request, context: Context) {
     const { id } = await context.params;
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidPattern.test(id)) throw new Error("NOT_FOUND");
-    const body = requireJsonObject(await request.json());
+    const body = await readJsonObject(request, 16 * 1024);
     const action = stringField(body, "action", 10, true);
     const destinationTopicId = stringField(body, "topicId", 64, true);
     if (!uuidPattern.test(destinationTopicId)) throw new Error("VALIDATION:Choose a valid destination topic.");
