@@ -155,13 +155,19 @@ async function main() {
     assert.equal(restoredLifecycleNote.rowCount, 1, "restoring a note should touch its topic");
     await assertTopicTimestampTouched("restore");
 
-    await resetTopicTimestamp();
-    const lifecycleParent = await client.query(
-      "SELECT id, topic_id FROM notes WHERE id=$1 AND deleted_at IS NULL FOR UPDATE",
+    // A note must be in Trash before the permanent-delete path can run.
+    await client.query(
+      "UPDATE notes SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL",
       [lifecycleNote],
     );
+    await resetTopicTimestamp();
+    const lifecycleParent = await client.query(
+      "SELECT id, topic_id FROM notes WHERE id=$1 AND deleted_at IS NOT NULL FOR UPDATE",
+      [lifecycleNote],
+    );
+    assert.equal(lifecycleParent.rowCount, 1, "the note should be in Trash before permanent deletion");
     await client.query("UPDATE topics SET updated_at=NOW() WHERE id=$1", [lifecycleParent.rows[0].topic_id]);
-    await client.query("DELETE FROM notes WHERE id=$1 AND deleted_at IS NULL", [lifecycleNote]);
+    await client.query("DELETE FROM notes WHERE id=$1 AND deleted_at IS NOT NULL", [lifecycleNote]);
     await assertTopicTimestampTouched("permanent deletion");
 
     await setAccount(client, userB);
