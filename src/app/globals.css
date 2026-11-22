@@ -8318,3 +8318,58 @@ html[data-theme="light"] .overview-recent-panel .note-row-pinned:hover {
     rgba(169,120,27,.03)
   ) !important;
 }
+
+
+/* Recently touched: keep pinned state unmistakable after pinning triggers a
+   dashboard refresh and the note returns in the activity list. */
+.overview-recent-panel .note-row-pinned {
+  position: relative;
+  border: 1px solid rgba(231,207,134,.48) !important;
+  border-left: 4px solid #E2C36F !important;
+  border-radius: 12px;
+  padding-left: 10px;
+  background: linear-gradient(
+    100deg,
+    rgba(203,180,126,.24) 0%,
+    rgba(203,180,126,.12) 46%,
+    rgba(203,180,126,.045) 100%
+  ) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(231,207,134,.065),
+    0 4px 18px rgba(0,0,0,.09);
+}
+.overview-recent-panel .note-row-pinned .note-row-title {
+  color: #F5E7BF !important;
+}
+.overview-recent-panel .note-row-pinned .note-icon {
+  border-color: #D7BB72 !important;
+  background: rgba(203,180,126,.24) !important;
+  color: #F1D995 !important;
+}
+.overview-recent-panel .note-row-pinned .pinned-badge {
+  border-color: #F0DDA4 !important;
+  background: linear-gradient(135deg, #EED892, #CDAA53) !important;
+  color: #1B1A17 !important;
+}
+.overview-recent-panel .note-row-pinned .pinned-badge svg {
+  color: #1B1A17 !important;
+}
+html[data-theme="light"] .overview-recent-panel .note-row-pinned {
+  border-color: rgba(169,120,27,.45) !important;
+  border-left-color: #A9781B !important;
+  background: linear-gradient(
+    100deg,
+    rgba(198,157,67,.19) 0%,
+    rgba(198,157,67,.09) 46%,
+    rgba(198,157,67,.035) 100%
+  ) !important;
+  box-shadow: inset 0 0 0 1px rgba(169,120,27,.07);
+}
+html[data-theme="light"] .overview-recent-panel .note-row-pinned .note-row-title {
+  color: #49360E !important;
+}
+html[data-theme="light"] .overview-recent-panel .note-row-pinned .note-icon {
+  border-color: #C49B45 !important;
+  background: #F0E2BD !important;
+  color: #76520F !important;
+}
