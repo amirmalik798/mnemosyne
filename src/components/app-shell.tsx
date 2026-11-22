@@ -513,7 +513,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               aria-label="Search and commands"
               role="combobox"
               aria-autocomplete="list"
-              aria-expanded={commandItems.length > 0}
+              aria-expanded={true}
               aria-controls="command-palette-options"
               aria-activedescendant={commandItems.length ? `command-option-${Math.min(commandIndex, commandItems.length - 1)}` : undefined}
               aria-busy={commandSearchState === "waiting" || commandSearchState === "loading"}

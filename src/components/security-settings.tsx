@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
 import { OperationStatus } from "@/components/operation-status";
 
 export function SecuritySettings() {
@@ -11,6 +11,9 @@ export function SecuritySettings() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -55,15 +58,15 @@ export function SecuritySettings() {
       <div className="form-grid">
         <div className="form-field full">
           <label className="form-label" htmlFor="current-master-password">Current password</label>
-          <input id="current-master-password" className="field" type="password" value={currentPassword} onChange={(event) => setCurrent(event.target.value)} required autoComplete="current-password" disabled={busy} />
+          <div className="security-password-input"><input id="current-master-password" className="field" type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(event) => setCurrent(event.target.value)} required autoComplete="current-password" disabled={busy} /><button type="button" className="auth-password-toggle" onClick={() => setShowCurrentPassword((value) => !value)} disabled={busy} aria-label={showCurrentPassword ? "Hide current password" : "Show current password"} aria-pressed={showCurrentPassword}>{showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
         </div>
         <div className="form-field">
           <label className="form-label" htmlFor="new-master-password">New password</label>
-          <input id="new-master-password" className="field" type="password" value={newPassword} onChange={(event) => setNew(event.target.value)} required minLength={16} autoComplete="new-password" disabled={busy} />
+          <div className="security-password-input"><input id="new-master-password" className="field" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(event) => setNew(event.target.value)} required minLength={16} autoComplete="new-password" disabled={busy} /><button type="button" className="auth-password-toggle" onClick={() => setShowNewPassword((value) => !value)} disabled={busy} aria-label={showNewPassword ? "Hide new password" : "Show new password"} aria-pressed={showNewPassword}>{showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
         </div>
         <div className="form-field">
           <label className="form-label" htmlFor="confirm-master-password">Confirm new password</label>
-          <input id="confirm-master-password" className="field" type="password" value={confirm} onChange={(event) => setConfirm(event.target.value)} required minLength={16} autoComplete="new-password" disabled={busy} />
+          <div className="security-password-input"><input id="confirm-master-password" className="field" type={showConfirmPassword ? "text" : "password"} value={confirm} onChange={(event) => setConfirm(event.target.value)} required minLength={16} autoComplete="new-password" disabled={busy} /><button type="button" className="auth-password-toggle" onClick={() => setShowConfirmPassword((value) => !value)} disabled={busy} aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword}>{showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
         </div>
       </div>
 
