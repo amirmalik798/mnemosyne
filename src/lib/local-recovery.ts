@@ -17,8 +17,9 @@ export type LocalNoteDraft = {
 
 type EncryptedDraftRecord = {
   id: string;
-  iv: number[];
-  ciphertext: number[];
+  // Existing v1 records used number arrays; new writes use compact typed arrays.
+  iv: Uint8Array | number[];
+  ciphertext: Uint8Array | number[];
   updatedAt: number;
 };
 
@@ -28,9 +29,13 @@ const DRAFT_STORE = "drafts";
 const KEY_STORE = "keys";
 const DEVICE_KEY_ID = "local-draft-encryption-key";
 const pendingWrites = new Map<string, Promise<void>>();
+let recoveryDatabasePromise: Promise<IDBDatabase> | null = null;
+let deviceKeyPromise: Promise<CryptoKey> | null = null;
 
 function openRecoveryDatabase(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (recoveryDatabasePromise) return recoveryDatabasePromise;
+
+  recoveryDatabasePromise = new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !("indexedDB" in window)) {
       reject(new Error("Local recovery storage is unavailable in this browser."));
       return;
@@ -46,10 +51,22 @@ function openRecoveryDatabase(): Promise<IDBDatabase> {
         database.createObjectStore(KEY_STORE);
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => {
+        database.close();
+        recoveryDatabasePromise = null;
+      };
+      resolve(database);
+    };
     request.onerror = () => reject(request.error ?? new Error("Could not open local recovery storage."));
     request.onblocked = () => reject(new Error("Local recovery storage is blocked by another browser tab."));
+  }).catch((error) => {
+    recoveryDatabasePromise = null;
+    throw error;
   });
+
+  return recoveryDatabasePromise;
 }
 
 function transactionComplete(transaction: IDBTransaction): Promise<void> {
@@ -94,6 +111,16 @@ async function getDeviceKey(database: IDBDatabase): Promise<CryptoKey> {
   }
 }
 
+async function getCachedDeviceKey(database: IDBDatabase): Promise<CryptoKey> {
+  if (!deviceKeyPromise) {
+    deviceKeyPromise = getDeviceKey(database).catch((error) => {
+      deviceKeyPromise = null;
+      throw error;
+    });
+  }
+  return deviceKeyPromise;
+}
+
 export async function requestPersistentLocalStorage(): Promise<boolean> {
   if (typeof navigator === "undefined" || !navigator.storage?.persist) return false;
   try {
@@ -110,21 +137,19 @@ export function saveLocalNoteDraft(id: string, draft: LocalNoteDraft): Promise<v
     .then(async () => {
       const database = await openRecoveryDatabase();
       try {
-        const key = await getDeviceKey(database);
+        const key = await getCachedDeviceKey(database);
         const iv = window.crypto.getRandomValues(new Uint8Array(12));
         const plaintext = new TextEncoder().encode(JSON.stringify(draft));
         const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
         const record: EncryptedDraftRecord = {
           id,
-          iv: Array.from(iv),
-          ciphertext: Array.from(new Uint8Array(encrypted)),
+          iv,
+          ciphertext: new Uint8Array(encrypted),
           updatedAt: draft.savedAt,
         };
         const transaction = database.transaction(DRAFT_STORE, "readwrite");
         transaction.objectStore(DRAFT_STORE).put(record);
         await transactionComplete(transaction);
-      } finally {
-        database.close();
       }
     });
 
@@ -149,7 +174,7 @@ export async function loadLocalNoteDraft(id: string): Promise<LocalNoteDraft | n
     await transactionComplete(transaction);
     if (!record) return null;
 
-    const key = await getDeviceKey(database);
+    const key = await getCachedDeviceKey(database);
     const plaintext = await window.crypto.subtle.decrypt(
       { name: "AES-GCM", iv: new Uint8Array(record.iv) },
       key,
@@ -158,8 +183,6 @@ export async function loadLocalNoteDraft(id: string): Promise<LocalNoteDraft | n
     const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as LocalNoteDraft;
     if (parsed.version !== 1 || typeof parsed.savedAt !== "number") return null;
     return parsed;
-  } finally {
-    database.close();
   }
 }
 
