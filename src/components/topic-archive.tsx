@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { BookOpen, Brain, Briefcase, Cpu, FlaskConical, Folder, Globe, GraduationCap, Layers3, Palette, Tag, X } from "lucide-react";
 import { EmptyState, TopicCard, type TopicItem } from "@/components/archive-ui";
+import { ArchiveSortControl } from "@/components/archive-sort-control";
+import { DEFAULT_ARCHIVE_SORT, type ArchiveSort } from "@/lib/archive-sort";
 
 const UNCATEGORIZED = "__uncategorized__";
 
@@ -27,6 +29,7 @@ export function TopicArchive({
   totalTopics,
   allTopicsCount,
   selectedCategory,
+  sort,
 }: {
   topics: TopicItem[];
   categories: string[];
@@ -35,6 +38,7 @@ export function TopicArchive({
   totalTopics: number;
   allTopicsCount: number;
   selectedCategory: string;
+  sort: ArchiveSort;
 }) {
   const router = useRouter();
 
@@ -42,11 +46,11 @@ export function TopicArchive({
     const nextValue = selectedCategory.toLocaleLowerCase() === value.toLocaleLowerCase()
       ? ""
       : value;
-    router.push(
-      nextValue
-        ? `/topics?category=${encodeURIComponent(nextValue)}`
-        : "/topics",
-    );
+    const params = new URLSearchParams();
+    if (nextValue) params.set("category", nextValue);
+    if (sort !== DEFAULT_ARCHIVE_SORT) params.set("sort", sort);
+    const query = params.toString();
+    router.push(query ? `/topics?${query}` : "/topics");
   }
 
   return (
@@ -63,6 +67,11 @@ export function TopicArchive({
           <span>{totalTopics === 1 ? "topic" : "topics"}</span>
           {selectedCategory && <span>of {allTopicsCount}</span>}
         </div>
+        <ArchiveSortControl
+          basePath="/topics"
+          currentSort={sort}
+          preserveQuery={selectedCategory ? `category=${encodeURIComponent(selectedCategory)}` : ""}
+        />
       </div>
 
       <div className="topic-filter-chips" role="group" aria-label="Topic category filter">
