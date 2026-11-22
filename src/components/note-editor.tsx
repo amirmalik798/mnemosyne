@@ -294,9 +294,11 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       if (document.visibilityState === "hidden") flush();
     };
     window.addEventListener("pagehide", flush);
+    window.addEventListener("mnemosyne:flush-local-drafts", flush);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("pagehide", flush);
+      window.removeEventListener("mnemosyne:flush-local-drafts", flush);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [draftReady, dirty, draftStorageKey, noteId, topicId, title, subject, tagsInput, pinned, content, selection, focusTarget, initialNote?.updatedAt]);
