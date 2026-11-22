@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Copy, Download, LoaderCircle, Trash2 } from "lucide-react";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
+import { useConfirmation } from "@/components/confirmation-dialog";
 
 type Node = { type?: string; text?: string; attrs?: Record<string, unknown>; content?: Node[]; marks?: Array<{type:string;attrs?:Record<string,unknown>}> };
 function toMarkdown(node: Node): string {
@@ -41,6 +42,7 @@ export function NoteReaderActions({
   currentTopicId: string;
 }) {
   const router = useRouter();
+  const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState<"success" | "failure">("success");
   const [busy, setBusy] = useState(false);
@@ -79,7 +81,15 @@ export function NoteReaderActions({
   }
 
   async function remove() {
-    if (busy || !confirm("Move this note to Recently deleted? You can restore it later.")) return;
+    if (busy) return;
+    const accepted = await requestConfirmation({
+      eyebrow: "Move note to trash",
+      title: "Move this note to Recently deleted?",
+      description: "You can restore this note later from Recently deleted. Its content and encrypted images will be retained until you permanently delete it.",
+      confirmLabel: "Move to trash",
+      tone: "danger",
+    });
+    if (!accepted) return;
     setBusy(true);
     try {
       const response = await fetch(`/api/notes/${id}`, { method: "DELETE" });
@@ -118,6 +128,7 @@ export function NoteReaderActions({
         {busy ? <LoaderCircle className="operation-spinner" /> : <Trash2 size={15} />}
       </button>
       {message && <OperationStatus kind={messageKind} message={message} compact />}
+      {confirmationDialog}
     </>
   );
 }
