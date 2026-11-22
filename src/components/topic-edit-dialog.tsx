@@ -1,20 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Edit3 } from "lucide-react";
-import { TopicEditForm, type EditableTopic } from "@/components/topic-edit-form";
+import { TopicDialog, type TopicDialogTopic } from "@/components/topic-dialog";
 
-export function TopicEditDialog({ topic }: { topic: EditableTopic }) {
-  const router = useRouter();
+export function TopicEditDialog({ topic }: { topic: TopicDialogTopic }) {
   const [open, setOpen] = useState(false);
-
-  function close() {
-    setOpen(false);
-    // The form can remove a saved cover without saving other fields.
-    // Refresh the server-rendered topic after every close to reflect that state.
-    router.refresh();
-  }
 
   return (
     <>
@@ -29,7 +20,7 @@ export function TopicEditDialog({ topic }: { topic: EditableTopic }) {
         <Edit3 size={16} aria-hidden="true" />
         <span>Edit topic</span>
       </button>
-      {open && <TopicEditForm topic={topic} presentation="dialog" onClose={close} />}
+      {open && <TopicDialog mode="edit" topic={topic} onClose={() => setOpen(false)} />}
     </>
   );
 }

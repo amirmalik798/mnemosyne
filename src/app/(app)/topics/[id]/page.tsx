@@ -34,13 +34,15 @@ export default async function TopicPage({ params, searchParams }: Props) {
   if (!result.rows[0]) notFound();
   const row = result.rows[0];
 
-  const [countResult, coverAssetResult] = await Promise.all([
+  const [countResult, coverAssetResult, allNotesCountResult] = await Promise.all([
     queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM notes WHERE topic_id=$1 AND deleted_at IS NULL", [id]),
     row.cover_asset_id
       ? queryAsUser(session.userId, "SELECT id FROM assets WHERE id=$1 AND owner_type='topic' AND owner_id=$2", [row.cover_asset_id, id])
       : Promise.resolve({ rows: [] }),
+    queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM notes WHERE topic_id=$1", [id]),
   ]);
   const totalNotes = Number(countResult.rows[0]?.total ?? 0);
+  const totalNotesIncludingTrash = Number(allNotesCountResult.rows[0]?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(totalNotes / ARCHIVE_PAGE_SIZE));
   const currentPage = Math.min(requestedPageNumber, totalPages);
   const orderColumn = sort === "modified-desc" ? "updated_at" : "created_at";
@@ -115,7 +117,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
           <p className="page-subtitle" dir="auto" lang={detectTextLanguage(description)} style={{ margin:0 }}>{description || "A dedicated space for the notes and references in this collection."}</p>
           <div className="topic-detail-actions" style={{ display:"flex",gap:8,flexShrink:0,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end" }}>
             <TopicImageDownload topicId={id} imageCount={imageCount}/>
-            <TopicEditDialog topic={{ id, title, subject, description, category, coverUrl: cover, noteCount: totalNotes }} />
+            <TopicEditDialog topic={{ id, title, subject, description, category, coverUrl: cover, noteCount: totalNotesIncludingTrash }} />
             <Link href={`/notes/new?topicId=${id}`} className="primary-btn topic-action-button" aria-label="Create a note in this topic" title="Create a note in this topic"><FilePlus size={16}/><span>New note</span></Link>
           </div>
         </div>

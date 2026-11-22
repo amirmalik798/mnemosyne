@@ -5712,3 +5712,57 @@ html[data-theme="light"] .topic-edit-dialog-head .modal-subtitle { color: #575C6
   .topic-edit-dialog-backdrop,
   .topic-edit-dialog { animation: none; }
 }
+
+
+/* Shared topic dialog edit actions: create and edit use the same form surface. */
+.topic-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.topic-dialog-primary-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.topic-dialog-delete {
+  min-height: 44px;
+  height: auto;
+  padding: 9px 12px;
+  font-size: 11px;
+}
+.topic-dialog-delete-hint {
+  margin: 10px 0 0;
+}
+.topic-create-modal .topic-dialog-actions .topic-dialog-primary-actions .topic-dialog-action {
+  min-width: 112px;
+}
+html[data-theme="light"] .topic-create-modal .topic-dialog-delete {
+  border-color: #E5C8CE;
+  background: #FDF2F4;
+  color: #A61B3B;
+}
+html[data-theme="light"] .topic-create-modal .topic-dialog-delete:hover:not(:disabled) {
+  border-color: #D99BA8;
+  background: #FCE7EC;
+  color: #881337;
+}
+@media (max-width: 560px) {
+  .topic-dialog-actions {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .topic-dialog-actions > .topic-dialog-delete {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .topic-dialog-primary-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  }
+  .topic-dialog-primary-actions > button { width: 100%; }
+}
