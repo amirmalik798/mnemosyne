@@ -129,6 +129,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [busy, setBusy] = useState(false);
   const [imageSelected, setImageSelected] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [isImageDragActive, setIsImageDragActive] = useState(false);
   const draftStorageKey = noteId ? `note:${noteId}` : "note:new";
   const editor = useEditor({
     immediatelyRender: false,
@@ -376,7 +377,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  async function uploadImages(files: File[]) {
+  async function uploadImages(files: File[], dropPosition?: number) {
     if (imageUploading || busy || files.length === 0) return;
     if (!editor) {
       setError("The note editor is not ready yet. Try again in a moment.");
@@ -412,10 +413,15 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     // Capture the exact editor selection before the file picker/upload flow.
     // The editor stays read-only while files are sent, so this range remains
     // stable and the whole batch can be inserted in one ProseMirror transaction.
-    const insertionRange = {
-      from: editor.state.selection.from,
-      to: editor.state.selection.to,
-    };
+    const insertionRange = dropPosition === undefined
+      ? {
+          from: editor.state.selection.from,
+          to: editor.state.selection.to,
+        }
+      : {
+          from: Math.max(1, Math.min(dropPosition, editor.state.doc.content.size)),
+          to: Math.max(1, Math.min(dropPosition, editor.state.doc.content.size)),
+        };
 
     setError(failures.length ? failures.join("; ") : "");
     setImageUploading(true);
@@ -586,12 +592,70 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     else setError("Could not move this note to Trash.");
   }
 
+  function hasExternalFiles(dataTransfer: DataTransfer): boolean {
+    return Array.from(dataTransfer.types).includes("Files");
+  }
+
+  function handleEditorDragEnter(event: React.DragEvent<HTMLDivElement>) {
+    if (!hasExternalFiles(event.dataTransfer)) return;
+    event.preventDefault();
+    setIsImageDragActive(true);
+  }
+
+  function handleEditorDragOver(event: React.DragEvent<HTMLDivElement>) {
+    if (!hasExternalFiles(event.dataTransfer)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = busy || imageUploading ? "none" : "copy";
+    if (!busy && !imageUploading) setIsImageDragActive(true);
+  }
+
+  function handleEditorDragLeave(event: React.DragEvent<HTMLDivElement>) {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+    setIsImageDragActive(false);
+  }
+
+  function handleEditorDrop(event: React.DragEvent<HTMLDivElement>) {
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length === 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    setIsImageDragActive(false);
+
+    if (busy || imageUploading) {
+      setError("Wait for the current save or image upload to finish before dropping more images.");
+      return;
+    }
+
+    const dropPosition = editor?.view.posAtCoords({
+      left: event.clientX,
+      top: event.clientY,
+    })?.pos;
+    void uploadImages(files, dropPosition);
+  }
+
   const words = (editor?.getText() ?? "").trim().split(/\s+/).filter(Boolean).length;
   if (!topics.length) return <main className="page"><div className="empty-state"><h3>Create a topic first</h3><p>Every note belongs to a topic. Create a collection, then come back to write.</p><Link href="/topics" className="primary-btn">Go to topics</Link></div></main>;
 
   return <main className="page"><div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:25 }}><Link href={noteId ? `/notes/${noteId}` : "/notes"} className="breadcrumb"><ArrowLeft size={14}/> {noteId ? "Back to note" : "All notes"}</Link><div style={{ display:"flex", gap:8 }}><span style={{ fontSize:10, color:"var(--muted)", alignSelf:"center" }}>{status}</span><button className="primary-btn" onClick={() => void save(false)} disabled={busy || imageUploading || !title.trim()} title={!title.trim() ? "Enter a note title before saving." : "Save note"}><Save size={14}/>{busy ? "Saving…" : "Save note"}</button></div></div>
     <div className="note-layout"><section className="editor-main"><div className="eyebrow">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); setStatus("Unsaved changes"); }} placeholder="Untitled note" maxLength={180} disabled={busy} aria-label="Note title"/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); setDirty(true); setStatus("Unsaved changes"); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy} aria-label="Note subject"/>
       <div className="editor-toolbar" role="toolbar" aria-label="Text formatting"><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("bold") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleBold().run()} title="Bold"><Bold/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("italic") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleItalic().run()} title="Italic"><Italic/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("strike") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleStrike().run()} title="Strikethrough"><Strikethrough/></button><span className="tool-divider"/><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("heading",{level:1})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:1}).run()} title="Heading 1"><Heading1/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("heading",{level:2})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:2}).run()} title="Heading 2"><Heading2/></button><span className="tool-divider"/><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("bulletList")?"active":""}`} onClick={() => editor?.chain().focus().toggleBulletList().run()} title="Bulleted list"><List/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("orderedList")?"active":""}`} onClick={() => editor?.chain().focus().toggleOrderedList().run()} title="Numbered list"><ListOrdered/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("blockquote")?"active":""}`} onClick={() => editor?.chain().focus().toggleBlockquote().run()} title="Quote"><Quote/></button><button disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Divider"><Minus/></button><span className="tool-divider"/><input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const files=Array.from(e.currentTarget.files ?? []); e.currentTarget.value=""; if(files.length)void uploadImages(files); }}/><button disabled={!editor || busy || imageUploading} className="tool-btn" onClick={() => imageRef.current?.click()} title={imageUploading ? "Uploading images…" : "Add images"}><ImagePlus/></button><button disabled={busy || imageUploading || !imageSelected} className="tool-btn" onClick={() => void removeSelectedImage()} title="Remove selected image"><Trash2/></button><span className="tool-divider"/><button disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().undo().run()} title="Undo"><Undo2/></button><button disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().redo().run()} title="Redo"><Redo2/></button></div>
-      <EditorContent editor={editor} onFocusCapture={() => setFocusTarget("editor")}/><div className="editor-footer"><span>{words} words</span><span>{recoveryStatus}</span><span>Private encrypted note</span></div>
+      <div
+        className={isImageDragActive ? "note-image-dropzone note-image-dropzone-active" : "note-image-dropzone"}
+        onDragEnterCapture={handleEditorDragEnter}
+        onDragOverCapture={handleEditorDragOver}
+        onDragLeaveCapture={handleEditorDragLeave}
+        onDropCapture={handleEditorDrop}
+      >
+        <EditorContent editor={editor} onFocusCapture={() => setFocusTarget("editor")}/>
+        {isImageDragActive && <div className="note-image-drop-overlay" aria-hidden="true">
+          <div className="note-image-drop-message">
+            <ImagePlus size={25}/>
+            <strong>Drop images to insert</strong>
+            <span>Single or multiple images · PNG, JPG, WebP or GIF</span>
+          </div>
+        </div>}
+      </div><div className="editor-footer"><span>{words} words</span><span>{recoveryStatus}</span><span>Private encrypted note</span></div>
     </section><aside className="editor-side"><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><div className="property-label">Belongs to</div><select dir="auto" lang={detectTextLanguage(topics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy} onChange={(e)=>{setTopicId(e.target.value);setDirty(true);setStatus("Unsaved changes");}}>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></div><div className="property-block"><div className="property-label">Tags</div><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy} onChange={(e)=>{setTagsInput(e.target.value);setDirty(true);setStatus("Unsaved changes");}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button className={`secondary-btn`} disabled={busy} style={{ width:"100%", justifyContent:"flex-start" }} onClick={()=>{setPinned(!pinned);setDirty(true);setStatus("Unsaved changes");}}><Pin size={14}/>{pinned?"Remove from pinned":"Pin this note"}</button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={topics} beforeTransfer={async()=>{if(busy)return false;return dirty?Boolean(await save(false)):true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p></section>{noteId&&<button className="danger-btn" onClick={removeNote} disabled={busy}><Trash2 size={14}/> Move to Trash</button>}</aside></div>{error&&<p className="error-text">{error}</p>}</main>;
 }
