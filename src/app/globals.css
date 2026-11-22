@@ -8435,3 +8435,40 @@ html[data-theme="light"] .overview-recent-panel .note-row-pinned .note-icon {
     -webkit-print-color-adjust: exact !important;
   }
 }
+
+
+/* Topic note pin-status filter matches the existing archive sort control. */
+.topic-detail-page .archive-pin-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.topic-detail-page .archive-pin-filter > label {
+  color: var(--muted);
+  font-size: calc(12px * var(--font-scale, 1));
+  font-weight: 600;
+  white-space: nowrap;
+}
+.topic-detail-page .archive-pin-filter > select {
+  width: auto;
+  min-width: 150px;
+  min-height: 42px;
+  padding: 8px 34px 8px 11px;
+  font-size: calc(12px * var(--font-scale, 1));
+}
+@media (max-width: 960px) {
+  .topic-detail-page .archive-pin-filter {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .topic-detail-page .archive-pin-filter > select {
+    width: min(68%, 260px);
+    min-width: 0;
+  }
+}
+@media (max-width: 480px) {
+  .topic-detail-page .archive-pin-filter > select {
+    width: 100%;
+  }
+}
