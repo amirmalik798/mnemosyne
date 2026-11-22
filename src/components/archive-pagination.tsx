@@ -2,8 +2,9 @@ import Link from "next/link";
 
 export const ARCHIVE_PAGE_SIZE = 50;
 
-export function parseArchivePage(value: string | undefined): number {
-  const parsed = Number(value);
+export function parseArchivePage(value: string | string[] | undefined): number {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(rawValue);
   return Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, 1_000_000) : 1;
 }
 
