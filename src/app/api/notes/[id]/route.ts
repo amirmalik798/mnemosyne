@@ -3,7 +3,7 @@ import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { deleteAssetsFor, deleteUnreferencedNoteAssets } from "@/lib/storage";
-import { apiError, requireJsonObject, stringField } from "@/lib/http";
+import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -30,7 +30,7 @@ export async function PATCH(request: Request, context: Context) {
     assertSameOrigin(request);
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const body = requireJsonObject(await request.json());
+    const body = await readJsonObject(request, 2_100_000);
     const current = await db.query("SELECT id FROM notes WHERE id=$1 AND deleted_at IS NULL", [id]);
     if (!current.rows[0]) throw new Error("NOT_FOUND");
     const title = stringField(body, "title", 180, true);
