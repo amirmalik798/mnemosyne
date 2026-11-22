@@ -225,11 +225,11 @@ CREATE INDEX IF NOT EXISTS notes_user_recent_idx
 CREATE INDEX IF NOT EXISTS notes_user_trash_idx
   ON notes(user_id, deleted_at DESC, id DESC) WHERE deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS assets_user_owner_idx ON assets(user_id, owner_type, owner_id);
-DO $ BEGIN
+DO $$ BEGIN
   ALTER TABLE asset_blobs ADD CONSTRAINT asset_blobs_user_asset_fk
     FOREIGN KEY (user_id, asset_id) REFERENCES assets(user_id, id) ON DELETE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
-END $;
+END $$;
 
 
 -- The composite relation prevents a note from pointing to another account's topic.
