@@ -9,7 +9,7 @@ export default async function EditTopicPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const session = await requireVaultSession();
   const [topicResult, categoryResult] = await Promise.all([
-    db.query(`SELECT t.*, (SELECT COUNT(*)::int FROM notes n WHERE n.topic_id=t.id) AS note_count FROM topics t WHERE t.id=$1`, [id]),
+    db.query(`SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc, t.cover_asset_id, (SELECT COUNT(*)::int FROM notes n WHERE n.topic_id=t.id) AS note_count FROM topics t WHERE t.id=$1`, [id]),
     db.query("SELECT category_enc FROM topics WHERE id <> $1", [id]),
   ]);
   if (!topicResult.rows[0]) notFound();
