@@ -87,13 +87,13 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      className="theme-toggle icon-only-btn"
+      className="theme-toggle"
       onClick={toggleTheme}
       title={nextLabel}
       aria-label={nextLabel}
       aria-pressed={theme === "light"}
     >
-      {theme === "dark" ? <Sun className="theme-sun-icon" size={18} /> : <Moon className="theme-moon-icon" size={18} />}
+      {theme === "dark" ? <Sun className="theme-sun-icon" size={18} aria-hidden="true" /> : <Moon className="theme-moon-icon" size={18} aria-hidden="true" />}<span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
     </button>
   );
 }
