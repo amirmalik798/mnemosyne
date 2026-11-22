@@ -222,14 +222,14 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
             </header>
 
             <div className="transfer-choice-grid" role="group" aria-label="Transfer action">
-              <button type="button" className={`transfer-choice icon-only-btn ${action === "move" ? "selected" : ""}`} aria-label="Move note" title="Move note" aria-pressed={action === "move"} onClick={() => setAction("move")} disabled={busy}>
+              <button type="button" className={`transfer-choice ${action === "move" ? "selected" : ""}`} aria-label="Move note" title="Move note" aria-pressed={action === "move"} onClick={() => setAction("move")} disabled={busy}>
                 <span className="transfer-choice-icon"><FolderInput size={17} /></span>
-                <span className="sr-only">Move note</span>
+                <span className="transfer-choice-copy"><strong>Move note</strong><small>Place this note in a different topic.</small></span>
                 <span className="transfer-choice-radio" aria-hidden="true" />
               </button>
-              <button type="button" className={`transfer-choice icon-only-btn ${action === "copy" ? "selected" : ""}`} aria-label="Copy note" title="Copy note" aria-pressed={action === "copy"} onClick={() => setAction("copy")} disabled={busy}>
+              <button type="button" className={`transfer-choice ${action === "copy" ? "selected" : ""}`} aria-label="Copy note" title="Copy note" aria-pressed={action === "copy"} onClick={() => setAction("copy")} disabled={busy}>
                 <span className="transfer-choice-icon"><Copy size={17} /></span>
-                <span className="sr-only">Copy note</span>
+                <span className="transfer-choice-copy"><strong>Copy note</strong><small>Create a separate copy and keep the original here.</small></span>
                 <span className="transfer-choice-radio" aria-hidden="true" />
               </button>
             </div>
