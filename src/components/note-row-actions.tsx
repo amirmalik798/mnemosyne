@@ -80,25 +80,25 @@ export function NoteRowActions({
     <div className="note-row-actions" role="group" aria-label="Note actions">
       <button
         type="button"
-        className="note-row-action icon-only-btn"
+        className="note-row-action note-row-action-labelled"
         onClick={() => void togglePinned()}
         disabled={busy !== null}
         aria-label={isPinned ? "Unpin note" : "Pin note"}
         aria-pressed={isPinned}
         title={isPinned ? "Unpin note" : "Pin note"}
       >
-        {busy === "pin" ? <LoaderCircle className="operation-spinner" size={15} /> : isPinned ? <PinOff size={15} /> : <Pin size={15} />}
+        {busy === "pin" ? <LoaderCircle className="operation-spinner" size={15} aria-hidden="true" /> : isPinned ? <PinOff size={15} aria-hidden="true" /> : <Pin size={15} aria-hidden="true" />}<span>{busy === "pin" ? "Updating…" : isPinned ? "Unpin" : "Pin"}</span>
       </button>
-      <NoteTopicTransfer noteId={noteId} currentTopicId={currentTopicId} />
+      <NoteTopicTransfer noteId={noteId} currentTopicId={currentTopicId} showLabel />
       <button
         type="button"
-        className="note-row-action icon-only-btn"
+        className="note-row-action note-row-action-labelled"
         onClick={() => void moveToTrash()}
         disabled={busy !== null}
         aria-label="Move note to Recently deleted"
         title="Move note to Recently deleted"
       >
-        {busy === "delete" ? <LoaderCircle className="operation-spinner" size={15} /> : <Trash2 size={15} />}
+        {busy === "delete" ? <LoaderCircle className="operation-spinner" size={15} aria-hidden="true" /> : <Trash2 size={15} aria-hidden="true" />}<span>{busy === "delete" ? "Moving…" : "Move to trash"}</span>
       </button>
       {confirmationDialog}
     </div>

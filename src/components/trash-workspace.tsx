@@ -17,14 +17,17 @@ export function TrashWorkspace() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [loadMoreError, setLoadMoreError] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<PendingAction>(null);
   const router = useRouter();
   const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
 
   async function load(append = false) {
-    if (append) setLoadingMore(true);
-    else {
+    if (append) {
+      setLoadingMore(true);
+      setLoadMoreError("");
+    } else {
       setLoading(true);
       setLoadError("");
     }
@@ -43,7 +46,7 @@ export function TrashWorkspace() {
       if (append) setError("");
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not load recently deleted notes.";
-      if (append) setError(message);
+      if (append) setLoadMoreError(message);
       else setLoadError(message);
     } finally {
       if (append) setLoadingMore(false);
@@ -128,7 +131,7 @@ export function TrashWorkspace() {
               const deleting = pending && busy?.action === "delete";
 
               return (
-                <div className="note-row note-row-trash" key={item.id}>
+                <div className="note-row note-row-trash" key={item.id} aria-busy={pending}>
                   <div className="note-icon"><Trash2 /></div>
                   <div className="note-main">
                     <div className="note-row-title">{item.title}</div>
@@ -136,13 +139,11 @@ export function TrashWorkspace() {
                   </div>
                   <div className="note-row-meta"><time dateTime={new Date(item.deletedAt).toISOString()}>Deleted {formatArchiveDate(item.deletedAt, true)}</time></div>
                   <div className="trash-row-actions">
-                    <button type="button" className="secondary-btn icon-only-btn" disabled={busy !== null} onClick={() => void action(item.id, "restore")} aria-label={`Restore ${item.title}`} title={`Restore ${item.title}`}>
-                      {restoring ? <LoaderCircle className="operation-spinner" size={13} /> : <RotateCcw size={13} />}
-                      
+                    <button type="button" className="secondary-btn trash-action-button" disabled={busy !== null} onClick={() => void action(item.id, "restore")} aria-label={restoring ? `Restoring ${item.title}` : `Restore ${item.title}`} aria-busy={restoring}>
+                      {restoring ? <LoaderCircle className="operation-spinner" size={14} aria-hidden="true" /> : <RotateCcw size={14} aria-hidden="true" />}<span>{restoring ? "Restoring…" : "Restore"}</span>
                     </button>
-                    <button type="button" className="danger-btn icon-only-btn" disabled={busy !== null} onClick={() => void action(item.id, "delete")} aria-label={`Permanently delete ${item.title}`} title="This permanently deletes the note and its encrypted images">
-                      {deleting ? <LoaderCircle className="operation-spinner" size={13} /> : <Trash2 size={13} />}
-                      
+                    <button type="button" className="danger-btn trash-action-button" disabled={busy !== null} onClick={() => void action(item.id, "delete")} aria-label={deleting ? `Deleting ${item.title} permanently` : `Permanently delete ${item.title}`} aria-busy={deleting}>
+                      {deleting ? <LoaderCircle className="operation-spinner" size={14} aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" />}<span>{deleting ? "Deleting…" : "Delete permanently"}</span>
                     </button>
                   </div>
                 </div>
@@ -159,10 +160,11 @@ export function TrashWorkspace() {
       )}
       {confirmationDialog}
       {!loading && !loadError && hasMore && (
-        <div className="archive-pagination-controls" style={{ justifyContent: "center", marginTop: 18 }}>
-          {loadingMore && <OperationStatus kind="loading" message="Loading more deleted notes…" compact />}
-          <button type="button" className="secondary-btn icon-only-btn" onClick={() => void load(true)} disabled={loadingMore} aria-busy={loadingMore} aria-label={loadingMore ? "Loading more deleted notes" : "Load more deleted notes"} title={loadingMore ? "Loading more deleted notes" : "Load more deleted notes"}>
-            {loadingMore ? <LoaderCircle className="operation-spinner" size={17} /> : <ArrowDown size={17} />}
+        <div className="trash-load-more">
+          {loadMoreError && <OperationStatus kind="failure" message={loadMoreError} />}
+          <button type="button" className="secondary-btn trash-load-more-button" onClick={() => void load(true)} disabled={loadingMore} aria-busy={loadingMore}>
+            {loadingMore ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <ArrowDown size={16} aria-hidden="true" />}
+            <span>{loadingMore ? "Loading more…" : loadMoreError ? "Retry loading notes" : "Load more notes"}</span>
           </button>
         </div>
       )}

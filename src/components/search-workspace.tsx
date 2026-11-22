@@ -39,6 +39,7 @@ export function SearchWorkspace() {
   const [waiting, setWaiting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const cleanQuery = query.trim();
@@ -83,7 +84,7 @@ export function SearchWorkspace() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query, filter]);
+  }, [query, filter, retryCount]);
 
   const resultCount = topics.length + notes.length;
   const searching = waiting || busy;
@@ -147,7 +148,14 @@ export function SearchWorkspace() {
 
       {waiting && <OperationStatus kind="waiting" message="Preparing your search…" />}
       {busy && <OperationStatus kind="loading" message="Searching your encrypted archive…" />}
-      {error && <OperationStatus kind="error" message={error} />}
+      {error && (
+        <div className="search-error-recovery">
+          <OperationStatus kind="error" message={error} />
+          <button type="button" className="secondary-btn search-retry-button" onClick={() => setRetryCount((value) => value + 1)}>
+            <Search size={15} aria-hidden="true" /><span>Retry search</span>
+          </button>
+        </div>
+      )}
       {!searching && !error && query.trim() && (
         <OperationStatus
           kind="success"
