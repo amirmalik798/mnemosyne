@@ -136,7 +136,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
         <div className="topic-detail-notes-heading">
           <div className="topic-detail-section-heading">
             <h2 id="topic-detail-notes-heading" className="eyebrow">Collection entries</h2>
-            <span className="topic-detail-note-count" aria-label={`${totalNotes} of ${totalActiveNotes} notes shown`}>{totalNotes} / {totalActiveNotes}</span>
+            <span className="topic-detail-note-count" aria-label={`${totalNotes} of ${totalActiveNotes} notes shown`}>{totalNotes}/{totalActiveNotes}</span>
           </div>
         </div>
         <div className="archive-toolbar-actions">
