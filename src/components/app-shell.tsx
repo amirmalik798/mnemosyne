@@ -53,8 +53,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (redirectingToUnlockRef.current || window.location.pathname === "/unlock") return;
       redirectingToUnlockRef.current = true;
 
-      // Preserve the current workspace and let the existing pagehide handler
-      // perform its best-effort session lock before the unlock screen loads.
+      // Preserve the current workspace while the expired session is re-authenticated.
+      // No logout request is sent here; the server has already rejected the session.
       saveResumeLocation();
       window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
       void flushPendingLocalDraftWrites();
@@ -77,7 +77,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         requestPath.startsWith("/api/") &&
         requestPath !== "/api/vault/unlock"
       ) {
-        redirectToUnlock();
+        // Only the shared auth middleware message means the session itself
+        // expired. Other 401 responses (for example, an incorrect current
+        // password during password change) are operation-level failures and
+        // must not eject the user from an otherwise valid session.
+        let sessionExpired = false;
+        try {
+          const payload = await response.clone().json() as { error?: unknown };
+          sessionExpired = payload.error === "Please unlock your vault.";
+        } catch {
+          // Unknown 401 response formats are not sufficient evidence to log out.
+        }
+        if (sessionExpired) redirectToUnlock();
       }
       return response;
     };
