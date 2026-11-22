@@ -228,7 +228,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Something went wrong while creating the topic.";
       if (createdTopicId) {
-        notifyOperation("failure", "The topic was created, but its cover could not be uploaded. Add the cover from Topic settings.");
+        notifyOperation("failure", "The topic was created, but its cover could not be uploaded: " + message + " Add the cover from Topic settings.");
         router.push(`/topics/${createdTopicId}/edit`);
         router.refresh();
         onClose();
