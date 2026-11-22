@@ -17,7 +17,7 @@ export function proxy(request: NextRequest) {
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "font-src 'self' https://fonts.gstatic.com data:",
-    "connect-src 'self'",
+    "connect-src 'self'" + (isProduction ? "" : " ws: wss:"),
     "media-src 'self' blob: data:",
     "object-src 'none'",
     "base-uri 'self'",
