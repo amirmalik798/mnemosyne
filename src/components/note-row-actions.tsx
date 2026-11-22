@@ -103,7 +103,7 @@ export function NoteRowActions({
   const pinAction = (
     <button
       type="button"
-      className="note-row-action note-row-action-labelled"
+      className="note-row-action note-row-action-labelled note-row-action--pin"
       onClick={() => void togglePinned()}
       disabled={busy !== null}
       aria-label={isPinned ? "Unpin note" : "Pin note"}
@@ -116,8 +116,8 @@ export function NoteRowActions({
   const trashAction = (
     <button
       type="button"
-      className="note-row-action note-row-action-labelled"
-      onClick={() => void moveToTrash()}
+      className="note-row-action note-row-action-labelled note-row-action--trash"
+      onClick={() => void moveToTrash()"
       disabled={busy !== null}
       aria-label="Move note to Recently deleted"
       title="Move note to Recently deleted"

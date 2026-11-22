@@ -3350,9 +3350,7 @@ html[data-theme="light"] .note-revision-item span { color: #575C66; }
 }
 .note-row-action > svg { width: 15px; height: 15px; }
 .note-row-actions .note-row-action[aria-pressed="true"] > svg { color: var(--icon-accent-action); }
-.note-row-actions .note-row-action:last-of-type > svg { color: var(--icon-danger-action); }
 .note-row-meta { flex: 0 0 auto; }
-html[data-theme="light"] .note-row-actions .note-row-action:last-of-type > svg { color: #BE123C; }
 .note-connections-caption {
   grid-column: 1 / -1;
   margin: 0;
@@ -5037,4 +5035,86 @@ html[data-theme="light"] .note-row-more-menu .note-row-action:last-child { color
   min-height: 38px;
   flex-basis: auto;
   padding: 0 10px !important;
+}
+
+
+/* Explicit semantic styling prevents the pinned action inheriting destructive colors. */
+.note-row-actions .note-row-action--pin {
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--muted);
+  transition: color .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.note-row-actions .note-row-action--pin > svg {
+  color: var(--icon-neutral-action);
+  transition: color .16s ease;
+}
+.note-row-actions .note-row-action--pin:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--icon-neutral-action) 38%, var(--line));
+  background: color-mix(in srgb, var(--icon-neutral-action) 9%, var(--surface-2));
+  color: var(--text);
+}
+.note-row-actions .note-row-action--pin[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--icon-accent-action) 42%, var(--line));
+  background: color-mix(in srgb, var(--icon-accent-action) 12%, var(--surface-2));
+  color: var(--icon-accent-action);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--icon-accent-action) 8%, transparent);
+}
+.note-row-actions .note-row-action--pin[aria-pressed="true"] > svg {
+  color: var(--icon-accent-action);
+}
+.note-row-actions .note-row-action--pin:focus-visible,
+.note-row-actions .note-row-action--trash:focus-visible,
+.note-row-more > summary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.note-row-actions .note-row-action--trash {
+  border: 1px solid color-mix(in srgb, var(--red) 24%, var(--line));
+  background: color-mix(in srgb, var(--red) 7%, var(--surface));
+  color: var(--icon-danger-action);
+  transition: color .16s ease, background .16s ease, border-color .16s ease;
+}
+.note-row-actions .note-row-action--trash > svg {
+  color: var(--icon-danger-action);
+}
+.note-row-actions .note-row-action--trash:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--red) 44%, var(--line));
+  background: color-mix(in srgb, var(--red) 13%, var(--surface));
+  color: var(--red);
+}
+.note-row-actions .note-row-action--trash:hover:not(:disabled) > svg {
+  color: var(--red);
+}
+.note-row-more-menu .note-row-action--trash {
+  min-height: 40px;
+  margin-top: 3px;
+  padding-top: 7px !important;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+  background: color-mix(in srgb, var(--red) 7%, transparent);
+  color: var(--red);
+}
+.note-row-more-menu .note-row-action--trash > svg {
+  color: var(--red);
+}
+.note-row-more-menu .note-row-action--trash:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 13%, transparent);
+  color: var(--red);
+}
+.note-row-more-menu .note-row-action--trash:hover:not(:disabled) > svg {
+  color: var(--red);
+}
+.note-row-actions .note-row-action--pin:disabled,
+.note-row-actions .note-row-action--trash:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-row-actions .note-row-action--pin,
+  .note-row-actions .note-row-action--pin > svg,
+  .note-row-actions .note-row-action--trash {
+    transition: none;
+  }
 }
