@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, ReactNodeViewRenderer, useEditor } from "@tiptap/react";
 import { Extension, type Editor as TiptapEditor } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { ImageLightbox } from "@/components/image-lightbox";
+import { NoteImageNodeView } from "@/components/note-image-node-view";
 import { TextHighlightMark, TextStyleMark } from "@/lib/note-formatting";
 import {
   colorPickerValue,
@@ -43,6 +44,12 @@ const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
  * inserted—not by racing or mutating ProseMirror's managed DOM.
  */
 const BIDI_NODE_TYPES = ["paragraph", "heading", "blockquote", "listItem", "bulletList", "orderedList"];
+
+const EditableNoteImage = Image.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(NoteImageNodeView);
+  },
+});
 
 const BidiDirection = Extension.create({
   name: "bidiDirection",
@@ -291,7 +298,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
 
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [StarterKit, TextStyleMark, TextHighlightMark, BidiDirection, Image.configure({ inline: false, allowBase64: false }), Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." })],
+    extensions: [StarterKit, TextStyleMark, TextHighlightMark, BidiDirection, EditableNoteImage.configure({ inline: false, allowBase64: false }), Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." })],
     content: initialNote?.content ?? EMPTY_DOC,
     editorProps: {
       attributes: { class: "rich-editor", spellcheck: "true", "aria-label": "Note content", dir: "ltr" },
@@ -755,14 +762,11 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     }
   }
 
-  async function removeSelectedImage() {
+  function removeSelectedImage() {
     if (!editor || !editor.isActive("image")) return;
-    const src = String(editor.getAttributes("image").src ?? "");
-    const match = src.match(/^\/api\/assets\/([a-f0-9-]+)$/i);
-    if (match) {
-      const response = await fetch(`/api/assets/${match[1]}`, { method: "DELETE" });
-      if (!response.ok) { setError("Could not remove this image from storage."); return; }
-    }
+    // Remove the image from the document first. The next successful note PATCH
+    // invokes deleteUnreferencedNoteAssets(), so storage is cleaned only after
+    // the updated document has been persisted successfully.
     editor.chain().focus().deleteSelection().run();
   }
 
