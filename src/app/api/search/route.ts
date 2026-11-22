@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError } from "@/lib/http";
 import { requireVaultSession } from "@/lib/auth";
 import { db, queryAsUser, setUserContext } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
@@ -220,7 +221,6 @@ export async function GET(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     if (message === "UNAUTHORIZED") return NextResponse.json({ error: "Please unlock your vault." }, { status: 401 });
-    console.error("Search API failure.", { name: error instanceof Error ? error.name : "UnknownError" });
-    return NextResponse.json({ error: "Search is unavailable right now." }, { status: 500 });
+    return apiError(error);
   }
 }
