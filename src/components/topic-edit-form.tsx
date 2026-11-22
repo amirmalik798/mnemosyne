@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, ImagePlus, LoaderCircle, Save, Trash2 } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
+import { useConfirmation } from "@/components/confirmation-dialog";
 
 type Topic = {
   id: string;
@@ -19,6 +20,7 @@ type Topic = {
 
 export function TopicEditForm({ topic, categories = [] }: { topic: Topic; categories?: string[] }) {
   const router = useRouter();
+  const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
   const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState(topic.title);
   const [subject, setSubject] = useState(topic.subject);
@@ -103,7 +105,15 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
   }
 
   async function remove() {
-    if (busy || !confirm("Delete this topic? Topics with notes cannot be deleted. This action cannot be undone.")) return;
+    if (busy) return;
+    const accepted = await requestConfirmation({
+      eyebrow: "Delete topic",
+      title: "Delete this topic?",
+      description: "Topics with notes cannot be deleted. This action cannot be undone.",
+      confirmLabel: "Delete topic",
+      tone: "danger",
+    });
+    if (!accepted) return;
     setBusy(true);
     setError("");
     setProcessingMessage("Deleting topic…");
@@ -231,6 +241,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
           <p className="form-hint" style={{ marginTop: 13 }}>This topic contains {topic.noteCount} notes. To delete it, move or delete its notes first.</p>
         </form>
       </section>
+      {confirmationDialog}
     </main>
   );
 }
