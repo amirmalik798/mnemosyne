@@ -8,7 +8,7 @@ import { apiError, readJsonObject, stringField } from "@/lib/http";
 export async function GET() {
   try {
     const session = await requireVaultSession();
-    const result = await db.query("SELECT n.*, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.deleted_at IS NOT NULL ORDER BY n.deleted_at DESC");
+    const result = await db.query("SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.deleted_at, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.deleted_at IS NOT NULL ORDER BY n.deleted_at DESC, n.id DESC");
     const notes = result.rows.map((row) => ({
       id: row.id, topicId: row.topic_id, title: decryptText(row.title_enc, session.key),
       subject: decryptText(row.subject_enc, session.key), topicTitle: decryptText(row.topic_title_enc, session.key),
