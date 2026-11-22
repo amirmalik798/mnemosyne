@@ -7675,3 +7675,223 @@ html[data-theme="light"] .topic-detail-page .note-row-actions .note-row-action--
     transition: none;
   }
 }
+
+
+/* Note PDF export: print only the current note, preserving its rich content. */
+@page {
+  size: A4;
+  margin: 18mm 17mm 20mm;
+}
+@media print {
+  html,
+  body {
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    color: #202124 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .sidebar,
+  .topbar,
+  .mobile-nav,
+  .note-reader-topbar,
+  .reader-toc,
+  .note-connections,
+  .editor-footer,
+  .image-lightbox-backdrop,
+  .toast,
+  .toast-container,
+  .operation-status {
+    display: none !important;
+  }
+  .app-shell,
+  .main-area,
+  .main-content {
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #FFFFFF !important;
+    color: #202124 !important;
+    box-shadow: none !important;
+  }
+  .note-reader-page {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    color: #202124 !important;
+  }
+  .note-reader-page .reader {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #202124 !important;
+  }
+  .note-reader-page .reader-header {
+    margin: 0 0 22pt !important;
+    padding: 0 0 15pt !important;
+    border-bottom: 1px solid #D9D9D9 !important;
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+  .note-reader-page .reader-header .eyebrow {
+    color: #79612D !important;
+    font-size: 9pt !important;
+    font-weight: 700 !important;
+    letter-spacing: .12em !important;
+  }
+  .note-reader-page .reader-title {
+    margin: 9pt 0 8pt !important;
+    color: #17191C !important;
+    font-size: 28pt !important;
+    line-height: 1.15 !important;
+    letter-spacing: -.025em !important;
+  }
+  .note-reader-page .reader-header .page-subtitle {
+    margin: 0 0 9pt !important;
+    color: #4F5358 !important;
+    font-size: 12pt !important;
+    line-height: 1.5 !important;
+  }
+  .note-reader-page .reader-meta {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6pt !important;
+    color: #666B70 !important;
+    font-size: 9pt !important;
+  }
+  .note-reader-page .reader-content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    color: #22252A !important;
+    font-size: 11pt !important;
+    line-height: 1.68 !important;
+    overflow-wrap: anywhere;
+  }
+  .note-reader-page .reader-content p {
+    margin: 0 0 10pt !important;
+    color: #22252A !important;
+    font-size: 11pt !important;
+    line-height: 1.68 !important;
+    orphans: 3;
+    widows: 3;
+  }
+  .note-reader-page .reader-content h1,
+  .note-reader-page .reader-content h2,
+  .note-reader-page .reader-content h3 {
+    margin: 17pt 0 8pt !important;
+    color: #17191C !important;
+    line-height: 1.25 !important;
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+  .note-reader-page .reader-content h1 { font-size: 21pt !important; }
+  .note-reader-page .reader-content h2 { font-size: 17pt !important; }
+  .note-reader-page .reader-content h3 { font-size: 14pt !important; }
+  .note-reader-page .reader-content blockquote {
+    margin: 12pt 0 !important;
+    padding: 3pt 0 3pt 12pt !important;
+    border-left: 3px solid #B9A36F !important;
+    color: #44484D !important;
+    background: #F7F5EF !important;
+    font-size: 11pt !important;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+  .note-reader-page .reader-content ul,
+  .note-reader-page .reader-content ol {
+    padding-left: 22pt !important;
+    color: #22252A !important;
+  }
+  .note-reader-page .reader-content li {
+    margin-bottom: 3pt !important;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+  .note-reader-page .reader-content a {
+    color: #214F78 !important;
+    text-decoration: underline !important;
+  }
+  .note-reader-page .reader-content figure {
+    margin: 14pt 0 !important;
+    text-align: center !important;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+  .note-reader-page .reader-content .note-image-trigger {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    cursor: default !important;
+    text-align: center !important;
+  }
+  .note-reader-page .reader-content .note-image-trigger img {
+    display: block !important;
+    width: auto !important;
+    max-width: 100% !important;
+    max-height: 235mm !important;
+    height: auto !important;
+    margin: 0 auto !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    object-fit: contain !important;
+    box-shadow: none !important;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+  .note-reader-page .reader-content pre,
+  .note-reader-page .reader-content code {
+    color: #252525 !important;
+    background: #F2F3F4 !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .note-reader-page .reader-content hr {
+    border: 0 !important;
+    border-top: 1px solid #D7D7D7 !important;
+    margin: 15pt 0 !important;
+  }
+  .note-reader-page .reader-content mark {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .note-reader-page .tag-pill {
+    display: inline-block !important;
+    margin: 3pt 4pt 0 0 !important;
+    padding: 3pt 6pt !important;
+    border: 1px solid #D8D8D8 !important;
+    border-radius: 4pt !important;
+    background: #F4F4F4 !important;
+    color: #3F444A !important;
+    font-size: 9pt !important;
+  }
+  .note-reader-page .property-label {
+    margin-bottom: 6pt !important;
+    color: #555B61 !important;
+    font-size: 9pt !important;
+  }
+  .note-reader-page .reader-content *,
+  .note-reader-page .reader-header * {
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+  .note-reader-page .reader-content svg,
+  .note-reader-page .reader-content button {
+    print-color-adjust: exact;
+  }
+}
