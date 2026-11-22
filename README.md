@@ -1,137 +1,158 @@
-<<<<<<< HEAD
 # Mnemosyne — The Private Knowledge Archive
 
-A single-user, password-protected Next.js knowledge archive for topics, rich-text notes, images and full-archive search. The interface uses a quiet obsidian-and-gold editorial design inspired by the supplied Marginalia bookshelf and reader examples.
+Mnemosyne is a single-user, password-protected knowledge archive for topics, rich-text notes, images and full-archive search. It uses a quiet Obsidian-and-gold editorial interface with a complete light theme.
 
-## Included
+## Features
 
 - First-run vault setup and master-password unlock.
 - Argon2id password-based key derivation and AES-256-GCM encryption for topic fields, note fields, tags, image files and original image names.
-- Random vault key wrapped by the master-password-derived key.
-- HttpOnly, SameSite=Strict session cookie; server-side session records; 12-hour session expiry; 20-minute inactivity lock; failed-password lockout.
-- PostgreSQL storage for metadata and encrypted content.
-- Custom topic covers and encrypted note image attachments.
-- Tiptap rich-text note editor with headings, lists, quotations, formatting, inline images, tags and pinning.
-- Topic management, note reader, edit flow, recently deleted notes and restore/permanent deletion.
-- Move notes between topics without changing their identity or attachments. The editor saves pending changes before applying the transfer.
-- Copy notes into another topic, preserving encrypted text, formatting, tags and pin state while creating independent encrypted copies of embedded image attachments. The copy has its own note ID and attachment records, so either note can be edited or deleted independently.
-- Global search over topic titles, subjects, descriptions, categories, note titles, subjects, body text and tags. Search decrypts the user's own records on the server and does not persist a plaintext search index.
-- Responsive dashboard and navigation.
+- A random vault key wrapped by the master-password-derived key.
+- HttpOnly, SameSite=Strict session cookies; server-side session records; 12-hour absolute session expiry; 20-minute inactivity expiry; failed-password lockout.
+- PostgreSQL storage for encrypted content and metadata.
+- Encrypted topic covers and note image attachments.
+- Rich-text editing with headings, lists, quotations, formatting, inline images, tags and pinning.
+- Topic management, note reading and editing, trash, restore and permanent deletion.
+- Move notes between topics without changing their identity or attachments.
+- Copy notes into another topic, creating independent encrypted copies of embedded image attachments.
+- Global search across topic and note fields. Search decrypts records on the server for matching and does not persist a plaintext search index.
+- Responsive navigation, pagination and dark/light themes.
+- Urdu and Arabic right-to-left writing support, including mixed-direction content.
 
 ## Requirements
 
 - Node.js 22 LTS recommended.
-- PostgreSQL 18 (or a supported PostgreSQL release).
+- PostgreSQL 18 or another supported PostgreSQL release.
 - npm.
 
 ## Local setup
 
 1. Install dependencies:
 
-   ```bash
+   ~~~bash
    npm install
-   ```
+   ~~~
 
-2. Start PostgreSQL with Docker Compose, or create an empty PostgreSQL database named `mnemosyne` yourself:
+2. Start PostgreSQL with Docker Compose, or create an empty PostgreSQL database named **mnemosyne**:
 
-   ```bash
+   ~~~bash
    docker compose up -d postgres
-   ```
+   ~~~
 
-3. Create your local environment file and generate a stable session-encryption secret:
+3. Create the local environment file and generate a stable session-encryption secret:
 
-   ```bash
+   ~~~bash
    cp .env.example .env.local
    openssl rand -hex 32
-   ```
+   ~~~
 
-   Put the generated 64-character hexadecimal value into `SESSION_ENCRYPTION_SECRET` in `.env.local`. Keep this secret stable and private. Set `DATABASE_URL` to your PostgreSQL connection string.
+   Put the generated 64-character hexadecimal value in **SESSION_ENCRYPTION_SECRET**. Keep it private and stable. Set **DATABASE_URL** to your PostgreSQL connection string. Do not set **PGSSLMODE** for ordinary local loopback PostgreSQL.
 
-4. Create the database tables:
+4. Apply the schema:
 
-   ```bash
+   ~~~bash
    npm run db:migrate
-   ```
+   ~~~
 
-5. Start Next.js:
+5. Verify the database and encrypted-file storage:
 
-   ```bash
+   ~~~bash
+   npm run db:check
+   npm run storage:check
+   ~~~
+
+6. Start Next.js:
+
+   ~~~bash
    npm run dev
-   ```
+   ~~~
 
-6. Open `http://localhost:3000`. The first visit opens the vault setup screen. Create a strong master password and keep it safe.
+7. Open **http://localhost:3000**, create your vault and choose a strong master password.
 
 ## Useful commands
 
-```bash
+~~~bash
 npm run dev
+npm run db:migrate
+npm run db:check
+npm run storage:check
+npm run test:unit
 npm run typecheck
 npm run build
-npm run db:check
-npm run db:migrate
-```
+npm run start
+~~~
+
+- **db:migrate** applies the idempotent schema. It uses the same PostgreSQL connection and TLS validation rules as the application.
+- **db:check** verifies database connectivity and required tables/columns, including the **vault_sessions.last_active_at** session-hardening migration.
+- **storage:check** is read-only. It checks that database-referenced encrypted image files exist and have the expected encrypted size, and reports orphaned files. It never deletes or repairs files automatically.
+- **test:unit** runs fast, database-independent tests for PostgreSQL connection and TLS validation.
 
 ## Note organization
 
-On a note reader or editor screen, use **Move / copy**. Select either **Move note** or **Copy note**, then choose a destination topic. Move updates the existing note's topic relation and keeps the same note ID and image attachment records. Copy creates a separate note and duplicates each embedded local image attachment into a new encrypted storage file and asset record, rewriting the copied editor document to point at those new asset IDs. This feature does not require a database schema migration.
+On a note reader or editor screen, use **Move / copy**. Choose **Move note** or **Copy note**, then select a destination topic. Moving preserves the note ID and existing attachment records. Copying creates a separate note and duplicates embedded image attachments into new encrypted storage files and asset records. Either copy can then be edited or deleted independently.
 
-## Data and storage
+## Data and backups
 
 - PostgreSQL stores encrypted topic titles, subjects, descriptions, categories, note titles, note subjects, note bodies and tags.
-- Image bytes are encrypted with AES-256-GCM before they are written under `STORAGE_DIR` (defaults to `./storage`).
-- The original upload filename is encrypted. Storage filenames are random identifiers.
-- Back up the PostgreSQL database, the encrypted storage directory and `SESSION_ENCRYPTION_SECRET` together.
-- Do not delete or rotate `SESSION_ENCRYPTION_SECRET` casually. Rotating it invalidates active server sessions; it does not re-encrypt the stored vault content.
+- Image bytes are encrypted with AES-256-GCM before being written under **STORAGE_DIR** (defaults to **./storage**).
+- Original upload filenames are encrypted. Storage filenames are random identifiers.
+- Back up the PostgreSQL database, the complete encrypted storage directory and **SESSION_ENCRYPTION_SECRET** together.
+- Take coordinated database and storage backups from the same point in time. For a simple deployment, pause writes while taking the two backups or use a backup/snapshot process that guarantees point-in-time consistency.
+- Test restoration periodically in an isolated environment. A backup that has never been restored is not a verified recovery plan.
+- Do not delete or casually rotate **SESSION_ENCRYPTION_SECRET**. Changing it invalidates active server sessions; it does not re-encrypt vault content.
+- Do not manually delete or recreate the **vault_settings** row to reset the password. That row contains the salt and wrapped vault key. Reinitializing setup creates a new vault key and does not make older records decryptable with the new vault.
 
-## Production deployment notes
+## Production deployment
 
-This project uses Node.js APIs (Argon2 and filesystem storage), so deploy it to a persistent Node.js runtime. Do not deploy with the default local `storage/` directory on an ephemeral serverless filesystem. Configure `STORAGE_DIR` to a persistent encrypted volume, or implement an S3-compatible storage adapter that stores the already-encrypted bytes. Use a managed PostgreSQL database, HTTPS, a strong secret manager for `SESSION_ENCRYPTION_SECRET`, database backups, storage backups and restrictive server access.
+Mnemosyne uses Node.js APIs (Argon2 and filesystem storage), so deploy it to a persistent Node.js runtime. Do not use an ephemeral serverless filesystem for **STORAGE_DIR**. Configure it to a persistent encrypted volume, use a managed PostgreSQL database and serve the application over HTTPS.
+
+Configure these environment variables:
+
+| Variable | Requirement |
+| --- | --- |
+| **DATABASE_URL** | PostgreSQL URL containing the real database hostname. Do not add **host=...**, **sslmode=...** or other SSL/host overrides as query parameters. |
+| **SESSION_ENCRYPTION_SECRET** | Keep the existing 64-character hexadecimal secret unchanged across deployments and restarts. |
+| **PGSSLMODE** | Set to **verify-full** for remote production PostgreSQL. Certificate and hostname verification remain enabled. |
+| **VAULT_SETUP_TOKEN** | Set a separate random value of at least 32 characters before first-time production vault setup. |
+
+Generate a random 32-byte hexadecimal secret with:
+
+~~~bash
+openssl rand -hex 32
+~~~
+
+Use a different value for **SESSION_ENCRYPTION_SECRET** and **VAULT_SETUP_TOKEN**. Never paste real secrets into source control, issue reports or logs.
+
+Before deploying an application update:
+
+~~~bash
+git pull --ff-only origin main
+npm run db:migrate
+npm run db:check
+npm run storage:check
+npm run test:unit
+npm run typecheck
+npm run build
+~~~
+
+After successfully initializing a new production vault, remove **VAULT_SETUP_TOKEN** from the server environment and restart the application. Existing sessions may need to authenticate again after session-cookie hardening. Do not change **SESSION_ENCRYPTION_SECRET** as part of routine deployment.
 
 ## Security model and limitations
 
 This is **server-side encryption at rest**, not zero-knowledge end-to-end encryption. The application server decrypts data while a valid vault session is active so it can render notes and perform search. An operator who controls the running server and its secrets may be able to access data. Protect the host, database, storage volume, logs and environment secrets.
 
-The schema leaves item identifiers, relations, timestamps, image MIME types and image byte sizes available as metadata. Search currently decrypts up to 500 topics and 2,000 notes in memory per request; it is appropriate for a personal archive, not a multi-user or very large-scale search workload.
+The master password is currently the vault authentication factor. TOTP authenticator support and passkeys are not implemented. Multi-factor authentication, client-side end-to-end encryption and an independent recovery-key workflow remain future security milestones. Do not describe the current system as unbreakable or zero-knowledge.
 
-There is no independent recovery key in this first implementation. If you forget the master password, the encrypted vault key cannot be unwrapped. Do not treat an ordinary database backup as a password-recovery mechanism.
+The schema leaves item identifiers, relations, timestamps, image MIME types and image byte sizes available as metadata. Search currently examines up to 500 topics and 2,000 notes per request; it is intended for a personal archive, not a multi-user or very large-scale search workload.
+
+There is no independent recovery key in this implementation. If the master password is forgotten and no valid copy of the original vault key can be recovered, the encrypted archive may be unrecoverable. Keep and test backups; do not treat a database backup as a password-reset mechanism.
 
 The app is single-user per deployment. It does not yet include multi-user accounts, sharing, collaboration, version history, offline sync or automatic cloud backup.
 
-## Suggested next hardening steps
+## Themes and typography
 
-- Add a tested recovery-key workflow before storing irreplaceable data.
-- Add a configurable idle-lock policy and session management UI.
-- Add background upload streaming and configurable per-file limits.
-- Add regular automated database and storage backup verification.
-- Add integration tests for authentication, encryption, authorization, upload validation, search, move/copy (including embedded image duplication), trash and restore.
-- Move file storage behind a storage interface and use a durable object store for cloud deployments.
+Mnemosyne includes two themes:
 
-## Urdu and Arabic writing support
+- **Dark Obsidian** — midnight surfaces, parchment text and antique brass-gold accents.
+- **Light Papyrus** — alabaster canvas, warm vellum panels, literary ink and bronze accents.
 
-Mnemosyne detects Arabic-script content per title, field and rich-text block.
-Urdu is displayed right-to-left in Noto Nastaliq Urdu; Arabic uses Noto Naskh
-Arabic for long-form reading. Noto Sans Arabic is loaded as a compact UI
-fallback. Latin/English text remains left-to-right, including mixed-language
-notes where individual paragraphs can switch direction automatically.
-
-The typefaces are requested from Google Fonts at runtime. An internet connection
-is needed for the preferred typefaces to load; system serif/sans-serif fallbacks
-remain available offline. For a fully offline or air-gapped deployment, host
-licensed font assets on the same server and replace the Google Fonts @import.
-=======
-Mnemosyne — The Private Knowledge Archive
-
-Initial repository commit. The complete application source and setup instructions will follow.
->>>>>>> origin/main
-
-
-## Theme and visual system
-
-Mnemosyne includes two complete visual themes based on the Obsidian and Papyrus design system:
-
-- **Dark Obsidian** — `#07090D` canvas, midnight surfaces, archival cards, parchment text and antique brass-gold accents.
-- **Light Papyrus** — `#FAF8F3` alabaster canvas, white manuscript cards, warm vellum panels, literary ink and gilded bronze accents.
-
-Use the theme control in the top navigation to switch modes. The choice is saved in browser local storage and applied before the first page paint to reduce theme flicker. The vault setup and unlock screens expose the same theme control.
-
-The visual system uses Cinzel for the brand mark, EB Garamond for editorial headings and long-form reading, Plus Jakarta Sans for interface text, JetBrains Mono for technical labels, Amiri/Noto Naskh Arabic for Arabic text, and Noto Nastaliq Urdu for Urdu prose. The Arabic-script fonts remain compatible with the existing automatic per-field and per-paragraph RTL/LTR behaviour.
+Urdu is displayed right-to-left in Noto Nastaliq Urdu; Arabic uses Noto Naskh Arabic for long-form reading. Latin/English text remains left-to-right, and mixed-language notes can switch direction per field and paragraph. Preferred typefaces are requested from Google Fonts at runtime; system fallbacks remain available offline. For an air-gapped deployment, host licensed font assets locally and replace the Google Fonts import.

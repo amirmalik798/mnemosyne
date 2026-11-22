@@ -7,8 +7,10 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test:unit": "tsx --test scripts/db-config.test.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:check": "tsx scripts/check-db.ts"
+    "db:check": "tsx scripts/check-db.ts",
+    "storage:check": "tsx scripts/check-storage.ts"
   },
   "dependencies": {
     "@tiptap/extension-image": "^3.35.0",
