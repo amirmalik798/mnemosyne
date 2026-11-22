@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { decryptBytes, decryptText, encryptBytes, encryptText } from "@/lib/crypto";
-import { db, queryAsUser, setUserContext } from "@/lib/db";
+import { db, setUserContext } from "@/lib/db";
 import { resolveStorageFilePath } from "@/lib/storage-path";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
