@@ -171,12 +171,22 @@ export async function GET(request: Request) {
     if (!query) return NextResponse.json({ topics: [], notes: [] });
     const needle = query.toLocaleLowerCase();
 
-    const topicRows = await queryAsUser(session.userId,
-      `SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, updated_at
-       FROM topics
-       ORDER BY updated_at DESC, id DESC
-       LIMIT 500`,
-    );
+    const [topicRows, notes] = await Promise.all([
+      queryAsUser(session.userId,
+        `SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, updated_at
+         FROM topics
+         ORDER BY updated_at DESC, id DESC
+         LIMIT 500`,
+      ),
+      searchNotesInBatches(
+        session.userId,
+        session.key,
+        needle,
+        scope,
+        request.signal,
+      ),
+    ]);
+    if (notes === null) return new Response(null, { status: 204 });
 
     const topics = [];
     for (let index = 0; (scope === "all" || scope === "titles") && index < topicRows.rows.length; index += 1) {
@@ -205,15 +215,6 @@ export async function GET(request: Request) {
       // 25 results. Stop instead of decrypting the rest of the topic archive.
       if (topics.length === 25) break;
     }
-
-    const notes = await searchNotesInBatches(
-      session.userId,
-      session.key,
-      needle,
-      scope,
-      request.signal,
-    );
-    if (notes === null) return new Response(null, { status: 204 });
 
     return NextResponse.json({ topics, notes });
   } catch (error) {
