@@ -8,9 +8,29 @@ const runtimeDatabaseUrl = process.env.APP_DATABASE_URL;
 if (!runtimeDatabaseUrl) throw new Error("APP_DATABASE_URL is required for the Mnemosyne application.");
 
 const runtimeEnv = { ...process.env, DATABASE_URL: runtimeDatabaseUrl };
-const globalForPg = globalThis as unknown as { pgPool?: Pool };
+const globalForPg = globalThis as unknown as {
+  pgPool?: Pool;
+  pgPoolErrorListenerInstalled?: boolean;
+};
 
 export const db = globalForPg.pgPool ?? new Pool(createDatabasePoolConfig(runtimeEnv));
+
+// node-postgres emits "error" on the pool when an idle client loses its
+// connection. Without a listener Node treats that event as an uncaught error
+// and can terminate the application process during an ordinary DB outage.
+if (!globalForPg.pgPoolErrorListenerInstalled) {
+  db.on("error", (error: Error) => {
+    const code = error && typeof error === "object" && "code" in error
+      && typeof error.code === "string"
+      ? error.code
+      : undefined;
+    console.error("[Mnemosyne] An idle PostgreSQL connection failed.", {
+      name: error.name,
+      code,
+    });
+  });
+  globalForPg.pgPoolErrorListenerInstalled = true;
+}
 
 if (process.env.NODE_ENV !== "production") globalForPg.pgPool = db;
 
