@@ -35,7 +35,13 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     immediatelyRender: false,
     extensions: [StarterKit, Image.configure({ inline: false, allowBase64: false }), Placeholder.configure({ placeholder: "Begin with a thought…\n\nWrite freely. Structure can come later." })],
     content: initialNote?.content ?? EMPTY_DOC,
-    editorProps: { attributes: { class: "rich-editor", spellcheck: "true", "aria-label": "Note content", dir: "ltr" },\n      handlePaste: (view) => { queueMicrotask(() => applyBidiAttributes(view.dom)); return false; } },
+    editorProps: {
+      attributes: { class: "rich-editor", spellcheck: "true", "aria-label": "Note content", dir: "ltr" },
+      handlePaste: (view) => {
+        queueMicrotask(() => applyBidiAttributes(view.dom));
+        return false;
+      },
+    },
     onCreate: ({ editor: current }) => applyBidiAttributes(current.view.dom),
     onUpdate: ({ editor: current }) => { applyBidiAttributes(current.view.dom); setContent(current.getJSON()); setDirty(true); setStatus("Unsaved changes"); },
     onSelectionUpdate: ({ editor: current }) => setImageSelected(current.isActive("image")),
