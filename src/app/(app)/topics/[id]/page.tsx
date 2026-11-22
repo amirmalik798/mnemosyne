@@ -105,7 +105,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
       </div>
       <section className="panel topic-detail-hero" aria-labelledby="topic-detail-title">
         <div className="topic-detail-cover">
-          {cover ? <img src={cover} alt={`${title} cover`} decoding="async" fetchPriority="high" style={{ width:"100%",height:"100%",objectFit:"cover",opacity:.8 }} /> : <div className="cover-placeholder"><span className="cover-glyph" style={{ fontSize: 90 }}>{title.charAt(0)}</span></div>}
+          {cover ? <img src={cover} alt={`${title} cover`} decoding="async" fetchPriority="high" style={{ width:"100%",height:"100%",objectFit:"cover",opacity:.8 }} /> : <div className="cover-placeholder" aria-hidden="true" />}
           <div className="topic-detail-cover-overlay" aria-hidden="true" />
           <div className="topic-detail-cover-copy">
             <div className="eyebrow topic-detail-category">{category || "Collection"}</div>
@@ -124,8 +124,10 @@ export default async function TopicPage({ params, searchParams }: Props) {
       </section>
       <div className="toolbar topic-detail-toolbar">
         <div className="topic-detail-notes-heading">
-          <div className="eyebrow">Collection entries</div>
-          <h2 id="topic-detail-notes-heading" className="panel-title" style={{ margin:"7px 0 0" }}>{totalNotes} {totalNotes===1?"note":"notes"}</h2>
+          <div className="topic-detail-section-heading">
+            <h2 id="topic-detail-notes-heading" className="eyebrow">Collection entries</h2>
+            <span className="topic-detail-note-count">{totalNotes} {totalNotes===1?"note":"notes"}</span>
+          </div>
           <p className="topic-detail-note-guidance">Open a note to continue reading or writing. Use its actions to organize the collection.</p>
         </div>
         <div className="archive-toolbar-actions">
