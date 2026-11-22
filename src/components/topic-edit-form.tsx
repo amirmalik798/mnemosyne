@@ -246,7 +246,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
             </div>
             <div className="form-field full">
               <label className="form-label">Topic thumbnail</label>
-              <input hidden ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={(event) => chooseCover(event.target.files?.[0])} />
+              <input hidden ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={(event) => { const input = event.currentTarget; chooseCover(input.files?.[0]); input.value = ""; }} />
               <button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy} aria-label={preview ? "Replace topic cover image" : "Choose topic cover image"} title={preview ? "Replace topic cover image" : "Choose topic cover image"}>
                 {preview ? <><img src={preview} alt="Topic cover preview" /><ImagePlus size={19} aria-hidden="true" /></> : <ImagePlus size={22} aria-hidden="true" />}<span>{preview ? "Replace cover image" : "Choose cover image"}</span>
               </button>

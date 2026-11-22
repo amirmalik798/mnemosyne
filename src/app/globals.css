@@ -1556,7 +1556,8 @@ textarea:focus-visible,
   cursor: pointer;
 }
 .category-combobox-option:hover,
-.category-combobox-option:focus-visible {
+.category-combobox-option:focus-visible,
+.category-combobox-option.active {
   background: var(--surface-3);
   color: var(--gold-bright);
   outline: none;
@@ -1587,7 +1588,8 @@ html[data-theme="light"] .category-combobox-option {
   color: #292B30;
 }
 html[data-theme="light"] .category-combobox-option:hover,
-html[data-theme="light"] .category-combobox-option:focus-visible {
+html[data-theme="light"] .category-combobox-option:focus-visible,
+html[data-theme="light"] .category-combobox-option.active {
   background: #F3EFE6;
   color: #805A12;
 }

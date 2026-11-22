@@ -33,7 +33,7 @@ export function OperationStatus({
   className?: string;
 }) {
   const Icon = STATUS_ICONS[kind];
-  const isInProgress = kind === "loading" || kind === "busy" || kind === "processing";
+  const isInProgress = kind === "loading" || kind === "waiting" || kind === "busy" || kind === "processing";
 
   return (
     <div

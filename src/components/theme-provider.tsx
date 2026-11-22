@@ -10,11 +10,13 @@ type ThemeContextValue = {
   toggleTheme: () => void;
   font: AppFont;
   setFont: (font: AppFont) => void;
+  cycleFont: () => void;
 };
 
 const THEME_STORAGE_KEY = "mnemosyne-theme";
 const FONT_STORAGE_KEY = "mnemosyne-font";
 const DEFAULT_FONT: AppFont = "source-sans";
+const APP_FONTS: readonly AppFont[] = ["source-sans", "inter", "atkinson", "lato", "plus-jakarta"];
 
 function isAppFont(value: string | null): value is AppFont {
   return value === "source-sans" ||
@@ -70,11 +72,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const cycleFont = useCallback(() => {
+    setFontState((current) => {
+      const currentIndex = APP_FONTS.indexOf(current);
+      const next = APP_FONTS[(currentIndex + 1) % APP_FONTS.length];
+      document.documentElement.dataset.font = next;
+      try {
+        window.localStorage.setItem(FONT_STORAGE_KEY, next);
+      } catch {
+        // The selected font remains active for this session.
+      }
+      return next;
+    });
+  }, []);
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, font, setFont }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, font, setFont, cycleFont }}>
       {children}
     </ThemeContext.Provider>
   );
+}
+
+export function useAppTheme() {
+  const context = useContext(ThemeContext);
+  if (!context) throw new Error("useAppTheme must be used inside ThemeProvider");
+  return context;
 }
 
 export function ThemeToggle() {

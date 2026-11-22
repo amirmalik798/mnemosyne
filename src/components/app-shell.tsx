@@ -9,7 +9,7 @@ const TopicDialog = dynamic(
   () => import("@/components/topic-dialog").then((module) => module.TopicDialog),
   { loading: () => <OperationStatus kind="loading" message="Opening the topic editor…" /> },
 );
-import { ThemeToggle } from "@/components/theme-provider";
+import { ThemeToggle, useAppTheme } from "@/components/theme-provider";
 import { readResumeLocation, saveResumeLocation } from "@/lib/resume-location";
 import { flushPendingLocalDraftWrites } from "@/lib/local-recovery";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
@@ -24,6 +24,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
   const router = useRouter();
+  const { cycleFont } = useAppTheme();
   const [showTopic, setShowTopic] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
@@ -283,11 +284,6 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         void lockVault();
         return;
       }
-      if (event.key === "Escape" && commandOpen) {
-        event.preventDefault();
-        closeCommandPalette();
-        return;
-      }
       if (isTyping) return;
       if (event.key === "/") {
         event.preventDefault();
@@ -410,19 +406,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     { id: "theme", title: "Toggle dark / light mode", detail: "Change the archive appearance", run: () => document.querySelector<HTMLButtonElement>(".theme-toggle")?.click() },
     { id: "lock", title: "Lock vault", detail: "Save recovery drafts and lock this session", run: () => { void lockVault(); } },
     { id: "pinned", title: "Jump to pinned notes", detail: "Open your saved notes", run: () => router.push("/pinned") },
-    { id: "font", title: "Switch interface font", detail: "Cycle to the next interface typeface", run: () => {
-      const font = document.querySelector<HTMLSelectElement>(".font-selector-control select");
-      if (!font) {
-        router.push("/notes/new");
-        return;
-      }
-      const options = Array.from(font.options);
-      if (options.length < 2) return;
-      const nextIndex = (font.selectedIndex + 1) % options.length;
-      font.value = options[nextIndex].value;
-      font.dispatchEvent(new Event("change", { bubbles: true }));
-      font.focus();
-    } },
+    { id: "font", title: "Switch interface font", detail: "Cycle to the next interface typeface", run: () => cycleFont() },
     { id: "search", title: "Search the archive", detail: "Find notes, topics and tags", run: () => router.push("/search") },
   ];
   const filteredActions = commandActions.filter((item) =>
