@@ -11,6 +11,7 @@ const COOKIE_NAME = process.env.NODE_ENV === "production"
   : LEGACY_COOKIE_NAME;
 const SESSION_HOURS = 12;
 const SESSION_IDLE_MINUTES = 20;
+const SESSION_TOUCH_INTERVAL_MINUTES = 1;
 
 type SessionQueryExecutor = (
   text: string,
@@ -65,16 +66,28 @@ const getVaultSessionCached = cache(async (touch: boolean): Promise<VaultSession
   const tokenHash = hashToken(token);
   const result = touch
     ? await db.query(
-        `UPDATE user_sessions s
-         SET last_active_at = NOW()
-         FROM users u
-         WHERE s.user_id = u.id
-           AND s.token_hash = $1
-           AND s.expires_at > NOW()
-           AND s.last_active_at > NOW() - ($2 * INTERVAL '1 minute')
-           AND u.email_verified_at IS NOT NULL
-         RETURNING s.id, s.user_id, s.encrypted_key, s.expires_at, u.email, u.display_name`,
-        [tokenHash, SESSION_IDLE_MINUTES],
+        `WITH candidate AS MATERIALIZED (
+           SELECT s.id, s.user_id, s.encrypted_key, s.expires_at,
+                  s.last_active_at, u.email, u.display_name
+           FROM user_sessions s
+           JOIN users u ON u.id = s.user_id
+           WHERE s.token_hash = $1
+             AND s.expires_at > NOW()
+             AND s.last_active_at > NOW() - ($2 * INTERVAL '1 minute')
+             AND u.email_verified_at IS NOT NULL
+           LIMIT 1
+         ),
+         touched AS (
+           UPDATE user_sessions s
+           SET last_active_at = NOW()
+           FROM candidate c
+           WHERE s.id = c.id
+             AND s.last_active_at <= NOW() - ($3 * INTERVAL '1 minute')
+           RETURNING s.id
+         )
+         SELECT id, user_id, encrypted_key, expires_at, email, display_name
+         FROM candidate`,
+        [tokenHash, SESSION_IDLE_MINUTES, SESSION_TOUCH_INTERVAL_MINUTES],
       )
     : await db.query(
         `SELECT s.id, s.user_id, s.encrypted_key, s.expires_at, u.email, u.display_name
