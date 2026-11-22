@@ -531,6 +531,11 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         throw new Error(saveData?.error || "Images uploaded, but the note could not be updated. Your recovery copy has been kept.");
       }
 
+      if (recoveryTimerRef.current !== null) {
+        clearTimeout(recoveryTimerRef.current);
+        recoveryTimerRef.current = null;
+      }
+      pendingDraftRef.current = null;
       setDirty(false);
       setStatus("All changes saved");
       setRecoveryStatus("Saved securely to your archive");
