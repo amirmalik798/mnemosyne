@@ -1,4 +1,4 @@
-import { Download } from "lucide-react";
+import { Download, ImageOff } from "lucide-react";
 
 export function TopicImageDownload({
   topicId,
@@ -9,10 +9,15 @@ export function TopicImageDownload({
 }) {
   if (imageCount === 0) {
     return (
-      <button type="button" className="secondary-btn topic-action-button" disabled aria-label="No topic images to download" title="This topic has no images to download yet.">
-        <Download size={14} />
-        <span>No images</span>
-      </button>
+      <span
+        className="topic-image-empty"
+        role="status"
+        aria-label="No images in this topic yet"
+        title="Images added to notes in this topic can be downloaded here."
+      >
+        <ImageOff size={15} aria-hidden="true" />
+        <span>No images yet</span>
+      </span>
     );
   }
 
