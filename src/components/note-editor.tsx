@@ -8,7 +8,7 @@ import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
-import { detectTextDirection, detectTextLanguage } from "@/lib/bidi";
+import { detectTextDirection, detectTextLanguage, getBidiAttributes } from "@/lib/bidi";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -24,12 +24,70 @@ const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
  * so direction is applied after clipboard content has been normalized and
  * inserted—not by racing or mutating ProseMirror's managed DOM.
  */
+const BIDI_NODE_TYPES = ["paragraph", "heading", "blockquote", "listItem", "bulletList", "orderedList"];
+
 const BidiDirection = Extension.create({
   name: "bidiDirection",
+
+  /**
+   * Store language and direction in the ProseMirror document itself.
+   * This makes the direction survive saves, reloads and editor redraws.
+   */
+  addGlobalAttributes() {
+    return [
+      {
+        types: BIDI_NODE_TYPES,
+        attributes: {
+          dir: {
+            default: null,
+            parseHTML: (element) => element.getAttribute("dir"),
+            renderHTML: (attributes) => attributes.dir ? { dir: attributes.dir } : {},
+          },
+          lang: {
+            default: null,
+            parseHTML: (element) => element.getAttribute("lang"),
+            renderHTML: (attributes) => attributes.lang ? { lang: attributes.lang } : {},
+          },
+        },
+      },
+    ];
+  },
 
   addProseMirrorPlugins() {
     return [
       new Plugin({
+        appendTransaction(_transactions, _oldState, newState) {
+          const transaction = newState.tr;
+          let changed = false;
+
+          newState.doc.descendants((node, position) => {
+            const directionAwareNode =
+              node.isTextblock ||
+              node.type.name === "blockquote" ||
+              node.type.name === "listItem" ||
+              node.type.name === "bulletList" ||
+              node.type.name === "orderedList";
+
+            if (!directionAwareNode) return;
+
+            const text = node.textContent;
+            if (!text.trim()) return;
+
+            const { dir, lang } = getBidiAttributes(text);
+            if (node.attrs.dir === dir && node.attrs.lang === lang) return;
+
+            transaction.setNodeMarkup(
+              position,
+              undefined,
+              { ...node.attrs, dir, lang },
+              node.marks,
+            );
+            changed = true;
+          });
+
+          return changed ? transaction : null;
+        },
+
         props: {
           decorations(state) {
             const decorations: Decoration[] = [];
@@ -37,6 +95,7 @@ const BidiDirection = Extension.create({
             state.doc.descendants((node, position) => {
               const directionAwareNode =
                 node.isTextblock ||
+                node.type.name === "blockquote" ||
                 node.type.name === "listItem" ||
                 node.type.name === "bulletList" ||
                 node.type.name === "orderedList";
@@ -46,15 +105,14 @@ const BidiDirection = Extension.create({
               const text = node.textContent;
               if (!text.trim()) return;
 
-              const direction = detectTextDirection(text);
-              const language = detectTextLanguage(text);
-              const alignment = direction === "rtl" ? "right" : "left";
+              const { dir, lang } = getBidiAttributes(text);
+              const alignment = dir === "rtl" ? "right" : "left";
 
               decorations.push(
                 Decoration.node(position, position + node.nodeSize, {
-                  dir: direction,
-                  lang: language,
-                  style: `direction: ${direction}; text-align: ${alignment}; unicode-bidi: plaintext;`,
+                  dir,
+                  lang,
+                  style: `direction: ${dir}; text-align: ${alignment}; unicode-bidi: plaintext;`,
                 }),
               );
             });
