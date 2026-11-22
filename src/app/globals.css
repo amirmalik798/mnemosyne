@@ -3415,3 +3415,68 @@ html[data-theme="light"] .pinned-badge {
 html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-active-block {
   color: #202328;
 }
+
+
+/* Clear navigation affordances and keyboard-first entry. */
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 220;
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid var(--gold-border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+  font-size: 12px;
+  font-weight: 700;
+  transform: translateY(calc(-100% - 18px));
+  transition: transform .16s ease;
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+#main-content:focus { outline: none; }
+
+.top-action-button {
+  min-width: 108px;
+  gap: 8px;
+  white-space: nowrap;
+}
+.top-action-button > span {
+  font-size: 11px;
+  font-weight: 600;
+}
+@media (max-width: 960px) {
+  .top-action-button {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+  .top-action-button > span { display: none; }
+}
+@media (max-width: 560px) {
+  .mobile-nav {
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 10px;
+  }
+  .mobile-nav-link { scroll-snap-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
