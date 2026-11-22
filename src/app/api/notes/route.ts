@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
-import { db, queryAsUser } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
