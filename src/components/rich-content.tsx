@@ -42,10 +42,9 @@ function blockBidiProps(node: RichNode) {
   };
 }
 
-function renderText(node: RichNode, key: React.Key): React.ReactNode {
-  const keyString = String(key);
-  let result: React.ReactNode = node.text ?? "";
-  for (const mark of node.marks ?? []) {
+function renderMarkedText(text: string, marks: NonNullable<RichNode["marks"]>, keyString: string): React.ReactNode {
+  let result: React.ReactNode = text;
+  for (const mark of marks) {
     if (mark.type === "bold") result = <strong key={`${keyString}-b`}>{result}</strong>;
     else if (mark.type === "italic") result = <em key={`${keyString}-i`}>{result}</em>;
     else if (mark.type === "underline") result = <u key={`${keyString}-u`}>{result}</u>;
@@ -77,14 +76,33 @@ function renderText(node: RichNode, key: React.Key): React.ReactNode {
   return result;
 }
 
+function renderText(node: RichNode, key: React.Key, wikiLinks: Record<string, string>): React.ReactNode {
+  const rawText = node.text ?? "";
+  if (!rawText.includes("[[")) return renderMarkedText(rawText, node.marks ?? [], String(key));
+
+  const chunks = rawText.split(/(\[\[[^\]]+\]\])/g);
+  return <>
+    {chunks.map((chunk, index) => {
+      const match = chunk.match(/^\[\[([^\]]+)\]\]$/);
+      if (!match) return <React.Fragment key={index}>{renderMarkedText(chunk, node.marks ?? [], `${String(key)}-${index}`)}</React.Fragment>;
+      const target = match[1].trim();
+      const href = wikiLinks[target.toLocaleLowerCase()];
+      const linkedText = renderMarkedText(target, node.marks ?? [], `${String(key)}-${index}`);
+      return href
+        ? <a key={index} className="wiki-note-link" href={href}>{linkedText}</a>
+        : <span key={index} className="wiki-note-unresolved" title="No note with this exact title was found">{linkedText}</span>;
+    })}
+  </>;
+}
 function renderNode(
   node: RichNode,
   index: React.Key,
   onImageClick: (src: string, alt: string) => void,
+  wikiLinks: Record<string, string>,
 ): React.ReactNode {
-  if (node.type === "text") return <React.Fragment key={index}>{renderText(node, index)}</React.Fragment>;
+  if (node.type === "text") return <React.Fragment key={index}>{renderText(node, index, wikiLinks)}</React.Fragment>;
   const children = (node.content ?? []).map((child, i) =>
-    renderNode(child, `${String(index)}-${i}`, onImageClick),
+    renderNode(child, `${String(index)}-${i}`, onImageClick, wikiLinks),
   );
   // Only block nodes need direction analysis. Text leaves and inline media
   // previously walked their entire subtree even though those results were unused.
@@ -122,7 +140,7 @@ function renderNode(
   return <React.Fragment key={index}>{children}</React.Fragment>;
 }
 
-export function RichContent({ content }: { content: unknown }) {
+export function RichContent({ content, wikiLinks = {} }: { content: unknown; wikiLinks?: Record<string, string> }) {
   const [activeImage, setActiveImage] = useState<{ src: string; alt: string } | null>(null);
   const closeImage = useCallback(() => setActiveImage(null), []);
   const root = content && typeof content === "object" ? content as RichNode : { type: "doc", content: [] };
@@ -131,7 +149,7 @@ export function RichContent({ content }: { content: unknown }) {
     <>
       <div className="reader-content" dir="ltr">
         {(root.content ?? []).map((node, index) =>
-          renderNode(node, index, (src, alt) => setActiveImage({ src, alt })),
+          renderNode(node, index, (src, alt) => setActiveImage({ src, alt }), wikiLinks),
         )}
       </div>
       <ImageLightbox

@@ -9,7 +9,7 @@ const TopicDialog = dynamic(
   () => import("@/components/topic-dialog").then((module) => module.TopicDialog),
   { loading: () => <OperationStatus kind="loading" message="Opening the topic editor…" /> },
 );
-import { FontSelector, ThemeToggle } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-provider";
 import { readResumeLocation, saveResumeLocation } from "@/lib/resume-location";
 import { flushPendingLocalDraftWrites } from "@/lib/local-recovery";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
@@ -25,6 +25,12 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const searchKey = searchParams.toString();
   const router = useRouter();
   const [showTopic, setShowTopic] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [commandResults, setCommandResults] = useState<Array<{ id: string; href: string; title: string; detail: string }>>([]);
+  const [commandIndex, setCommandIndex] = useState(0);
+  const commandInputRef = useRef<HTMLInputElement>(null);
+  const commandItemsRef = useRef<Array<{ id: string; title: string; detail: string; run: () => void }>>([]);
   const [locking, setLocking] = useState(false);
   const [operationNotice, setOperationNotice] = useState<{ kind: OperationStatusKind; message: string } | null>(null);
   const operationNoticeTimerRef = useRef<number | null>(null);
@@ -235,11 +241,53 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); router.push("/search"); }
+      const target = event.target;
+      const isTyping = target instanceof HTMLElement &&
+        (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+        setCommandQuery("");
+        setCommandIndex(0);
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "l") {
+        event.preventDefault();
+        void lockVault();
+        return;
+      }
+      if (event.key === "Escape" && commandOpen) {
+        event.preventDefault();
+        setCommandOpen(false);
+        return;
+      }
+      if (isTyping) return;
+      if (event.key === "/") {
+        event.preventDefault();
+        router.push("/search");
+        requestAnimationFrame(() => document.getElementById("archive-search-input")?.focus());
+        return;
+      }
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        const links = Array.from(document.querySelectorAll<HTMLElement>(
+          "a.note-row-main-link, a.topic-card, a.result-card, a.nav-link, a.mobile-nav-link",
+        ));
+        if (!links.length) return;
+        const active = links.indexOf(document.activeElement as HTMLElement);
+        if (active < 0 && event.key === "ArrowDown") {
+          event.preventDefault();
+          links[0].focus();
+          return;
+        }
+        if (active >= 0) {
+          event.preventDefault();
+          links[Math.max(0, Math.min(links.length - 1, active + (event.key === "ArrowDown" ? 1 : -1)))].focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, [router, commandOpen, locking]);
   async function lockVault() {
     if (locking) return;
     setLocking(true);
@@ -257,6 +305,124 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       setLocking(false);
     }
   }
+  useEffect(() => {
+    if (!commandOpen || !commandQuery.trim()) {
+      setCommandResults([]);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/search?q=" + encodeURIComponent(commandQuery.trim()), {
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Search unavailable");
+        const next = [
+          ...(Array.isArray(data.notes) ? data.notes.map((item: any) => ({
+            id: "note:" + item.id,
+            href: "/notes/" + item.id,
+            title: item.title,
+            detail: "Note · " + (item.topicTitle || "Archive"),
+          })) : []),
+          ...(Array.isArray(data.topics) ? data.topics.map((item: any) => ({
+            id: "topic:" + item.id,
+            href: "/topics/" + item.id,
+            title: item.title,
+            detail: "Topic · " + (item.category || "Collection"),
+          })) : []),
+        ];
+        if (!controller.signal.aborted) setCommandResults(next.slice(0, 8));
+      } catch {
+        if (!controller.signal.aborted) setCommandResults([]);
+      }
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [commandOpen, commandQuery]);
+
+  const commandActions = [
+    { id: "new-note", title: "New note", detail: "Create a new inscription", run: () => router.push("/notes/new") },
+    { id: "new-topic", title: "New topic", detail: "Create an archive collection", run: () => setShowTopic(true) },
+    { id: "theme", title: "Toggle dark / light mode", detail: "Change the archive appearance", run: () => document.querySelector<HTMLButtonElement>(".theme-toggle")?.click() },
+    { id: "lock", title: "Lock vault", detail: "Save recovery drafts and lock this session", run: () => { void lockVault(); } },
+    { id: "pinned", title: "Jump to pinned notes", detail: "Open your saved notes", run: () => router.push("/pinned") },
+    { id: "font", title: "Switch interface font", detail: "Cycle to the next interface typeface", run: () => {
+      const font = document.querySelector<HTMLSelectElement>(".font-selector-control select");
+      if (!font) {
+        router.push("/notes/new");
+        return;
+      }
+      const options = Array.from(font.options);
+      if (options.length < 2) return;
+      const nextIndex = (font.selectedIndex + 1) % options.length;
+      font.value = options[nextIndex].value;
+      font.dispatchEvent(new Event("change", { bubbles: true }));
+      font.focus();
+    } },
+    { id: "search", title: "Search the archive", detail: "Find notes, topics and tags", run: () => router.push("/search") },
+  ];
+  const filteredActions = commandActions.filter((item) =>
+    (item.title + " " + item.detail).toLocaleLowerCase().includes(commandQuery.toLocaleLowerCase()),
+  );
+  const commandItems = [
+    ...filteredActions,
+    ...commandResults.map((item) => ({ ...item, run: () => router.push(item.href) })),
+  ].slice(0, 12);
+  commandItemsRef.current = commandItems;
+
+  function runCommandAt(index: number) {
+    const item = commandItemsRef.current[index];
+    if (!item) return;
+    setCommandOpen(false);
+    item.run();
+  }
+
+  useEffect(() => {
+    if (!commandOpen) return;
+    setCommandIndex(0);
+    requestAnimationFrame(() => commandInputRef.current?.focus());
+  }, [commandOpen, commandQuery]);
+
+  useEffect(() => {
+    if (!commandOpen) return;
+    const onPaletteKey = (event: KeyboardEvent) => {
+      if (event.key === "ArrowDown" && commandItemsRef.current.length) {
+        event.preventDefault();
+        setCommandIndex((value) => (value + 1) % commandItemsRef.current.length);
+      } else if (event.key === "ArrowUp" && commandItemsRef.current.length) {
+        event.preventDefault();
+        setCommandIndex((value) => (value - 1 + commandItemsRef.current.length) % commandItemsRef.current.length);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        runCommandAt(commandIndex);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        setCommandOpen(false);
+      } else if (event.key === "Tab") {
+        const focusable = Array.from(document.querySelectorAll<HTMLElement>(
+          ".command-palette input, .command-palette button",
+        ));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", onPaletteKey);
+    return () => window.removeEventListener("keydown", onPaletteKey);
+  }, [commandOpen, commandIndex]);
+
   const current = nav.flatMap((group) => group.items).find((item) => pathname === item.href || (item.href !== "/library" && pathname.startsWith(`${item.href}/`)));
   const breadcrumbLabel = pathname === "/notes/new"
     ? "New note"
@@ -275,7 +441,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     </aside>
     <div className="main-area">
       <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{breadcrumbLabel}</span></div>
-        <div className="top-actions" role="group" aria-label="Workspace actions"><FontSelector /><ThemeToggle /><button type="button" className="search-trigger icon-only-btn" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive"><Search size={17} /></button><button type="button" className="secondary-btn icon-only-btn" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><Plus size={17} /></button><button type="button" className="primary-btn icon-only-btn" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><Plus size={17} /></button><button type="button" className="lock-vault-btn icon-only-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault"} aria-label={locking ? "Locking vault" : "Lock vault"}>{locking ? <LoaderCircle className="operation-spinner" size={15} /> : <LockKeyhole size={15} />}</button></div>
+        <div className="top-actions" role="group" aria-label="Workspace actions"><ThemeToggle /><button type="button" className="search-trigger icon-only-btn" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive"><Search size={17} /></button><button type="button" className="secondary-btn icon-only-btn" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><Plus size={17} /></button><button type="button" className="primary-btn icon-only-btn" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><Plus size={17} /></button><button type="button" className="lock-vault-btn icon-only-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault"} aria-label={locking ? "Locking vault" : "Lock vault"}>{locking ? <LoaderCircle className="operation-spinner" size={15} /> : <LockKeyhole size={15} />}</button></div>
       </header>
       {children}
     </div>
@@ -286,6 +452,53 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         return <Link key={item.href} href={item.href} className={`mobile-nav-link ${active ? "active" : ""}`} aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label}><Icon aria-hidden="true" /><span>{item.label}</span></Link>;
       })}
     </nav>
+    {commandOpen && (
+      <div
+        className="command-palette-backdrop"
+        role="presentation"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setCommandOpen(false);
+        }}
+      >
+        <section className="command-palette" role="dialog" aria-modal="true" aria-label="Mnemosyne command center">
+          <div className="command-palette-input-wrap">
+            <Command size={18} aria-hidden="true" />
+            <input
+              ref={commandInputRef}
+              value={commandQuery}
+              onChange={(event) => setCommandQuery(event.target.value)}
+              placeholder="Search notes, topics, tags or run a command…"
+              aria-label="Search and commands"
+            />
+          </div>
+          <div className="command-palette-label">{commandQuery.trim() ? "Search results and commands" : "Quick actions"}</div>
+          <div className="command-palette-list" role="listbox" aria-label="Commands and archive results">
+            {commandItems.map((item, index) => (
+              <button
+                type="button"
+                role="option"
+                aria-selected={commandIndex === index}
+                className={commandIndex === index ? "command-palette-item active" : "command-palette-item"}
+                key={item.id}
+                onMouseEnter={() => setCommandIndex(index)}
+                onClick={() => runCommandAt(index)}
+              >
+                <span><strong>{item.title}</strong><small>{item.detail}</small></span>
+                <kbd>↵</kbd>
+              </button>
+            ))}
+            {commandItems.length === 0 && (
+              <div className="command-palette-empty">
+                {commandQuery.trim() ? "No matching notes, topics or commands." : "Start typing to search your encrypted archive."}
+              </div>
+            )}
+          </div>
+          <div className="command-palette-footer">
+            <span>↑ ↓ Navigate</span><span>Enter Open / Run</span><span>Esc Close</span><kbd>⌘ K</kbd>
+          </div>
+        </section>
+      </div>
+    )}
     {showTopic && <TopicDialog onClose={() => setShowTopic(false)} />}
     {operationNotice && (
       <div className="operation-toast">

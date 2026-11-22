@@ -6,6 +6,7 @@ import Link from "next/link";
 import { EditorContent, ReactNodeViewRenderer, useEditor } from "@tiptap/react";
 import { Extension, type Editor as TiptapEditor } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { ImageLightbox } from "@/components/image-lightbox";
@@ -13,6 +14,7 @@ import { NoteImageNodeView } from "@/components/note-image-node-view";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 import { useConfirmation } from "@/components/confirmation-dialog";
 import { TextHighlightMark, TextStyleMark } from "@/lib/note-formatting";
+import { FontSelector } from "@/components/theme-provider";
 import {
   colorPickerValue,
   DEFAULT_HIGHLIGHT_COLOR,
@@ -22,6 +24,7 @@ import {
   safeTextColor,
 } from "@/lib/note-formatting-utils";
 import { detectTextLanguage, getBidiAttributes } from "@/lib/bidi";
+import { formatArchiveDateTime } from "@/lib/date-format";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -32,12 +35,25 @@ import {
   requestPersistentLocalStorage,
   saveLocalNoteDraft,
   type LocalNoteDraft,
+  type LocalNoteRevision,
+  loadLocalNoteRevisions,
+  saveLocalNoteRevision,
 } from "@/lib/local-recovery";
-import { ArrowLeft, Bold, Eraser, ImagePlus, Italic, List, ListOrdered, LoaderCircle, Pin, PinOff, Quote, Redo2, Save, Strikethrough, Undo2, Heading1, Heading2, Minus, Trash2 } from "lucide-react";
+import { ArrowLeft, Bold, Eraser, Focus, ImagePlus, Italic, List, ListOrdered, LoaderCircle, Pin, PinOff, Quote, Redo2, Save, Strikethrough, Undo2, Heading1, Heading2, Minus, Trash2, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 type Topic = { id: string; title: string };
 type Note = { id: string; topicId: string; title: string; subject: string; content: any; tags: string[]; pinned: boolean; updatedAt?: string | Date };
 const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
+const SLASH_COMMANDS = [
+  { id: "heading1", label: "Heading 1", hint: "Large section heading", keywords: "heading title h1" },
+  { id: "heading2", label: "Heading 2", hint: "Section heading", keywords: "heading h2" },
+  { id: "bullet", label: "Bulleted list", hint: "Create an unordered list", keywords: "list bullet unordered" },
+  { id: "ordered", label: "Numbered list", hint: "Create an ordered list", keywords: "list number ordered" },
+  { id: "quote", label: "Block quote", hint: "Set off a passage", keywords: "quote citation" },
+  { id: "code", label: "Code block", hint: "Insert a formatted code block", keywords: "code snippet fenced" },
+  { id: "divider", label: "Divider", hint: "Separate sections", keywords: "horizontal rule separator" },
+  { id: "image", label: "Insert image", hint: "Add an image to this note", keywords: "image photo picture" },
+] as const;
 
 function getEditorStatusKind(message: string): OperationStatusKind {
   const value = message.toLocaleLowerCase();
@@ -196,8 +212,34 @@ const BidiDirection = Extension.create({
   },
 });
 
+const FocusParagraph = Extension.create({
+  name: "focusParagraph",
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          decorations(state) {
+            const { $from } = state.selection;
+            for (let depth = $from.depth; depth > 0; depth -= 1) {
+              const node = $from.node(depth);
+              if (!node.isTextblock) continue;
+              const from = $from.before(depth);
+              return DecorationSet.create(state.doc, [
+                Decoration.node(from, from + node.nodeSize, { class: "focus-active-block" }),
+              ]);
+            }
+            return DecorationSet.empty;
+          },
+        },
+      }),
+    ];
+  },
+});
+
 const NOTE_EDITOR_EXTENSIONS = [
   StarterKit,
+  FocusParagraph,
   TextStyleMark,
   TextHighlightMark,
   BidiDirection,
@@ -226,15 +268,23 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   const autosaveRevisionTimerRef = useRef<number | null>(null);
   const [autosaveRevision, setAutosaveRevision] = useState(0);
   const [dirty, setDirty] = useState(false);
-  const [status, setStatus] = useState(initialNote ? "Saved" : "Draft");
+  const [status, setStatus] = useState(initialNote ? "Encrypted & saved" : "Draft");
   const [recoveryStatus, setRecoveryStatus] = useState("Preparing local recovery…");
   const [draftReady, setDraftReady] = useState(false);
+  const [revisionSnapshots, setRevisionSnapshots] = useState<LocalNoteRevision[]>([]);
+  const lastRevisionSavedAtRef = useRef(0);
   const [focusTarget, setFocusTarget] = useState<"title" | "subject" | "editor" | "tags" | null>(null);
   const pendingDraftRef = useRef<{ key: string; draft: LocalNoteDraft } | null>(null);
   const recoveryTimerRef = useRef<number | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [imageSelected, setImageSelected] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [focusMode, setFocusMode] = useState(false);
+  const focusModeRef = useRef(false);
+  focusModeRef.current = focusMode;
+  const [bubblePosition, setBubblePosition] = useState<{ top: number; left: number } | null>(null);
+  const [slashMenu, setSlashMenu] = useState<{ from: number; query: string; top: number; left: number; activeIndex: number } | null>(null);
   const textColorInputRef = useRef<HTMLInputElement>(null);
   const highlightColorInputRef = useRef<HTMLInputElement>(null);
   const fontFamilySelectRef = useRef<HTMLSelectElement>(null);
@@ -342,6 +392,21 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       syncFormattingControls(current);
     },
     onUpdate: ({ editor: current, transaction }) => {
+      setSlashMenu((menu) => {
+        if (!menu) return menu;
+        const cursor = current.state.selection.from;
+        if (cursor < menu.from) return null;
+        const typed = current.state.doc.textBetween(menu.from, cursor, "\n", "\ufffc");
+        if (!typed.startsWith("/")) return null;
+        const coords = current.view.coordsAtPos(cursor);
+        return {
+          ...menu,
+          query: typed.slice(1),
+          top: coords.bottom + 8,
+          left: Math.max(12, Math.min(coords.left, window.innerWidth - 270)),
+          activeIndex: 0,
+        };
+      });
       // Do not serialize the entire document on every keystroke. Create JSON
       // snapshots only when a save or recovery checkpoint is due.
       editorRef.current = current;
@@ -360,6 +425,28 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       }, 500);
     },
     onSelectionUpdate: ({ editor: current }) => {
+      const selection = current.state.selection;
+      if (!selection.empty && current.isFocused) {
+        try {
+          const start = current.view.coordsAtPos(selection.from);
+          const end = current.view.coordsAtPos(selection.to);
+          setBubblePosition({
+            top: Math.max(8, Math.min(start.top, end.top) - 48),
+            left: Math.max(12, Math.min(((start.left + end.left) / 2) - 130, window.innerWidth - 272)),
+          });
+        } catch {
+          setBubblePosition(null);
+        }
+      } else {
+        setBubblePosition(null);
+      }
+      if (focusModeRef.current) {
+        requestAnimationFrame(() => {
+          if (!current.isDestroyed) {
+            current.view.dom.querySelector<HTMLElement>(".focus-active-block")?.scrollIntoView({ block: "center", behavior: "auto" });
+          }
+        });
+      }
       setImageSelected(current.isActive("image"));
       const currentSelection = current.state.selection;
       selectionRef.current = { from: currentSelection.from, to: currentSelection.to };
@@ -370,6 +457,26 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   useEffect(() => {
     editor?.setEditable(!busy && !imageUploading);
   }, [editor, busy, imageUploading]);
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      const target = event.target;
+      const editingText = target instanceof HTMLElement && (
+        target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+      );
+      // Preserve the editor's native Mod+I italic shortcut and normal field shortcuts.
+      if (!editingText && event.key.toLowerCase() === "i") {
+        event.preventDefault();
+        setInspectorOpen((open) => !open);
+      } else if (!editingText && event.shiftKey && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setFocusMode((active) => !active);
+      }
+    };
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, []);
 
   // Fetch destination labels after the editor mounts, in bounded pages.
   useEffect(() => {
@@ -433,6 +540,26 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   useEffect(() => {
     if (editor) syncFormattingControls(editor);
   }, [editor, syncFormattingControls]);
+
+  useEffect(() => {
+    if (!noteId) {
+      setRevisionSnapshots([]);
+      lastRevisionSavedAtRef.current = 0;
+      return;
+    }
+    let cancelled = false;
+    loadLocalNoteRevisions(noteId)
+      .then((revisions) => {
+        if (!cancelled) {
+          setRevisionSnapshots(revisions);
+          lastRevisionSavedAtRef.current = revisions[0]?.savedAt ?? 0;
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRevisionSnapshots([]);
+      });
+    return () => { cancelled = true; };
+  }, [noteId]);
 
   // Ask the browser to retain this origin's IndexedDB data when supported.
   useEffect(() => {
@@ -578,6 +705,29 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       if (!response.ok) throw new Error(data.error || "Could not save note.");
       const savedId = noteId ?? data.note.id;
       const savedDraftKey = `user:${userId}:note:${noteId ?? "new"}`;
+      const shouldSnapshot = (dirty || !noteId) && (!quiet || Date.now() - lastRevisionSavedAtRef.current >= 60_000);
+      if (shouldSnapshot) {
+        const revision: LocalNoteRevision = {
+          version: 1,
+          noteId: savedId,
+          topicId,
+          title,
+          subject,
+          tagsInput,
+          pinned,
+          content: currentContent,
+          savedAt: Date.now(),
+        };
+        try {
+          await saveLocalNoteRevision(savedId, revision);
+          lastRevisionSavedAtRef.current = revision.savedAt;
+          setRevisionSnapshots((current) =>
+            [revision, ...current.filter((item) => item.savedAt !== revision.savedAt)].slice(0, 5),
+          );
+        } catch {
+          setRecoveryStatus("Archive saved; local version snapshot could not be stored");
+        }
+      }
       if (!noteId) {
         setNoteId(savedId);
         if (options.navigateOnCreate !== false) {
@@ -601,7 +751,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         }
         pendingDraftRef.current = null;
         setDirty(false);
-        setStatus("All changes saved");
+        setStatus("Encrypted & saved · Just now");
         setRecoveryStatus("Saved securely to your archive");
         await removeLocalNoteDraft(savedDraftKey).catch(() => undefined);
       } else {
@@ -630,7 +780,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       savingRef.current = false;
       if (showBusyState) setBusy(false);
     }
-  }, [topicId, title, subject, tagsInput, pinned, noteId, router, scheduleLocalRecovery]);
+  }, [topicId, title, subject, tagsInput, pinned, noteId, dirty, router, scheduleLocalRecovery]);
 
   useEffect(() => {
     // Image upload performs its own immediate document PATCH. Do not run the
@@ -934,6 +1084,76 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     void uploadImages(files, dropPosition);
   }
 
+  async function restoreRevision(revision: LocalNoteRevision) {
+    if (busy || imageUploading || !editor || !noteId) return;
+    const accepted = await requestConfirmation({
+      eyebrow: "Local version history",
+      title: "Restore this saved version?",
+      description: "Your current editor state will first be retained as another encrypted local version.",
+      confirmLabel: "Restore version",
+      tone: "neutral",
+    });
+    if (!accepted) return;
+
+    if (dirty) {
+      const currentRevision: LocalNoteRevision = {
+        version: 1,
+        noteId,
+        topicId,
+        title,
+        subject,
+        tagsInput,
+        pinned,
+        content: editor.getJSON(),
+        savedAt: Date.now(),
+      };
+      try {
+        await saveLocalNoteRevision(noteId, currentRevision);
+        lastRevisionSavedAtRef.current = currentRevision.savedAt;
+        setRevisionSnapshots((current) =>
+          [currentRevision, ...current.filter((item) => item.savedAt !== currentRevision.savedAt)].slice(0, 5),
+        );
+      } catch {
+        setError("The current edits could not be preserved as a local version. Nothing was restored.");
+        return;
+      }
+    }
+
+    const targetTopic = availableTopics.some((topic) => topic.id === revision.topicId)
+      ? revision.topicId
+      : topicId;
+    setTopicId(targetTopic);
+    setTitle(revision.title);
+    setSubject(revision.subject);
+    setTagsInput(revision.tagsInput);
+    setPinned(revision.pinned);
+    contentRef.current = revision.content;
+    editor.commands.setContent(revision.content as any, { emitUpdate: false });
+    editor.commands.focus("end");
+    setFocusTarget("editor");
+    markDirty();
+    setStatus("Restored local version · Unsaved changes");
+    setError(targetTopic === revision.topicId ? "" : "The original topic is no longer available. The version was restored into the current topic.");
+  }
+
+  function applySlashCommand(id: string) {
+    if (!editor || !slashMenu) return;
+    const cursor = editor.state.selection.from;
+    editor.chain().focus().deleteRange({ from: slashMenu.from, to: cursor }).run();
+    setSlashMenu(null);
+    const commands: Record<string, () => void> = {
+      heading1: () => { editor.chain().focus().toggleHeading({ level: 1 }).run(); },
+      heading2: () => { editor.chain().focus().toggleHeading({ level: 2 }).run(); },
+      bullet: () => { editor.chain().focus().toggleBulletList().run(); },
+      ordered: () => { editor.chain().focus().toggleOrderedList().run(); },
+      quote: () => { editor.chain().focus().toggleBlockquote().run(); },
+      code: () => { editor.chain().focus().toggleCodeBlock().run(); },
+      divider: () => { editor.chain().focus().setHorizontalRule().run(); },
+      image: () => { imageRef.current?.click(); },
+    };
+    commands[id]?.();
+  }
+
   const words = (editor?.getText() ?? "").trim().split(/\s+/).filter(Boolean).length;
   if (!availableTopics.length && !topicsLoading) {
     return (
@@ -947,10 +1167,25 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     );
   }
 
-  return <main className="page" aria-busy={busy || imageUploading}><div className="note-editor-heading" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:25 }}><Link href={noteId ? `/notes/${noteId}` : "/notes"} className="breadcrumb"><ArrowLeft size={14}/> {noteId ? "Back to note" : "All notes"}</Link><div className="note-editor-save-actions" style={{ display:"flex", gap:8 }}><OperationStatus kind={getEditorStatusKind(status)} message={status} compact /><button type="button" className="primary-btn icon-only-btn" onClick={() => void save(false)} disabled={busy || imageUploading || !title.trim()} title={!title.trim() ? "Enter a note title before saving." : "Save note"} aria-label={imageUploading ? "Processing images" : busy ? "Saving note" : "Save note"} aria-busy={busy || imageUploading}>{busy || imageUploading ? <LoaderCircle className="operation-spinner" size={17}/> : <Save size={17}/>}</button></div></div>
-    <div className="note-layout"><section className="editor-main"><div className="eyebrow">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} placeholder="Untitled note" maxLength={180} disabled={busy || imageUploading} aria-label="Note title"/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); markDirty(); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy || imageUploading} aria-label="Note subject"/>
-      <div className="editor-toolbar" role="toolbar" aria-label="Text formatting"><button type="button" aria-label="Bold" aria-pressed={Boolean(editor?.isActive("bold"))} disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("bold") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleBold().run()} title="Bold"><Bold/></button><button type="button" aria-label="Italic" aria-pressed={Boolean(editor?.isActive("italic"))} disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("italic") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleItalic().run()} title="Italic"><Italic/></button><button type="button" aria-label="Strikethrough" aria-pressed={Boolean(editor?.isActive("strike"))} disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("strike") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleStrike().run()} title="Strikethrough"><Strikethrough/></button><span className="tool-divider"/><button type="button" aria-label="Heading 1" aria-pressed={Boolean(editor?.isActive("heading",{level:1}))} disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("heading",{level:1})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:1}).run()} title="Heading 1"><Heading1/></button><button type="button" aria-label="Heading 2" aria-pressed={Boolean(editor?.isActive("heading",{level:2}))} disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("heading",{level:2})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:2}).run()} title="Heading 2"><Heading2/></button><span className="tool-divider"/><button type="button" aria-label="Bulleted list" aria-pressed={Boolean(editor?.isActive("bulletList"))} disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("bulletList")?"active":""}`} onClick={() => editor?.chain().focus().toggleBulletList().run()} title="Bulleted list"><List/></button><button type="button" aria-label="Numbered list" aria-pressed={Boolean(editor?.isActive("orderedList"))} disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("orderedList")?"active":""}`} onClick={() => editor?.chain().focus().toggleOrderedList().run()} title="Numbered list"><ListOrdered/></button><button type="button" aria-label="Quote" aria-pressed={Boolean(editor?.isActive("blockquote"))} disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("blockquote")?"active":""}`} onClick={() => editor?.chain().focus().toggleBlockquote().run()} title="Quote"><Quote/></button><button type="button" aria-label="Insert divider" disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Divider"><Minus/></button><span className="tool-divider"/><input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const files=Array.from(e.currentTarget.files ?? []); e.currentTarget.value=""; if(files.length)void uploadImages(files); }}/><button type="button" aria-label={imageUploading ? "Uploading images" : "Add images"} disabled={!editor || busy || imageUploading} className="tool-btn" onClick={() => imageRef.current?.click()} title={imageUploading ? "Uploading images…" : "Add images"}>{imageUploading ? <LoaderCircle className="operation-spinner"/> : <ImagePlus/>}</button><button type="button" aria-label="Remove selected image" disabled={busy || imageUploading || !imageSelected} className="tool-btn" onClick={() => void removeSelectedImage()} title="Remove selected image"><Trash2/></button><span className="tool-divider"/><button type="button" aria-label="Undo" disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().undo().run()} title="Undo"><Undo2/></button><button type="button" aria-label="Redo" disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().redo().run()} title="Redo"><Redo2/></button></div>
-      <div className="editor-formatting-controls" role="group" aria-label="Text appearance">
+  return <main className="page note-editor-page" aria-busy={busy || imageUploading}><div className="note-editor-heading" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:25 }}><Link href={noteId ? `/notes/${noteId}` : "/notes"} className="breadcrumb"><ArrowLeft size={14}/> {noteId ? "Back to note" : "All notes"}</Link><div className="note-editor-save-actions" style={{ display:"flex", gap:8, alignItems:"center" }}>
+        <button type="button" className="secondary-btn icon-only-btn" onClick={() => setFocusMode((active) => !active)} aria-pressed={focusMode} aria-label={focusMode ? "Exit distraction-free mode" : "Enter distraction-free mode"} title={focusMode ? "Exit distraction-free mode" : "Distraction-free writing"}><Focus size={17} /></button>
+        <button type="button" className="secondary-btn icon-only-btn" onClick={() => setInspectorOpen((open) => !open)} aria-expanded={inspectorOpen} aria-label={inspectorOpen ? "Collapse note inspector" : "Open note inspector"} title={inspectorOpen ? "Collapse note inspector · ⌘/Ctrl+I" : "Open note inspector · ⌘/Ctrl+I"}>{inspectorOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}</button>
+        <OperationStatus kind={getEditorStatusKind(status)} message={status} compact />
+        <button type="button" className="primary-btn icon-only-btn" onClick={() => void save(false)} disabled={busy || imageUploading || !title.trim()} title={!title.trim() ? "Enter a note title before saving." : "Save note"} aria-label={imageUploading ? "Processing images" : busy ? "Saving note" : "Save note"} aria-busy={busy || imageUploading}>{busy || imageUploading ? <LoaderCircle className="operation-spinner" size={17}/> : <Save size={17}/>}</button></div></div>
+    <div className={`note-layout ${focusMode ? "focus-mode" : ""} ${inspectorOpen ? "" : "inspector-collapsed"}`}><section className="editor-main"><div className="eyebrow">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} placeholder="Untitled note" maxLength={180} disabled={busy || imageUploading} aria-label="Note title"/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); markDirty(); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy || imageUploading} aria-label="Note subject"/>
+      <div className="editor-toolbar editor-toolbar-quiet" role="toolbar" aria-label="Essential writing actions">
+        <span className="editor-toolbar-hint">Type <kbd>/</kbd> for blocks · Select text for formatting</span>
+        <span className="tool-divider" />
+        <input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const files = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ""; if (files.length) void uploadImages(files); }} />
+        <button type="button" aria-label={imageUploading ? "Uploading images" : "Add images"} disabled={!editor || busy || imageUploading} className="tool-btn" onClick={() => imageRef.current?.click()} title="Add images">{imageUploading ? <LoaderCircle className="operation-spinner" /> : <ImagePlus />}</button>
+        <button type="button" aria-label="Remove selected image" disabled={busy || imageUploading || !imageSelected} className="tool-btn" onClick={() => void removeSelectedImage()} title="Remove selected image"><Trash2 /></button>
+        <span className="tool-divider" />
+        <button type="button" aria-label="Undo" disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().undo().run()} title="Undo"><Undo2 /></button>
+        <button type="button" aria-label="Redo" disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().redo().run()} title="Redo"><Redo2 /></button>
+      </div>
+      <details className="editor-advanced-formatting">
+        <summary>More formatting</summary>
+        <div className="editor-formatting-controls" role="group" aria-label="Text appearance">
         <label className="inline-format-control">
           <span>Font</span>
           <select
@@ -1030,6 +1265,36 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
           <Eraser size={17} />
         </button>
       </div>
+      </details>
+      {bubblePosition && editor?.isFocused && !editor.state.selection.empty && (
+        <div
+          className="editor-bubble-menu"
+          role="toolbar"
+          aria-label="Selected text formatting"
+          style={{ top: bubblePosition.top, left: bubblePosition.left }}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <button type="button" className={editor.isActive("bold") ? "tool-btn active" : "tool-btn"} aria-label="Bold selection" title="Bold" onClick={() => editor.chain().focus().toggleBold().run()}><Bold /></button>
+          <button type="button" className={editor.isActive("italic") ? "tool-btn active" : "tool-btn"} aria-label="Italic selection" title="Italic" onClick={() => editor.chain().focus().toggleItalic().run()}><Italic /></button>
+          <button type="button" className={editor.isActive("strike") ? "tool-btn active" : "tool-btn"} aria-label="Strikethrough selection" title="Strikethrough" onClick={() => editor.chain().focus().toggleStrike().run()}><Strikethrough /></button>
+          <span className="tool-divider" />
+          <button type="button" className={editor.isActive("heading", { level: 1 }) ? "tool-btn active" : "tool-btn"} aria-label="Heading 1" title="Heading 1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 /></button>
+          <button type="button" className={editor.isActive("heading", { level: 2 }) ? "tool-btn active" : "tool-btn"} aria-label="Heading 2" title="Heading 2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 /></button>
+          <button type="button" className={editor.isActive("blockquote") ? "tool-btn active" : "tool-btn"} aria-label="Block quote" title="Block quote" onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote /></button>
+        </div>
+      )}
+      {slashMenu && (
+        <div className="editor-slash-menu" role="listbox" aria-label="Writing commands" style={{ top: slashMenu.top, left: slashMenu.left }}>
+          <div className="editor-slash-heading">Insert a block</div>
+          {SLASH_COMMANDS.filter((item) => (item.label + " " + item.keywords).toLocaleLowerCase().includes(slashMenu.query.toLocaleLowerCase())).map((item, index) => (
+            <button type="button" role="option" aria-selected={slashMenu.activeIndex === index} className={slashMenu.activeIndex === index ? "editor-slash-option active" : "editor-slash-option"} key={item.id} onMouseDown={(event) => event.preventDefault()} onClick={() => applySlashCommand(item.id)}>
+              <strong>{item.label}</strong><span>{item.hint}</span>
+            </button>
+          ))}
+          {SLASH_COMMANDS.every((item) => !(item.label + " " + item.keywords).toLocaleLowerCase().includes(slashMenu.query.toLocaleLowerCase())) && <div className="editor-slash-empty">No matching commands</div>}
+          <div className="editor-slash-foot">↑ ↓ to move · Enter to insert · Esc to close</div>
+        </div>
+      )}
       <div
         className={isImageDragActive ? "note-image-dropzone note-image-dropzone-active" : "note-image-dropzone"}
         onDragEnterCapture={handleEditorDragEnter}
@@ -1040,6 +1305,64 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         <EditorContent
           editor={editor}
           onFocusCapture={() => setFocusTarget("editor")}
+          onBlurCapture={() => {
+            setBubblePosition(null);
+            setSlashMenu(null);
+          }}
+          onKeyDownCapture={(event) => {
+            if (slashMenu) {
+              const matches = SLASH_COMMANDS.filter((item) => (item.label + " " + item.keywords).toLocaleLowerCase().includes(slashMenu.query.toLocaleLowerCase()));
+              if (event.key === "ArrowDown" && matches.length) {
+                event.preventDefault();
+                setSlashMenu({ ...slashMenu, activeIndex: (slashMenu.activeIndex + 1) % matches.length });
+                return;
+              }
+              if (event.key === "ArrowUp" && matches.length) {
+                event.preventDefault();
+                setSlashMenu({ ...slashMenu, activeIndex: (slashMenu.activeIndex - 1 + matches.length) % matches.length });
+                return;
+              }
+              if (event.key === "Enter" && matches.length) {
+                event.preventDefault();
+                applySlashCommand(matches[slashMenu.activeIndex]?.id ?? matches[0].id);
+                return;
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setSlashMenu(null);
+                return;
+              }
+            }
+            if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey && editor) {
+              const selection = editor.state.selection;
+              if (selection.empty) {
+                const coords = editor.view.coordsAtPos(selection.from);
+                setSlashMenu({
+                  from: selection.from,
+                  query: "",
+                  top: coords.bottom + 8,
+                  left: Math.max(12, Math.min(coords.left, window.innerWidth - 270)),
+                  activeIndex: 0,
+                });
+              }
+            }
+            if (event.key === " " && editor) {
+              const selection = editor.state.selection;
+              if (selection.empty) {
+                const before = selection.$from.parent.textBetween(0, selection.$from.parentOffset, "", "\ufffc");
+                const match = before.match(/(?:^|\s)#([\p{L}\p{N}_-]{2,40})$/u);
+                if (match) {
+                  const tag = match[1];
+                  setTagsInput((current) => {
+                    const tags = current.split(",").map((value) => value.trim().replace(/^#/, "")).filter(Boolean);
+                    if (tags.some((value) => value.toLocaleLowerCase() === tag.toLocaleLowerCase())) return current;
+                    return [...tags, tag].join(", ");
+                  });
+                  markDirty();
+                }
+              }
+            }
+          }}
           onClickCapture={(event) => {
             const target = event.target;
             if (!(target instanceof HTMLImageElement)) return;
@@ -1064,5 +1387,25 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         onClose={closeImagePreview}
       />
       <div className="editor-footer"><span>{words} words</span><OperationStatus kind={getEditorStatusKind(recoveryStatus)} message={recoveryStatus} compact /><span>Private encrypted note</span></div>
-    </section><aside className="editor-side"><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><label className="property-label" htmlFor="note-topic-select">Belongs to</label><select id="note-topic-select" dir="auto" lang={detectTextLanguage(availableTopics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy || imageUploading} onChange={(e)=>{setTopicId(e.target.value);markDirty();}}>{availableTopics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select>{topicsLoading && <OperationStatus kind="loading" message="Loading your topics…" compact />}{topicsError && <OperationStatus kind="failure" message={topicsError} compact />}</div><div className="property-block"><label className="property-label" htmlFor="note-tags">Tags</label><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy || imageUploading} onChange={(e)=>{setTagsInput(e.target.value);markDirty();}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button type="button" className="secondary-btn icon-only-btn" disabled={busy || imageUploading} aria-pressed={pinned} aria-label={pinned ? "Unpin note" : "Pin note"} title={pinned ? "Unpin note" : "Pin note"} onClick={()=>{setPinned(!pinned);markDirty();}}>{pinned ? <PinOff size={17}/> : <Pin size={17}/>}</button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={availableTopics.length ? availableTopics : undefined} beforeTransfer={async()=>{if(busy || imageUploading)return false;return dirty?Boolean(await save(false)):true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p></section>{noteId&&<button type="button" className="danger-btn icon-only-btn" onClick={removeNote} disabled={busy || imageUploading} aria-label="Move note to trash" title="Move note to trash"><Trash2 size={17}/></button>}</aside></div>{error&&<OperationStatus kind="error" message={error} />}{confirmationDialog}</main>;
+    </section><aside className="editor-side" hidden={!inspectorOpen}><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><label className="property-label" htmlFor="note-topic-select">Belongs to</label><select id="note-topic-select" dir="auto" lang={detectTextLanguage(availableTopics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy || imageUploading} onChange={(e)=>{setTopicId(e.target.value);markDirty();}}>{availableTopics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select>{topicsLoading && <OperationStatus kind="loading" message="Loading your topics…" compact />}{topicsError && <OperationStatus kind="failure" message={topicsError} compact />}</div><div className="property-block"><label className="property-label" htmlFor="note-tags">Tags</label><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy || imageUploading} onChange={(e)=>{setTagsInput(e.target.value);markDirty();}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button type="button" className="secondary-btn icon-only-btn" disabled={busy || imageUploading} aria-pressed={pinned} aria-label={pinned ? "Unpin note" : "Pin note"} title={pinned ? "Unpin note" : "Pin note"} onClick={()=>{setPinned(!pinned);markDirty();}}>{pinned ? <PinOff size={17}/> : <Pin size={17}/>}</button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={availableTopics.length ? availableTopics : undefined} beforeTransfer={async()=>{if(busy || imageUploading)return false;return dirty?Boolean(await save(false)):true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p><div className="editor-interface-font"><div className="property-label">Interface typeface</div><FontSelector /></div></section>
+      {noteId && <section className="panel note-revisions">
+        <details>
+          <summary>Recent local versions · {revisionSnapshots.length}</summary>
+          <p className="form-hint">Encrypted snapshots stay on this device. Up to five recent versions are retained.</p>
+          {revisionSnapshots.length ? revisionSnapshots.map((revision) => (
+            <button
+              type="button"
+              className="note-revision-item"
+              key={revision.savedAt}
+              disabled={busy || imageUploading}
+              onClick={() => void restoreRevision(revision)}
+              title="Restore this saved version"
+            >
+              <strong>{formatArchiveDateTime(new Date(revision.savedAt))}</strong>
+              <span>{revision.title || "Untitled note"} · Saved content</span>
+            </button>
+          )) : <p className="form-hint">Your saved versions will appear here after the next save.</p>}
+        </details>
+      </section>}
+      {noteId&&<button type="button" className="danger-btn icon-only-btn" onClick={removeNote} disabled={busy || imageUploading} aria-label="Move note to trash" title="Move note to trash"><Trash2 size={17}/></button>}</aside></div>{error&&<OperationStatus kind="error" message={error} />}{confirmationDialog}</main>;
 }

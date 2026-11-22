@@ -1,16 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, FolderOpen, FileText, ArrowUpRight, X } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
 import { OperationStatus } from "@/components/operation-status";
+import { formatArchiveDateTime } from "@/lib/date-format";
 
 type TopicResult = { id: string; title: string; subject: string; description: string; category: string; coverUrl: string | null; updatedAt: string };
-type NoteResult = { id: string; topicId: string; title: string; subject: string; topicTitle: string; tags: string[]; preview: string; updatedAt: string };
+type NoteResult = { id: string; topicId: string; title: string; subject: string; topicTitle: string; tags: string[]; preview: string; updatedAt: string; matchType?: string };
+
+function HighlightMatch({ value, query }: { value: string; query: string }) {
+  const term = query.trim();
+  if (!term) return <>{value}</>;
+  const lowerValue = value.toLocaleLowerCase();
+  const lowerTerm = term.toLocaleLowerCase();
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  let found = lowerValue.indexOf(lowerTerm, cursor);
+  while (found >= 0) {
+    if (found > cursor) parts.push(value.slice(cursor, found));
+    parts.push(<mark key={found}>{value.slice(found, found + term.length)}</mark>);
+    cursor = found + term.length;
+    found = lowerValue.indexOf(lowerTerm, cursor);
+  }
+  if (!parts.length) return <>{value}</>;
+  if (cursor < value.length) parts.push(value.slice(cursor));
+  return <>{parts.map((part, index) => <React.Fragment key={index}>{part}</React.Fragment>)}</>;
+}
 
 export function SearchWorkspace() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "titles" | "tags" | "pinned">("all");
   const [topics, setTopics] = useState<TopicResult[]>([]);
   const [notes, setNotes] = useState<NoteResult[]>([]);
   const [waiting, setWaiting] = useState(false);
@@ -39,7 +62,7 @@ export function SearchWorkspace() {
       setBusy(true);
 
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(cleanQuery)}`, {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(cleanQuery)}&scope=${filter}`, {
           signal: controller.signal,
         });
         const data = await response.json();
@@ -60,7 +83,7 @@ export function SearchWorkspace() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, filter]);
 
   const resultCount = topics.length + notes.length;
   const searching = waiting || busy;
@@ -87,6 +110,12 @@ export function SearchWorkspace() {
             className="field"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              if (query.trim()) setQuery("");
+              else router.push("/library");
+            }}
             placeholder="Try a phrase, subject, quotation or keyword…"
             aria-label="Search your archive"
             aria-describedby="archive-search-help"
@@ -100,7 +129,20 @@ export function SearchWorkspace() {
             </button>
           )}
         </div>
-        <p className="archive-search-help" id="archive-search-help">Search topic names, note titles, tags and the words inside your notes. Press Ctrl or ⌘ + K to return here from anywhere.</p>
+        <p className="archive-search-help" id="archive-search-help">Search your decrypted archive without creating a plaintext search index. Narrow the results using a filter.</p>
+        <div className="archive-search-filters" role="group" aria-label="Search filters">
+          {(["all", "titles", "tags", "pinned"] as const).map((value) => (
+            <button
+              type="button"
+              key={value}
+              className={filter === value ? "filter-chip active" : "filter-chip"}
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
+            >
+              {value === "all" ? "All" : value === "titles" ? "Titles" : value === "tags" ? "Tags" : "Pinned"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {waiting && <OperationStatus kind="waiting" message="Preparing your search…" />}
@@ -128,11 +170,12 @@ export function SearchWorkspace() {
             {topics.map((topic) => (
               <Link href={`/topics/${topic.id}`} className="result-card" key={topic.id}>
                 <div className="result-type"><FolderOpen size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} /> Topic · {topic.category}</div>
-                <h3 className="result-title" dir="auto" lang={detectTextLanguage(topic.title)}>{topic.title}</h3>
+                <h3 className="result-title" dir="auto" lang={detectTextLanguage(topic.title)}><HighlightMatch value={topic.title} query={query} /></h3>
                 <p className="result-copy">
-                  <span dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject}</span>{" "}
+                  <span dir="auto" lang={detectTextLanguage(topic.subject)}><HighlightMatch value={topic.subject} query={query} /></span>{" "}
                   <span dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description}</span>
                 </p>
+                <div className="result-meta"><span>Updated {formatArchiveDateTime(topic.updatedAt)}</span></div>
                 <div className="result-copy" style={{ marginTop: 12 }}>
                   Open collection <ArrowUpRight size={12} style={{ display: "inline", verticalAlign: "middle" }} />
                 </div>
@@ -147,16 +190,20 @@ export function SearchWorkspace() {
             {notes.map((note) => (
               <Link href={`/notes/${note.id}`} className="result-card" key={note.id}>
                 <div className="result-type"><FileText size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} /> Note · {note.topicTitle}</div>
-                <h3 className="result-title" dir="auto" lang={detectTextLanguage(note.title)}>{note.title}</h3>
+                <h3 className="result-title" dir="auto" lang={detectTextLanguage(note.title)}><HighlightMatch value={note.title} query={query} /></h3>
                 <p className="result-copy">
-                  <span dir="auto" lang={detectTextLanguage(note.subject)}>{note.subject}</span>{" "}
-                  <span dir="auto" lang={detectTextLanguage(note.preview)}>{note.preview}</span>
+                  <span dir="auto" lang={detectTextLanguage(note.subject)}><HighlightMatch value={note.subject} query={query} /></span>{" "}
+                  <span dir="auto" lang={detectTextLanguage(note.preview)}><HighlightMatch value={note.preview} query={query} /></span>
                 </p>
                 {note.tags.length > 0 && (
                   <div style={{ marginTop: 9 }}>
                     {note.tags.slice(0, 4).map((tag) => <span className="tag-pill" key={tag}>#{tag}</span>)}
                   </div>
                 )}
+                <div className="result-meta">
+                  <span>{note.matchType === "tag" ? "Matched tag" : note.matchType === "title" ? "Title / topic match" : "Matched passage"}</span>
+                  <span>Updated {formatArchiveDateTime(note.updatedAt)}</span>
+                </div>
               </Link>
             ))}
           </div> : topics.length > 0 ? <p className="search-section-empty">No notes matched this search. Matching topics are shown above.</p> : null}

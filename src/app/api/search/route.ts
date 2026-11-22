@@ -34,7 +34,10 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const session = await requireVaultSession();
-    const query = new URL(request.url).searchParams.get("q")?.trim().slice(0, 120) ?? "";
+    const params = new URL(request.url).searchParams;
+    const query = params.get("q")?.trim().slice(0, 120) ?? "";
+    const scopeValue = params.get("scope");
+    const scope = scopeValue === "titles" || scopeValue === "tags" || scopeValue === "pinned" ? scopeValue : "all";
     if (!query) return NextResponse.json({ topics: [], notes: [] });
     const needle = query.toLocaleLowerCase();
 
@@ -46,7 +49,7 @@ export async function GET(request: Request) {
          LIMIT 500`,
       ),
       queryAsUser(session.userId, 
-        `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.updated_at,
+        `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.pinned, n.updated_at,
                 t.title_enc AS topic_title_enc
          FROM notes n
          JOIN topics t ON t.id = n.topic_id
@@ -57,7 +60,7 @@ export async function GET(request: Request) {
     ]);
 
     const topics = [];
-    for (let index = 0; index < topicRows.rows.length; index += 1) {
+    for (let index = 0; (scope === "all" || scope === "titles") && index < topicRows.rows.length; index += 1) {
       if (index > 0 && index % 100 === 0) {
         await new Promise<void>((resolve) => setImmediate(resolve));
         if (request.signal.aborted) return new Response(null, { status: 204 });
@@ -68,7 +71,7 @@ export async function GET(request: Request) {
       const subject = decryptText(row.subject_enc, session.key);
       const description = decryptText(row.description_enc, session.key);
       const category = decryptText(row.category_enc, session.key);
-      if (![title, subject, description, category].join(" ").toLocaleLowerCase().includes(needle)) continue;
+      if (!(scope === "titles" ? title.toLocaleLowerCase().includes(needle) : [title, subject, description, category].join(" ").toLocaleLowerCase().includes(needle))) continue;
 
       topics.push({
         id: row.id,
@@ -101,8 +104,22 @@ export async function GET(request: Request) {
       const searchable = [title, subject, contentText, tags.join(" "), topicTitle]
         .join(" ")
         .toLocaleLowerCase();
-
-      if (!searchable.includes(needle)) continue;
+      const titleMatch = [title, topicTitle].join(" ").toLocaleLowerCase().includes(needle);
+      const tagMatch = tags.join(" ").toLocaleLowerCase().includes(needle);
+      const matches = scope === "titles"
+        ? titleMatch
+        : scope === "tags"
+          ? tagMatch
+          : scope === "pinned"
+            ? Boolean(row.pinned) && searchable.includes(needle)
+            : searchable.includes(needle);
+      if (!matches) continue;
+      const matchIndex = contentText.toLocaleLowerCase().indexOf(needle);
+      const previewStart = matchIndex > 72 ? matchIndex - 72 : 0;
+      const previewEnd = Math.min(contentText.length, previewStart + 220);
+      const contextualPreview = (previewStart > 0 ? "…" : "") +
+        contentText.slice(previewStart, previewEnd) +
+        (previewEnd < contentText.length ? "…" : "");
       notes.push({
         id: row.id,
         topicId: row.topic_id,
@@ -110,7 +127,8 @@ export async function GET(request: Request) {
         subject,
         topicTitle,
         tags,
-        preview: contentText.slice(0, 220),
+        preview: scope === "titles" ? subject : scope === "tags" ? tags.join(" · ") : matchIndex >= 0 ? contextualPreview : contentText.slice(0, 220),
+        matchType: titleMatch ? "title" : tagMatch ? "tag" : "content",
         updatedAt: row.updated_at,
       });
       // Preserve the previous newest-first 40-result limit without scanning

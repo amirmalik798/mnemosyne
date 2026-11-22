@@ -15,6 +15,18 @@ export type LocalNoteDraft = {
   serverUpdatedAt: number | null;
 };
 
+export type LocalNoteRevision = {
+  version: 1;
+  noteId: string;
+  topicId: string;
+  title: string;
+  subject: string;
+  tagsInput: string;
+  pinned: boolean;
+  content: unknown;
+  savedAt: number;
+};
+
 type EncryptedDraftRecord = {
   id: string;
   // Existing v1 records used number arrays; new writes use compact typed arrays.
@@ -23,10 +35,21 @@ type EncryptedDraftRecord = {
   updatedAt: number;
 };
 
+type EncryptedRevisionRecord = {
+  id: string;
+  noteId: string;
+  iv: Uint8Array;
+  ciphertext: Uint8Array;
+  updatedAt: number;
+};
+
 const DATABASE_NAME = "mnemosyne-local-recovery";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const DRAFT_STORE = "drafts";
+const REVISION_STORE = "revisions";
 const KEY_STORE = "keys";
+const MAX_LOCAL_REVISIONS = 5;
+const revisionWrites = new Map<string, Promise<void>>();
 const DEVICE_KEY_ID = "local-draft-encryption-key";
 const pendingWrites = new Map<string, Promise<void>>();
 let recoveryDatabasePromise: Promise<IDBDatabase> | null = null;
@@ -50,6 +73,10 @@ function openRecoveryDatabase(): Promise<IDBDatabase> {
       }
       if (!database.objectStoreNames.contains(KEY_STORE)) {
         database.createObjectStore(KEY_STORE);
+      }
+      if (!database.objectStoreNames.contains(REVISION_STORE)) {
+        const revisions = database.createObjectStore(REVISION_STORE, { keyPath: "id" });
+        revisions.createIndex("noteId", "noteId", { unique: false });
       }
     };
     request.onsuccess = () => {
@@ -189,6 +216,94 @@ export async function loadLocalNoteDraft(id: string): Promise<LocalNoteDraft | n
   const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as LocalNoteDraft;
   if (parsed.version !== 1 || typeof parsed.savedAt !== "number") return null;
   return parsed;
+}
+
+export function saveLocalNoteRevision(noteId: string, revision: LocalNoteRevision): Promise<void> {
+  const previous = revisionWrites.get(noteId) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(async () => {
+    const database = await openRecoveryDatabase();
+    const key = await getCachedDeviceKey(database);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const plaintext = new TextEncoder().encode(JSON.stringify(revision));
+    const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
+    const record: EncryptedRevisionRecord = {
+      id: `${noteId}:${revision.savedAt}:${window.crypto.randomUUID()}`,
+      noteId,
+      iv,
+      ciphertext: new Uint8Array(encrypted),
+      updatedAt: revision.savedAt,
+    };
+
+    const transaction = database.transaction(REVISION_STORE, "readwrite");
+    transaction.objectStore(REVISION_STORE).put(record);
+    await transactionComplete(transaction);
+
+    const readTransaction = database.transaction(REVISION_STORE, "readonly");
+    const index = readTransaction.objectStore(REVISION_STORE).index("noteId");
+    const request = index.getAll(noteId);
+    const records = await new Promise<EncryptedRevisionRecord[]>((resolve, reject) => {
+      request.onsuccess = () => resolve((request.result as EncryptedRevisionRecord[]) ?? []);
+      request.onerror = () => reject(request.error ?? new Error("Could not list local revisions."));
+    });
+    await transactionComplete(readTransaction);
+
+    const stale = records.sort((a, b) => b.updatedAt - a.updatedAt).slice(MAX_LOCAL_REVISIONS);
+    if (stale.length) {
+      const prune = database.transaction(REVISION_STORE, "readwrite");
+      for (const item of stale) prune.objectStore(REVISION_STORE).delete(item.id);
+      await transactionComplete(prune);
+    }
+  });
+  revisionWrites.set(noteId, current);
+  return current.finally(() => {
+    if (revisionWrites.get(noteId) === current) revisionWrites.delete(noteId);
+  });
+}
+
+export async function loadLocalNoteRevisions(noteId: string): Promise<LocalNoteRevision[]> {
+  const pending = revisionWrites.get(noteId);
+  if (pending) await pending.catch(() => undefined);
+  const database = await openRecoveryDatabase();
+  const transaction = database.transaction(REVISION_STORE, "readonly");
+  const request = transaction.objectStore(REVISION_STORE).index("noteId").getAll(noteId);
+  const records = await new Promise<EncryptedRevisionRecord[]>((resolve, reject) => {
+    request.onsuccess = () => resolve((request.result as EncryptedRevisionRecord[]) ?? []);
+    request.onerror = () => reject(request.error ?? new Error("Could not read local revisions."));
+  });
+  await transactionComplete(transaction);
+  const key = await getCachedDeviceKey(database);
+  const revisions: LocalNoteRevision[] = [];
+  for (const record of records.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_LOCAL_REVISIONS)) {
+    try {
+      const plaintext = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: new Uint8Array(record.iv) },
+        key,
+        new Uint8Array(record.ciphertext),
+      );
+      const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as LocalNoteRevision;
+      if (parsed.version === 1 && parsed.noteId === noteId && typeof parsed.savedAt === "number") {
+        revisions.push(parsed);
+      }
+    } catch {
+      // Ignore a damaged local snapshot; other revisions remain usable.
+    }
+  }
+  return revisions;
+}
+
+export async function removeLocalNoteRevisions(noteId: string): Promise<void> {
+  const pending = revisionWrites.get(noteId);
+  if (pending) await pending.catch(() => undefined);
+  const database = await openRecoveryDatabase();
+  const transaction = database.transaction(REVISION_STORE, "readwrite");
+  const store = transaction.objectStore(REVISION_STORE);
+  const request = store.index("noteId").getAllKeys(noteId);
+  const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+    request.onsuccess = () => resolve((request.result as IDBValidKey[]) ?? []);
+    request.onerror = () => reject(request.error ?? new Error("Could not list local revisions."));
+  });
+  for (const key of keys) store.delete(key);
+  await transactionComplete(transaction);
 }
 
 export async function removeLocalNoteDraft(id: string): Promise<void> {
