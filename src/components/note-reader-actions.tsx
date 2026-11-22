@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Download, LoaderCircle, Trash2 } from "lucide-react";
+import { Copy, Download, LoaderCircle, Printer, Trash2 } from "lucide-react";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 import { useConfirmation } from "@/components/confirmation-dialog";
@@ -66,6 +66,42 @@ export function NoteReaderActions({
     }
   }
 
+  function exportPdf() {
+    if (busy || copying) return;
+
+    const printableRoot = document.querySelector(".note-reader-page");
+    if (!printableRoot) {
+      setMessageKind("failure");
+      setMessage("The note could not be prepared for PDF export. Please refresh and try again.");
+      return;
+    }
+
+    // Eagerly request lazy note images so the browser can include them in print.
+    printableRoot.querySelectorAll<HTMLImageElement>(".reader-content img").forEach((image) => {
+      image.loading = "eager";
+    });
+
+    const originalTitle = document.title;
+    const safeTitle = title
+      .replace(/[\\/:*?"<>|\u0000-\u001F]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120) || "Mnemosyne note";
+
+    document.title = safeTitle;
+    window.addEventListener("afterprint", () => {
+      document.title = originalTitle;
+    }, { once: true });
+
+    try {
+      window.print();
+    } finally {
+      // Some browsers dispatch afterprint after print() returns; restore the
+      // title there so the suggested PDF filename remains the note title.
+      if (!("onafterprint" in window)) document.title = originalTitle;
+    }
+  }
+
   async function remove() {
     if (busy || copying) return;
     const accepted = await requestConfirmation({
@@ -107,6 +143,18 @@ export function NoteReaderActions({
         <Download size={16} />
         {showLabels && <span>Export Markdown</span>}
       </button>
+      <button
+        type="button"
+        className={showLabels ? "secondary-btn reader-action-button reader-action-button--pdf" : "secondary-btn icon-only-btn"}
+        onClick={exportPdf}
+        aria-label="Export note as PDF"
+        title="Export as PDF · choose Save as PDF in your print dialog"
+        disabled={busy || copying}
+      >
+        <Printer size={16} aria-hidden="true" />
+        {showLabels && <span>Export PDF</span>}
+      </button>
+
       <button
         type="button"
         className={showLabels ? "icon-button reader-action-button reader-action-button--danger" : "icon-button icon-only-btn"}
