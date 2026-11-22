@@ -123,15 +123,19 @@ export default async function TopicPage({ params, searchParams }: Props) {
         </div>
       </section>
       <div className="toolbar">
-        <div><div className="eyebrow">Collection entries</div><h2 className="panel-title" style={{ margin:"7px 0 0" }}>{totalNotes} {totalNotes===1?"note":"notes"}</h2></div>
+        <div className="topic-detail-notes-heading">
+          <div className="eyebrow">Collection entries</div>
+          <h2 className="panel-title" style={{ margin:"7px 0 0" }}>{totalNotes} {totalNotes===1?"note":"notes"}</h2>
+          <p className="topic-detail-note-guidance">Open a note to read or continue writing. Use the actions beside it to pin, move or send it to Recently deleted.</p>
+        </div>
         <div className="archive-toolbar-actions">
           <ArchiveSortControl basePath={`/topics/${id}`} currentSort={sort} />
-          <Link href="/notes" className="secondary-btn icon-only-btn" aria-label="Browse all notes" title="Browse all notes"><FileText size={17}/></Link>
+          <Link href="/notes" className="secondary-btn topic-detail-browse-all"><FileText size={15} aria-hidden="true"/><span>Browse all notes</span><ArrowUpRight size={13} aria-hidden="true"/></Link>
         </div>
       </div>
-      <section className="panel">
+      <section className="panel topic-detail-note-panel" aria-label="Notes in this topic">
         <div className="note-list">
-          {notes.length ? notes.map((note)=><NoteRow key={note.id} note={note}/>) : <EmptyState title="An open page" copy="This topic has no notes yet. Begin with a thought, a passage or a question you want to explore." action={<Link href={`/notes/new?topicId=${id}`} className="primary-btn icon-only-btn" aria-label="Write the first note" title="Write the first note"><FilePlus size={17}/></Link>} />}
+          {notes.length ? notes.map((note)=><NoteRow key={note.id} note={note} showOpenCue />) : <EmptyState title="An open page" copy="This topic has no notes yet. Begin with a thought, a passage or a question you want to explore." action={<Link href={`/notes/new?topicId=${id}`} className="primary-btn topic-detail-first-note"><FilePlus size={16} aria-hidden="true"/><span>Write first note</span></Link>} />}
         </div>
       </section>
       <ArchivePagination currentPage={currentPage} totalItems={totalNotes} basePath={`/topics/${id}`} query={sort === "created-desc" ? undefined : `sort=${sort}`} />

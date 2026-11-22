@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, FileImage, FileText, Pin } from "lucide-react";
+import { ArrowUpRight, BookOpen, FileImage, FileText, Pin } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
 import { NoteRowActions } from "@/components/note-row-actions";
 import { formatArchiveDate } from "@/lib/date-format";
@@ -15,7 +15,7 @@ export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; va
   </Link>;
 }
 
-export function NoteRow({ note, compactActions = false }: { note: NoteItem; compactActions?: boolean }) {
+export function NoteRow({ note, compactActions = false, showOpenCue = false }: { note: NoteItem; compactActions?: boolean; showOpenCue?: boolean }) {
   return (
     <div className={`note-row ${note.pinned ? "note-row-pinned" : ""}`}>
       <Link href={`/notes/${note.id}`} className="note-row-main-link">
@@ -32,6 +32,11 @@ export function NoteRow({ note, compactActions = false }: { note: NoteItem; comp
           </div>
         </div>
         <div className="note-row-meta" title={note.dateLabel ? `${note.dateLabel} date` : undefined}>{note.dateLabel ? `${note.dateLabel} · ` : ""}{formatArchiveDate(note.dateAt ?? note.updatedAt, true)}</div>
+        {showOpenCue && (
+          <span className="note-row-open-cue" aria-hidden="true">
+            <span>Open note</span><ArrowUpRight size={14} />
+          </span>
+        )}
       </Link>
       <NoteRowActions noteId={note.id} currentTopicId={note.topicId} pinned={Boolean(note.pinned)} compact={compactActions} />
     </div>
