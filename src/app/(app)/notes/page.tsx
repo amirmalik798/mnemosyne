@@ -5,10 +5,12 @@ import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { ArchiveIntegrityNotice, EmptyState, NoteRow, type NoteItem } from "@/components/archive-ui";
 import { ARCHIVE_PAGE_SIZE, ArchivePagination, parseArchivePage } from "@/components/archive-pagination";
+import { ArchiveSortControl } from "@/components/archive-sort-control";
+import { compareArchiveTitles, isAlphabeticalArchiveSort, parseArchiveSort } from "@/lib/archive-sort";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ page?: string | string[] }> };
+type Props = { searchParams: Promise<{ page?: string | string[]; sort?: string | string[] }> };
 
 function decryptNoteValue(value: unknown, key: Buffer, id: string, field: string): string | null {
   try {
@@ -26,28 +28,40 @@ function decryptNoteValue(value: unknown, key: Buffer, id: string, field: string
 }
 
 export default async function NotesPage({ searchParams }: Props) {
-  const [{ page: requestedPage }, session] = await Promise.all([
+  const [{ page: requestedPage, sort: requestedSort }, session] = await Promise.all([
     searchParams,
     requireVaultSession(),
   ]);
   const requestedPageNumber = parseArchivePage(requestedPage);
+  const sort = parseArchiveSort(requestedSort);
+  const alphabetical = isAlphabeticalArchiveSort(sort);
 
   const countResult = await queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NULL");
   const totalNotes = Number(countResult.rows[0]?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(totalNotes / ARCHIVE_PAGE_SIZE));
   const currentPage = Math.min(requestedPageNumber, totalPages);
-  const result = await queryAsUser(session.userId, 
-    `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.updated_at,
-              t.title_enc AS topic_title_enc
-       FROM notes n
-       JOIN topics t ON t.id = n.topic_id
-       WHERE n.deleted_at IS NULL
-       ORDER BY n.pinned DESC, n.updated_at DESC, n.id DESC
-       LIMIT $1 OFFSET $2`,
-    [ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
-  );
+  const orderColumn = sort === "modified-desc" ? "n.updated_at" : "n.created_at";
+  const result = alphabetical
+    ? await queryAsUser(session.userId,
+        `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.created_at, n.updated_at,
+                t.title_enc AS topic_title_enc
+         FROM notes n
+         JOIN topics t ON t.id = n.topic_id
+         WHERE n.deleted_at IS NULL
+         ORDER BY n.created_at DESC, n.id DESC`,
+      )
+    : await queryAsUser(session.userId,
+        `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.created_at, n.updated_at,
+                t.title_enc AS topic_title_enc
+         FROM notes n
+         JOIN topics t ON t.id = n.topic_id
+         WHERE n.deleted_at IS NULL
+         ORDER BY ${orderColumn} DESC, n.id DESC
+         LIMIT $1 OFFSET $2`,
+        [ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
+      );
 
-  const notes: NoteItem[] = [];
+  const decryptedNotes: NoteItem[] = [];
   const unavailableNoteIds = new Set<string>();
   for (const row of result.rows) {
     const id = String(row.id);
@@ -58,7 +72,7 @@ export default async function NotesPage({ searchParams }: Props) {
       unavailableNoteIds.add(id);
       continue;
     }
-    notes.push({
+    decryptedNotes.push({
       id,
       topicId: row.topic_id,
       topicTitle,
@@ -68,6 +82,11 @@ export default async function NotesPage({ searchParams }: Props) {
       updatedAt: row.updated_at,
     });
   }
+
+  if (alphabetical) decryptedNotes.sort((a, b) => compareArchiveTitles(a, b, sort));
+  const notes = alphabetical
+    ? decryptedNotes.slice((currentPage - 1) * ARCHIVE_PAGE_SIZE, currentPage * ARCHIVE_PAGE_SIZE)
+    : decryptedNotes;
 
   return (
     <main className="page">
@@ -82,6 +101,7 @@ export default async function NotesPage({ searchParams }: Props) {
           <div className="stat"><strong>{totalNotes}</strong><span>Notes</span></div>
         </div>
       </div>
+      <div className="archive-sort-row"><ArchiveSortControl basePath="/notes" currentSort={sort} /></div>
       <section className="panel">
         <div className="note-list">
           {notes.length ? notes.map((note) => <NoteRow key={note.id} note={note} />) : (
@@ -95,7 +115,7 @@ export default async function NotesPage({ searchParams }: Props) {
           )}
         </div>
       </section>
-      <ArchivePagination currentPage={currentPage} totalItems={totalNotes} basePath="/notes" />
+      <ArchivePagination currentPage={currentPage} totalItems={totalNotes} basePath="/notes" query={sort === "created-desc" ? undefined : `sort=${sort}`} />
     </main>
   );
 }
