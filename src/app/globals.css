@@ -8055,3 +8055,69 @@ html[data-theme="light"] .dialog-close-button:hover:not(:disabled) {
   background: #EEE7D8;
   color: #27251F;
 }
+
+
+/* Restore the original Mnemosyne collection-cover composition. */
+.topic-detail-page .topic-detail-cover {
+  height: 194px !important;
+  background:
+    radial-gradient(circle at 76% 18%, rgba(203,180,126,.22), transparent 35%),
+    linear-gradient(120deg, #263B45, #17232D);
+}
+.topic-detail-page .topic-detail-cover::before {
+  background: transparent;
+}
+.topic-detail-page .topic-detail-cover::after {
+  content: none !important;
+  display: none !important;
+}
+.topic-detail-page .topic-detail-cover .cover-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background:
+    radial-gradient(circle at 76% 18%, rgba(203,180,126,.22), transparent 35%),
+    linear-gradient(120deg, #263B45, #17232D);
+}
+.topic-detail-page .topic-detail-cover .cover-glyph {
+  display: block !important;
+  font-size: clamp(86px, 8vw, 100px) !important;
+  font-style: italic;
+  line-height: 1;
+  color: rgba(231,207,134,.78);
+  text-shadow: 0 4px 28px rgba(203,180,126,.12);
+}
+.topic-detail-page .topic-detail-cover-copy {
+  left: 26px;
+  bottom: 22px;
+  width: min(72%, 720px);
+}
+.topic-detail-page .topic-detail-cover-copy .page-title {
+  font-size: calc(clamp(32px, 3.2vw, 43px) * var(--font-scale, 1));
+  line-height: 1.08;
+}
+@media (max-width: 760px) {
+  .topic-detail-page .topic-detail-cover {
+    height: 178px !important;
+  }
+  .topic-detail-page .topic-detail-cover-copy {
+    left: 19px;
+    bottom: 18px;
+    width: min(78%, 560px);
+  }
+  .topic-detail-page .topic-detail-cover .cover-glyph {
+    font-size: 84px !important;
+  }
+}
+@media (max-width: 480px) {
+  .topic-detail-page .topic-detail-cover {
+    height: 168px !important;
+  }
+  .topic-detail-page .topic-detail-cover-copy {
+    left: 15px;
+    bottom: 15px;
+    width: calc(100% - 30px);
+  }
+}
