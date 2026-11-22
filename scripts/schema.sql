@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS vault_sessions (
 );
 CREATE INDEX IF NOT EXISTS vault_sessions_expires_idx ON vault_sessions(expires_at);
 
+-- Enforce inactivity expiry on the server, not only in the browser.
+ALTER TABLE vault_sessions
+  ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+CREATE INDEX IF NOT EXISTS vault_sessions_last_active_idx ON vault_sessions(last_active_at);
+
 CREATE TABLE IF NOT EXISTS topics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title_enc BYTEA NOT NULL,
