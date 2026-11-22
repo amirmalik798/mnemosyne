@@ -3,5 +3,37 @@ import { requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { NoteEditor } from "@/components/note-editor";
-export const dynamic="force-dynamic";
-export default async function EditNotePage({params}:{params:Promise<{id:string}>}){const {id}=await params;const session=await requireVaultSession();const [topicsResult,noteResult]=await Promise.all([db.query("SELECT id,title_enc FROM topics ORDER BY updated_at DESC"),db.query("SELECT id,topic_id,title_enc,subject_enc,content_enc,tags_enc,pinned,updated_at FROM notes WHERE id=$1 AND deleted_at IS NULL",[id])]);if(!noteResult.rows[0])notFound();const n=noteResult.rows[0];const topics=topicsResult.rows.map(r=>({id:r.id as string,title:decryptText(r.title_enc,session.key)}));return <NoteEditor topics={topics} initialNote={{id:n.id,topicId:n.topic_id,title:decryptText(n.title_enc,session.key),subject:decryptText(n.subject_enc,session.key),content:JSON.parse(decryptText(n.content_enc,session.key)),tags:JSON.parse(decryptText(n.tags_enc,session.key)),pinned:n.pinned,updatedAt:n.updated_at}}/>}
+
+export const dynamic = "force-dynamic";
+
+export default async function EditNotePage({ params }: { params: Promise<{ id: string }> }) {
+  const [{ id }, session] = await Promise.all([params, requireVaultSession()]);
+  const noteResult = await db.query(
+    "SELECT * FROM notes WHERE id=$1 AND deleted_at IS NULL",
+    [id],
+  );
+  if (!noteResult.rows[0]) notFound();
+  const note = noteResult.rows[0];
+
+  const topic = await db.query(
+    "SELECT id FROM topics WHERE id=$1",
+    [note.topic_id],
+  );
+  if (!topic.rows[0]) notFound();
+
+  return (
+    <NoteEditor
+      topics={[]}
+      initialNote={{
+        id: note.id,
+        topicId: note.topic_id,
+        title: decryptText(note.title_enc, session.key),
+        subject: decryptText(note.subject_enc, session.key),
+        content: JSON.parse(decryptText(note.content_enc, session.key)),
+        tags: JSON.parse(decryptText(note.tags_enc, session.key)),
+        pinned: note.pinned,
+        updatedAt: note.updated_at,
+      }}
+    />
+  );
+}
