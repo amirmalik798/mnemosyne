@@ -157,7 +157,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   });
 
   useEffect(() => {
-    editor?.setEditable(!busy);
+    editor?.setEditable(!busy && !imageUploading);
   }, [editor, busy]);
 
   // Ask the browser to retain this origin's IndexedDB data when supported.
@@ -376,66 +376,105 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  async function uploadImage(file: File) {
-    if (imageUploading || busy) return;
-    const supportedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
-    if (!supportedTypes.includes(file.type) && !/\.(png|jpe?g|webp|gif)$/i.test(file.name)) {
-      setError("Use a PNG, JPEG, WebP or GIF image.");
-      return;
-    }
-    if (file.size === 0) {
-      setError("The selected image is empty.");
-      return;
-    }
-    if (file.size > 20 * 1024 * 1024) {
-      setError("Images must be 20 MB or smaller.");
+  async function uploadImages(files: File[]) {
+    if (imageUploading || busy || files.length === 0) return;
+    if (!editor) {
+      setError("The note editor is not ready yet. Try again in a moment.");
       return;
     }
 
-    setError("");
+    const supportedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    const validFiles: File[] = [];
+    const failures: string[] = [];
+
+    for (const file of files) {
+      const supportedByName = /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+      if (!supportedTypes.includes(file.type) && !supportedByName) {
+        failures.push(`${file.name}: unsupported format`);
+        continue;
+      }
+      if (file.size === 0) {
+        failures.push(`${file.name}: file is empty`);
+        continue;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        failures.push(`${file.name}: larger than 20 MB`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) {
+      setError(failures.join("; ") || "Choose one or more supported images.");
+      return;
+    }
+
+    setError(failures.length ? failures.join("; ") : "");
     setImageUploading(true);
     let id = noteId;
-    const isNewNote = !id;
-    let imageInserted = false;
+    const shouldNavigateToEdit = window.location.pathname === "/notes/new";
+    let insertedCount = 0;
+    let updatedContent: any = null;
 
     try {
-      // For a new note, create the server record without navigating away.
-      // Navigating here would unmount this editor while the upload is pending.
+      // Create a new note in place first. Do not navigate away while the
+      // selected image files are uploading and being inserted.
       if (!id) id = await save(false, { navigateOnCreate: false, refreshOnSave: false });
       if (!id) return;
 
-      const form = new FormData();
-      form.append("file", file, file.name);
-      setStatus("Uploading image…");
+      for (let index = 0; index < validFiles.length; index += 1) {
+        const file = validFiles[index];
+        setStatus(`Uploading image ${index + 1} of ${validFiles.length}…`);
 
-      const response = await fetch(`/api/notes/${id}/assets`, {
-        method: "POST",
-        body: form,
-        credentials: "same-origin",
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.error || `Image upload failed (HTTP ${response.status}).`);
-      }
-      if (!data?.asset?.url || typeof data.asset.url !== "string") {
-        throw new Error("The server uploaded the image but did not return its address.");
+        try {
+          const form = new FormData();
+          form.append("file", file, file.name);
+          const response = await fetch(`/api/notes/${id}/assets`, {
+            method: "POST",
+            body: form,
+            credentials: "same-origin",
+          });
+          const data = await response.json().catch(() => null);
+
+          if (!response.ok) {
+            throw new Error(data?.error || `Upload failed (HTTP ${response.status}).`);
+          }
+          if (!data?.asset?.url || typeof data.asset.url !== "string") {
+            throw new Error("The server did not return the uploaded image address.");
+          }
+
+          // Temporarily enable ProseMirror for the insertion, then keep it
+          // read-only for the remainder of the batch to avoid content races.
+          editor.setEditable(true);
+          const inserted = editor.chain().focus().setImage({
+            src: data.asset.url,
+            alt: file.name,
+          }).run();
+          editor.setEditable(false);
+
+          if (!inserted) {
+            await fetch(data.asset.url, { method: "DELETE", credentials: "same-origin" }).catch(() => undefined);
+            throw new Error("The image could not be inserted into the note.");
+          }
+
+          insertedCount += 1;
+        } catch (error) {
+          failures.push(`${file.name}: ${error instanceof Error ? error.message : "upload failed"}`);
+        }
       }
 
-      // Re-enable after the initial note-creation save, then insert into the
-      // still-mounted editor. ProseMirror dispatches the insertion immediately.
-      editor?.setEditable(true);
-      const inserted = editor?.chain().focus().setImage({ src: data.asset.url, alt: file.name }).run();
-      if (!inserted || !editor) {
-        throw new Error("The image uploaded, but the editor could not insert it. Reopen the note and try again.");
+      if (insertedCount === 0) {
+        setError(failures.join("; ") || "No images could be uploaded.");
+        setStatus("Upload failed");
+        return;
       }
-      imageInserted = true;
-      const updatedContent = editor.getJSON();
+
+      updatedContent = editor.getJSON();
       setContent(updatedContent);
       setDirty(true);
-      setStatus("Saving image to note…");
+      setStatus(`Saving ${insertedCount} ${insertedCount === 1 ? "image" : "images"} to note…`);
 
-      // Persist the image URL as part of the note document immediately. Do not
-      // rely on the delayed autosave timer for a successful image operation.
+      // Save the complete document once after all successful uploads.
       setBusy(true);
       const tags = tagsInput
         .split(",")
@@ -456,8 +495,24 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         }),
       });
       const saveData = await saveResponse.json().catch(() => null);
+
       if (!saveResponse.ok) {
-        throw new Error(saveData?.error || "The image uploaded, but the note could not be updated. Your local recovery copy is being kept.");
+        // Commit a local encrypted recovery copy before reporting failure.
+        await saveLocalNoteDraft(`note:${id}`, {
+          version: 1,
+          noteId: id,
+          topicId,
+          title,
+          subject,
+          tagsInput,
+          pinned,
+          content: updatedContent,
+          selection,
+          focusTarget,
+          savedAt: Date.now(),
+          serverUpdatedAt: initialNote?.updatedAt ? new Date(initialNote.updatedAt).getTime() : null,
+        }).catch(() => undefined);
+        throw new Error(saveData?.error || "Images uploaded, but the note could not be updated. Your recovery copy has been kept.");
       }
 
       setDirty(false);
@@ -468,16 +523,20 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         removeLocalNoteDraft(`note:${id}`).catch(() => undefined),
       ]);
 
-      if (isNewNote) {
+      if (shouldNavigateToEdit) {
         router.replace(`/notes/${id}/edit`);
         router.refresh();
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Image upload failed.");
-      setStatus(imageInserted ? "Image added; save needs attention" : "Upload failed");
-      if (imageInserted) setDirty(true);
-      // Keep the current editor mounted on failure so the user can retry
-      // without losing the text or locally recovered image reference.
+
+      if (failures.length > 0) {
+        setError(`${insertedCount} image(s) added. Some files were skipped: ${failures.join("; ")}`);
+      } else {
+        setError("");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Image upload failed.");
+      setStatus(insertedCount > 0 ? "Images added; save needs attention" : "Upload failed");
+      if (insertedCount > 0) setDirty(true);
     } finally {
       setBusy(false);
       setImageUploading(false);
@@ -511,7 +570,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
 
   return <main className="page"><div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:25 }}><Link href={noteId ? `/notes/${noteId}` : "/notes"} className="breadcrumb"><ArrowLeft size={14}/> {noteId ? "Back to note" : "All notes"}</Link><div style={{ display:"flex", gap:8 }}><span style={{ fontSize:10, color:"var(--muted)", alignSelf:"center" }}>{status}</span><button className="primary-btn" onClick={() => void save(false)} disabled={busy || imageUploading}><Save size={14}/>{busy ? "Saving…" : "Save note"}</button></div></div>
     <div className="note-layout"><section className="editor-main"><div className="eyebrow">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); setStatus("Unsaved changes"); }} placeholder="Untitled note" maxLength={180} disabled={busy} aria-label="Note title"/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); setDirty(true); setStatus("Unsaved changes"); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy} aria-label="Note subject"/>
-      <div className="editor-toolbar" role="toolbar" aria-label="Text formatting"><button disabled={busy} className={`tool-btn ${editor?.isActive("bold") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleBold().run()} title="Bold"><Bold/></button><button disabled={busy} className={`tool-btn ${editor?.isActive("italic") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleItalic().run()} title="Italic"><Italic/></button><button disabled={busy} className={`tool-btn ${editor?.isActive("strike") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleStrike().run()} title="Strikethrough"><Strikethrough/></button><span className="tool-divider"/><button disabled={busy} className={`tool-btn ${editor?.isActive("heading",{level:1})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:1}).run()} title="Heading 1"><Heading1/></button><button disabled={busy} className={`tool-btn ${editor?.isActive("heading",{level:2})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:2}).run()} title="Heading 2"><Heading2/></button><span className="tool-divider"/><button disabled={busy} className={`tool-btn ${editor?.isActive("bulletList")?"active":""}`} onClick={() => editor?.chain().focus().toggleBulletList().run()} title="Bulleted list"><List/></button><button disabled={busy} className={`tool-btn ${editor?.isActive("orderedList")?"active":""}`} onClick={() => editor?.chain().focus().toggleOrderedList().run()} title="Numbered list"><ListOrdered/></button><button disabled={busy} className={`tool-btn ${editor?.isActive("blockquote")?"active":""}`} onClick={() => editor?.chain().focus().toggleBlockquote().run()} title="Quote"><Quote/></button><button disabled={busy} className="tool-btn" onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Divider"><Minus/></button><span className="tool-divider"/><input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const file=e.currentTarget.files?.[0]; e.currentTarget.value=""; if(file)void uploadImage(file); }}/><button disabled={!editor || busy || imageUploading} className="tool-btn" onClick={() => imageRef.current?.click()} title={imageUploading ? "Uploading image…" : "Add image"}><ImagePlus/></button><button disabled={busy || !imageSelected} className="tool-btn" onClick={() => void removeSelectedImage()} title="Remove selected image"><Trash2/></button><span className="tool-divider"/><button disabled={busy} className="tool-btn" onClick={() => editor?.chain().focus().undo().run()} title="Undo"><Undo2/></button><button disabled={busy} className="tool-btn" onClick={() => editor?.chain().focus().redo().run()} title="Redo"><Redo2/></button></div>
+      <div className="editor-toolbar" role="toolbar" aria-label="Text formatting"><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("bold") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleBold().run()} title="Bold"><Bold/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("italic") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleItalic().run()} title="Italic"><Italic/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("strike") ? "active" : ""}`} onClick={() => editor?.chain().focus().toggleStrike().run()} title="Strikethrough"><Strikethrough/></button><span className="tool-divider"/><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("heading",{level:1})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:1}).run()} title="Heading 1"><Heading1/></button><button disabled={busy} className={`tool-btn ${editor?.isActive("heading",{level:2})?"active":""}`} onClick={() => editor?.chain().focus().toggleHeading({level:2}).run()} title="Heading 2"><Heading2/></button><span className="tool-divider"/><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("bulletList")?"active":""}`} onClick={() => editor?.chain().focus().toggleBulletList().run()} title="Bulleted list"><List/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("orderedList")?"active":""}`} onClick={() => editor?.chain().focus().toggleOrderedList().run()} title="Numbered list"><ListOrdered/></button><button disabled={busy || imageUploading} className={`tool-btn ${editor?.isActive("blockquote")?"active":""}`} onClick={() => editor?.chain().focus().toggleBlockquote().run()} title="Quote"><Quote/></button><button disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Divider"><Minus/></button><span className="tool-divider"/><input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const files=Array.from(e.currentTarget.files ?? []); e.currentTarget.value=""; if(files.length)void uploadImages(files); }}/><button disabled={!editor || busy || imageUploading} className="tool-btn" onClick={() => imageRef.current?.click()} title={imageUploading ? "Uploading images…" : "Add images"}><ImagePlus/></button><button disabled={busy || imageUploading || !imageSelected} className="tool-btn" onClick={() => void removeSelectedImage()} title="Remove selected image"><Trash2/></button><span className="tool-divider"/><button disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().undo().run()} title="Undo"><Undo2/></button><button disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().redo().run()} title="Redo"><Redo2/></button></div>
       <EditorContent editor={editor} onFocusCapture={() => setFocusTarget("editor")}/><div className="editor-footer"><span>{words} words</span><span>{recoveryStatus}</span><span>Private encrypted note</span></div>
     </section><aside className="editor-side"><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><div className="property-label">Belongs to</div><select dir="auto" lang={detectTextLanguage(topics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy} onChange={(e)=>{setTopicId(e.target.value);setDirty(true);setStatus("Unsaved changes");}}>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></div><div className="property-block"><div className="property-label">Tags</div><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy} onChange={(e)=>{setTagsInput(e.target.value);setDirty(true);setStatus("Unsaved changes");}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button className={`secondary-btn`} disabled={busy} style={{ width:"100%", justifyContent:"flex-start" }} onClick={()=>{setPinned(!pinned);setDirty(true);setStatus("Unsaved changes");}}><Pin size={14}/>{pinned?"Remove from pinned":"Pin this note"}</button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={topics} beforeTransfer={async()=>{if(busy)return false;return dirty?Boolean(await save(false)):true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p></section>{noteId&&<button className="danger-btn" onClick={removeNote} disabled={busy}><Trash2 size={14}/> Move to Trash</button>}</aside></div>{error&&<p className="error-text">{error}</p>}</main>;
 }
