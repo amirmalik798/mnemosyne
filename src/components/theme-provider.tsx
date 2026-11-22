@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Type } from "lucide-react";
 
 type Theme = "dark" | "light";
 type AppFont = "source-sans" | "inter" | "atkinson" | "lato" | "plus-jakarta";
@@ -197,5 +197,31 @@ export function TypographySettings() {
         Your choices are saved in this browser and applied throughout the app. Arabic and Urdu retain their script-specific typefaces.
       </p>
     </section>
+  );
+}
+
+
+/**
+ * Compact font-family control retained for the Note Editor's writing guidance.
+ * It updates the same app-wide preference exposed in Settings.
+ */
+export function FontSelector() {
+  const { font, setFont } = useAppTheme();
+
+  return (
+    <label className="font-selector-control" title="Choose the font used throughout Mnemosyne">
+      <Type className="font-selector-icon" size={17} aria-hidden="true" />
+      <select
+        value={font}
+        onChange={(event) => setFont(event.target.value as AppFont)}
+        aria-label="App-wide font family"
+      >
+        <option value="source-sans">Source Sans 3</option>
+        <option value="inter">Inter</option>
+        <option value="atkinson">Atkinson Hyperlegible</option>
+        <option value="lato">Lato</option>
+        <option value="plus-jakarta">Plus Jakarta Sans</option>
+      </select>
+    </label>
   );
 }
