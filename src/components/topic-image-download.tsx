@@ -5,7 +5,6 @@ export function TopicImageDownload({
   imageCount,
 }: {
   topicId: string;
-  topicTitle: string;
   imageCount: number;
 }) {
   if (imageCount === 0) {
