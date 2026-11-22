@@ -4,6 +4,7 @@ import type { PoolClient } from "pg";
 import { assertSameOrigin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { issueEmailVerificationToken, normalizeEmail, verifyAccountPassword } from "@/lib/accounts";
+import { derivePasswordKey } from "@/lib/crypto";
 import { sendVerificationEmail } from "@/lib/email";
 import { enforceAuthRateLimit } from "@/lib/rate-limit";
 import { readJsonObject, stringField } from "@/lib/http";
@@ -35,6 +36,10 @@ export async function POST(request: Request) {
     // The same response is returned for unknown addresses, incorrect
     // passwords and already verified accounts.
     if (!user) {
+      // Match the password-hash work for an existing account with an
+      // incorrect password, so unknown addresses do not get a faster reply.
+      const dummyKey = await derivePasswordKey(password, Buffer.alloc(16, 0x5a));
+      dummyKey.fill(0);
       await client.query("ROLLBACK");
       return NextResponse.json({ success: true, message: "If the account is eligible, a verification message will be sent." });
     }

@@ -78,8 +78,8 @@ export async function GET(_request: Request, context: Context) {
       [id, Array.from(referencedAssetIds)],
     );
     const assets = assetResult.rows as AssetRow[];
-    if (assets.length === 0) {
-      throw new Error("VALIDATION:No stored images were found in this note.");
+    if (assets.length !== referencedAssetIds.size) {
+      throw new Error("VALIDATION:One or more images attached to this note are unavailable. The complete archive was not exported.");
     }
 
     const noteFolder = safeZipSegment(noteTitle, "Note");

@@ -179,7 +179,11 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
 
   function chooseFile(next: File | null) {
     if (!next) return;
-    if (!next.type.startsWith("image/")) return setError("Choose an image file for the topic cover.");
+    const supportedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    const supportedByName = /\.(png|jpe?g|webp|gif)$/i.test(next.name);
+    if (!supportedTypes.includes(next.type) && !supportedByName) {
+      return setError("Use a PNG, JPEG, WebP or GIF image for the topic cover.");
+    }
     if (next.size > 8 * 1024 * 1024) return setError("The cover image must be 8 MB or smaller.");
     setError("");
     setFile(next);

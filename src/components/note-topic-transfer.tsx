@@ -73,11 +73,14 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
           ? data.pagination.limit
           : 100;
       }
+      if (controller.signal.aborted || topicsRequestRef.current !== controller) return;
       setAvailableTopics(nextTopics);
       setTopicsLoaded(true);
       setDestinationTopicId(nextTopics.find((topic) => topic.id !== currentTopicId)?.id ?? "");
     } catch (cause) {
-      setTopicsError(cause instanceof Error ? cause.message : "Could not load destination topics.");
+      if (!controller.signal.aborted && topicsRequestRef.current === controller) {
+        setTopicsError(cause instanceof Error ? cause.message : "Could not load destination topics.");
+      }
     } finally {
       if (topicsRequestRef.current === controller) {
         topicsRequestRef.current = null;

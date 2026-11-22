@@ -24,6 +24,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
   const router = useRouter();
   const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
   const fileRef = useRef<HTMLInputElement>(null);
+  const previewUrlRef = useRef<string | null>(null);
   const [title, setTitle] = useState(topic.title);
   const [subject, setSubject] = useState(topic.subject);
   const [description, setDescription] = useState(topic.description);
@@ -36,6 +37,11 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
   const [busy, setBusy] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = null;
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -166,6 +172,8 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
       if (!response.ok) throw new Error(data.error || "Could not remove topic cover.");
 
       setFile(null);
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
       setPreview("");
       notifyOperation("success", "Topic cover removed.");
     } catch (cause) {
@@ -180,13 +188,22 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
 
   function chooseCover(next: File | undefined) {
     if (!next) return;
+    const supportedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    const supportedByName = /\.(png|jpe?g|webp|gif)$/i.test(next.name);
+    if (!supportedTypes.includes(next.type) && !supportedByName) {
+      setError("Use a PNG, JPEG, WebP or GIF image for the topic cover.");
+      return;
+    }
     if (next.size > 8 * 1024 * 1024) {
       setError("The cover image must be 8 MB or smaller.");
       return;
     }
     setError("");
     setFile(next);
-    setPreview(URL.createObjectURL(next));
+    const nextPreview = URL.createObjectURL(next);
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = nextPreview;
+    setPreview(nextPreview);
   }
 
   return (

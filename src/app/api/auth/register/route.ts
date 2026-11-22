@@ -28,6 +28,9 @@ export async function POST(request: Request) {
     const body = await readJsonObject(request, 16 * 1024);
     const email = normalizeEmail(stringField(body, "email", 254, true));
     const displayName = stringField(body, "displayName", 80, true);
+    if (/[\u0000-\u001f\u007f]/.test(displayName)) {
+      throw new Error("VALIDATION:Name contains unsupported characters.");
+    }
     const password = typeof body.password === "string" ? body.password : "";
     const confirmation = typeof body.confirmation === "string" ? body.confirmation : "";
 
