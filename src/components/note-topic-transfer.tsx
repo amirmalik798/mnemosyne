@@ -145,7 +145,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
             if (event.target === event.currentTarget && !busy && !topicsLoading) setOpen(false);
           }}
         >
-          <section className="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
+          <section className="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title" aria-busy={busy || topicsLoading}>
             <header className="transfer-dialog-head">
               <div>
                 <div className="eyebrow">Organize your archive</div>
@@ -158,12 +158,12 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
             </header>
 
             <div className="transfer-choice-grid" role="group" aria-label="Transfer action">
-              <button type="button" className={`transfer-choice ${action === "move" ? "selected" : ""}`} aria-pressed={action === "move"} onClick={() => setAction("move")}>
+              <button type="button" className={`transfer-choice ${action === "move" ? "selected" : ""}`} aria-pressed={action === "move"} onClick={() => setAction("move")} disabled={busy}>
                 <span className="transfer-choice-icon"><FolderInput size={17} /></span>
                 <span className="transfer-choice-copy"><strong>Move note</strong><small>Relocate the original. It will leave its current topic.</small></span>
                 <span className="transfer-choice-radio" aria-hidden="true" />
               </button>
-              <button type="button" className={`transfer-choice ${action === "copy" ? "selected" : ""}`} aria-pressed={action === "copy"} onClick={() => setAction("copy")}>
+              <button type="button" className={`transfer-choice ${action === "copy" ? "selected" : ""}`} aria-pressed={action === "copy"} onClick={() => setAction("copy")} disabled={busy}>
                 <span className="transfer-choice-icon"><Copy size={17} /></span>
                 <span className="transfer-choice-copy"><strong>Copy note</strong><small>Create a separate duplicate. The original stays where it is.</small></span>
                 <span className="transfer-choice-radio" aria-hidden="true" />
@@ -186,6 +186,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
                   lang={detectTextLanguage(destinations.find((topic) => topic.id === destinationTopicId)?.title ?? "")}
                   className="select-field"
                   value={destinationTopicId}
+                  disabled={busy || topicsLoading}
                   onChange={(event: ChangeEvent<HTMLSelectElement>) => setDestinationTopicId(event.target.value)}
                 >
                   {destinations.map((topic) => <option key={topic.id} value={topic.id}>{topic.title}</option>)}

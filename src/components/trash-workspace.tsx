@@ -127,7 +127,7 @@ export function TrashWorkspace() {
               const deleting = pending && busy?.action === "delete";
 
               return (
-                <div className="note-row" key={item.id}>
+                <div className="note-row note-row-trash" key={item.id}>
                   <div className="note-icon"><Trash2 /></div>
                   <div className="note-main">
                     <div className="note-row-title">{item.title}</div>

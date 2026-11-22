@@ -260,18 +260,25 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const current = nav.flatMap((group) => group.items).find((item) => pathname === item.href || (item.href !== "/library" && pathname.startsWith(`${item.href}/`)));
   return <div className="app-shell">
     <aside className="sidebar">
-      <Link href="/library" className="brand"><span className="brand-mark">M</span><span><span className="brand-name">Mnemosyne</span><span className="brand-sub">Private knowledge archive</span></span></Link>
-      {nav.map((group) => <div key={group.label}><div className="nav-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const active = current?.href === item.href; return <Link href={item.href} key={item.href} className={`nav-link ${active ? "active" : ""}`}><Icon /><span>{item.label}</span></Link>; })}</div>)}
+      <Link href="/library" className="brand" aria-label="Mnemosyne library" title="Mnemosyne library"><span className="brand-mark">M</span><span><span className="brand-name">Mnemosyne</span><span className="brand-sub">Private knowledge archive</span></span></Link>
+      {nav.map((group) => <div key={group.label}><div className="nav-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const active = current?.href === item.href; return <Link href={item.href} key={item.href} className={`nav-link ${active ? "active" : ""}`} aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label}><Icon /><span>{item.label}</span></Link>; })}</div>)}
       <div className="sidebar-spacer" />
       <div className="vault-status"><div className="status-row"><span className="dot" /> Vault encrypted</div><div className="vault-caption">Your personal archive is unlocked for this session.</div></div>
       <div className="sidebar-bottom"><div className="profile"><div className="avatar">{(user.displayName.trim().charAt(0) || user.email.charAt(0)).toUpperCase()}</div><div className="profile-copy"><div className="profile-name">{user.displayName}</div><div className="profile-sub">{user.email}</div></div></div></div>
     </aside>
     <div className="main-area">
       <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{current?.label ?? (pathname.includes("/edit") ? "Edit note" : pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ?? "Overview")}</span></div>
-        <div className="top-actions"><FontSelector /><ThemeToggle /><button className="search-trigger" onClick={() => router.push("/search")}><Search size={15} /><span>Search your archive…</span><kbd>⌘ K</kbd></button><button className="secondary-btn" onClick={() => router.push("/notes/new")}><Plus size={15} /> New note</button><button className="primary-btn" onClick={() => setShowTopic(true)}><Plus size={15} /><span>New topic</span></button><button type="button" className="lock-vault-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault"} aria-label={locking ? "Locking vault" : "Lock vault"}>{locking ? <LoaderCircle className="operation-spinner" size={15} /> : <LockKeyhole size={15} />}<span>{locking ? "Locking…" : "Lock vault"}</span></button></div>
+        <div className="top-actions" role="group" aria-label="Workspace actions"><FontSelector /><ThemeToggle /><button type="button" className="search-trigger" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive"><Search size={15} /><span>Search your archive…</span><kbd>⌘ K</kbd></button><button type="button" className="secondary-btn" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><Plus size={15} /><span>New note</span></button><button type="button" className="primary-btn" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><Plus size={15} /><span>New topic</span></button><button type="button" className="lock-vault-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault"} aria-label={locking ? "Locking vault" : "Lock vault"}>{locking ? <LoaderCircle className="operation-spinner" size={15} /> : <LockKeyhole size={15} />}<span>{locking ? "Locking…" : "Lock vault"}</span></button></div>
       </header>
       {children}
     </div>
+    <nav className="mobile-nav" aria-label="Main navigation">
+      {nav.flatMap((group) => group.items).map((item) => {
+        const Icon = item.icon;
+        const active = current?.href === item.href;
+        return <Link key={item.href} href={item.href} className={`mobile-nav-link ${active ? "active" : ""}`} aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label}><Icon aria-hidden="true" /><span>{item.label}</span></Link>;
+      })}
+    </nav>
     {showTopic && <TopicDialog onClose={() => setShowTopic(false)} />}
     {operationNotice && (
       <div className="operation-toast">

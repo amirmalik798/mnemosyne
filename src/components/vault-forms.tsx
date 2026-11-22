@@ -36,8 +36,8 @@ export function VaultSetup() {
   }
   return <AuthFrame kicker="Your private archive" title="Create your vault" description="A quiet place for the ideas you want to keep.">
     <form className="auth-form" onSubmit={submit}>
-      <div className="form-field"><label className="form-label" htmlFor="master-password">Master password</label><div style={{ position: "relative" }}><input id="master-password" className="field" type={show ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 16 characters" required minLength={16} style={{ paddingRight: 42 }} /><button type="button" className="icon-button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} style={{ position: "absolute", right: 5, top: 4 }}>{show ? <EyeOff /> : <Eye />}</button></div><span className="form-hint">Use a long, unique passphrase. Mnemosyne cannot recover a forgotten master password without a recovery mechanism.</span></div>
-      <div className="form-field"><label className="form-label" htmlFor="confirm-password">Confirm master password</label><input id="confirm-password" className="field" type={show ? "text" : "password"} autoComplete="new-password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} placeholder="Enter it again" required /></div>
+      <div className="form-field"><label className="form-label" htmlFor="master-password">Master password</label><div style={{ position: "relative" }}><input id="master-password" className="field" type={show ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 16 characters" required minLength={16} disabled={busy} style={{ paddingRight: 42 }} /><button type="button" className="icon-button" onClick={() => setShow(!show)} disabled={busy} aria-label={show ? "Hide password" : "Show password"} style={{ position: "absolute", right: 5, top: 4 }}>{show ? <EyeOff /> : <Eye />}</button></div><span className="form-hint">Use a long, unique passphrase. Mnemosyne cannot recover a forgotten master password without a recovery mechanism.</span></div>
+      <div className="form-field"><label className="form-label" htmlFor="confirm-password">Confirm master password</label><input id="confirm-password" className="field" type={show ? "text" : "password"} autoComplete="new-password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} placeholder="Enter it again" required disabled={busy} /></div>
       <div className="form-field">
         <label className="form-label" htmlFor="vault-setup-token">One-time setup key</label>
         <input
@@ -48,6 +48,7 @@ export function VaultSetup() {
           value={setupToken}
           onChange={(event) => setSetupToken(event.target.value)}
           placeholder="Enter the server setup key"
+          disabled={busy}
         />
         <span className="form-hint">Required on production deployments when VAULT_SETUP_TOKEN is configured. Generate it on the server and do not share it.</span>
       </div>
@@ -76,7 +77,7 @@ export function VaultUnlock() {
   }
   return <AuthFrame kicker="Welcome back" title="Unlock your archive" description="Your notes are waiting, exactly where you left them.">
     <form className="auth-form" onSubmit={submit}>
-      <div className="form-field"><label className="form-label" htmlFor="unlock-password">Master password</label><div style={{ position: "relative" }}><input id="unlock-password" className="field" type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your master password" required style={{ paddingRight: 42 }} /><button type="button" className="icon-button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} style={{ position: "absolute", right: 5, top: 4 }}>{show ? <EyeOff /> : <Eye />}</button></div></div>
+      <div className="form-field"><label className="form-label" htmlFor="unlock-password">Master password</label><div style={{ position: "relative" }}><input id="unlock-password" className="field" type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your master password" required disabled={busy} style={{ paddingRight: 42 }} /><button type="button" className="icon-button" onClick={() => setShow(!show)} disabled={busy} aria-label={show ? "Hide password" : "Show password"} style={{ position: "absolute", right: 5, top: 4 }}>{show ? <EyeOff /> : <Eye />}</button></div></div>
       {error && <OperationStatus kind="failure" message={error} />}
       <button className="primary-btn" type="submit" disabled={busy} style={{ width: "100%", height: 44, marginTop: 4 }}>{busy ? <LoaderCircle className="operation-spinner" size={16} /> : <KeyRound size={16} />}{busy ? "Unlocking…" : "Unlock Mnemosyne"}</button>{busy && <OperationStatus kind="processing" message="Verifying your password and unlocking the archive…" />}
     </form>
