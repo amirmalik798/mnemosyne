@@ -390,15 +390,15 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     for (const file of files) {
       const supportedByName = /\.(png|jpe?g|webp|gif)$/i.test(file.name);
       if (!supportedTypes.includes(file.type) && !supportedByName) {
-        failures.push(`${file.name}: unsupported format`);
+        failures.push(file.name + ": unsupported format");
         continue;
       }
       if (file.size === 0) {
-        failures.push(`${file.name}: file is empty`);
+        failures.push(file.name + ": file is empty");
         continue;
       }
       if (file.size > 20 * 1024 * 1024) {
-        failures.push(`${file.name}: larger than 20 MB`);
+        failures.push(file.name + ": larger than 20 MB");
         continue;
       }
       validFiles.push(file);
@@ -409,10 +409,19 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       return;
     }
 
+    // Capture the exact editor selection before the file picker/upload flow.
+    // The editor stays read-only while files are sent, so this range remains
+    // stable and the whole batch can be inserted in one ProseMirror transaction.
+    const insertionRange = {
+      from: editor.state.selection.from,
+      to: editor.state.selection.to,
+    };
+
     setError(failures.length ? failures.join("; ") : "");
     setImageUploading(true);
     let id = noteId;
     const shouldNavigateToEdit = window.location.pathname === "/notes/new";
+    const uploadedAssets: Array<{ file: File; url: string }> = [];
     let insertedCount = 0;
     let updatedContent: any = null;
 
@@ -422,14 +431,16 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       if (!id) id = await save(false, { navigateOnCreate: false, refreshOnSave: false });
       if (!id) return;
 
+      // Upload sequentially to avoid simultaneous large requests and make
+      // individual failures recoverable without cancelling the other files.
       for (let index = 0; index < validFiles.length; index += 1) {
         const file = validFiles[index];
-        setStatus(`Uploading image ${index + 1} of ${validFiles.length}…`);
+        setStatus("Uploading image " + (index + 1) + " of " + validFiles.length + "…");
 
         try {
           const form = new FormData();
           form.append("file", file, file.name);
-          const response = await fetch(`/api/notes/${id}/assets`, {
+          const response = await fetch("/api/notes/" + id + "/assets", {
             method: "POST",
             body: form,
             credentials: "same-origin",
@@ -437,42 +448,47 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
           const data = await response.json().catch(() => null);
 
           if (!response.ok) {
-            throw new Error(data?.error || `Upload failed (HTTP ${response.status}).`);
+            throw new Error(data?.error || "Upload failed (HTTP " + response.status + ").");
           }
-          if (!data?.asset?.url || typeof data.asset.url !== "string") {
-            throw new Error("The server did not return the uploaded image address.");
-          }
-
-          // Temporarily enable ProseMirror for the insertion, then keep it
-          // read-only for the remainder of the batch to avoid content races.
-          editor.setEditable(true);
-          const inserted = editor.chain().focus().setImage({
-            src: data.asset.url,
-            alt: file.name,
-          }).run();
-          editor.setEditable(false);
-
-          if (!inserted) {
-            await fetch(data.asset.url, { method: "DELETE", credentials: "same-origin" }).catch(() => undefined);
-            throw new Error("The image could not be inserted into the note.");
+          if (typeof data?.asset?.url !== "string" || !/^\/api\/assets\/[0-9a-f-]{36}$/i.test(data.asset.url)) {
+            throw new Error("The server did not return a valid uploaded image address.");
           }
 
-          insertedCount += 1;
+          uploadedAssets.push({ file, url: data.asset.url });
         } catch (error) {
-          failures.push(`${file.name}: ${error instanceof Error ? error.message : "upload failed"}`);
+          failures.push(file.name + ": " + (error instanceof Error ? error.message : "upload failed"));
         }
       }
 
-      if (insertedCount === 0) {
+      if (uploadedAssets.length === 0) {
         setError(failures.join("; ") || "No images could be uploaded.");
         setStatus("Upload failed");
         return;
       }
 
+      // Insert the complete batch in one editor transaction. This avoids
+      // repeatedly changing ProseMirror's editable state and selection while
+      // uploads are still running.
+      const imageNodes = uploadedAssets.map(({ file, url }) => ({
+        type: "image",
+        attrs: { src: url, alt: file.name },
+      }));
+      const inserted = editor.commands.insertContentAt(insertionRange, imageNodes, {
+        updateSelection: true,
+      });
+
+      if (!inserted) {
+        await Promise.all(uploadedAssets.map(({ url }) =>
+          fetch(url, { method: "DELETE", credentials: "same-origin" }).catch(() => undefined),
+        ));
+        throw new Error("The uploaded images could not be inserted into the note.");
+      }
+
+      insertedCount = uploadedAssets.length;
       updatedContent = editor.getJSON();
       setContent(updatedContent);
       setDirty(true);
-      setStatus(`Saving ${insertedCount} ${insertedCount === 1 ? "image" : "images"} to note…`);
+      setStatus("Saving " + insertedCount + " " + (insertedCount === 1 ? "image" : "images") + " to note…");
 
       // Save the complete document once after all successful uploads.
       setBusy(true);
@@ -481,7 +497,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         .map((tag) => tag.trim().replace(/^#/, ""))
         .filter(Boolean)
         .slice(0, 30);
-      const saveResponse = await fetch(`/api/notes/${id}`, {
+      const saveResponse = await fetch("/api/notes/" + id, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
@@ -498,7 +514,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
 
       if (!saveResponse.ok) {
         // Commit a local encrypted recovery copy before reporting failure.
-        await saveLocalNoteDraft(`note:${id}`, {
+        await saveLocalNoteDraft("note:" + id, {
           version: 1,
           noteId: id,
           topicId,
@@ -520,16 +536,16 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       setRecoveryStatus("Saved securely to your archive");
       await Promise.all([
         removeLocalNoteDraft("note:new").catch(() => undefined),
-        removeLocalNoteDraft(`note:${id}`).catch(() => undefined),
+        removeLocalNoteDraft("note:" + id).catch(() => undefined),
       ]);
 
       if (shouldNavigateToEdit) {
-        router.replace(`/notes/${id}/edit`);
+        router.replace("/notes/" + id + "/edit");
         router.refresh();
       }
 
       if (failures.length > 0) {
-        setError(`${insertedCount} image(s) added. Some files were skipped: ${failures.join("; ")}`);
+        setError(insertedCount + " image(s) added. Some files were skipped: " + failures.join("; "));
       } else {
         setError("");
       }
