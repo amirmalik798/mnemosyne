@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const body = await readJsonObject(request, 8 * 1024);
     const currentPassword = stringField(body, "currentPassword", 256, true);
     const newPassword = stringField(body, "newPassword", 256, true);
-    if (newPassword.length < 12) throw new Error("VALIDATION:Use at least 12 characters for your new password.");
+    if (newPassword.length < 16) throw new Error("VALIDATION:Use at least 16 characters for your new password.");
 
     client = await db.connect();
     await client.query("BEGIN");
