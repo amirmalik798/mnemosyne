@@ -136,21 +136,19 @@ export function saveLocalNoteDraft(id: string, draft: LocalNoteDraft): Promise<v
     .catch(() => undefined)
     .then(async () => {
       const database = await openRecoveryDatabase();
-      try {
-        const key = await getCachedDeviceKey(database);
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
-        const plaintext = new TextEncoder().encode(JSON.stringify(draft));
-        const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
-        const record: EncryptedDraftRecord = {
-          id,
-          iv,
-          ciphertext: new Uint8Array(encrypted),
-          updatedAt: draft.savedAt,
-        };
-        const transaction = database.transaction(DRAFT_STORE, "readwrite");
-        transaction.objectStore(DRAFT_STORE).put(record);
-        await transactionComplete(transaction);
-      }
+      const key = await getCachedDeviceKey(database);
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const plaintext = new TextEncoder().encode(JSON.stringify(draft));
+      const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
+      const record: EncryptedDraftRecord = {
+        id,
+        iv,
+        ciphertext: new Uint8Array(encrypted),
+        updatedAt: draft.savedAt,
+      };
+      const transaction = database.transaction(DRAFT_STORE, "readwrite");
+      transaction.objectStore(DRAFT_STORE).put(record);
+      await transactionComplete(transaction);
     });
 
   pendingWrites.set(id, current);
@@ -164,39 +162,33 @@ export async function loadLocalNoteDraft(id: string): Promise<LocalNoteDraft | n
   if (pending) await pending.catch(() => undefined);
 
   const database = await openRecoveryDatabase();
-  try {
-    const transaction = database.transaction(DRAFT_STORE, "readonly");
-    const request = transaction.objectStore(DRAFT_STORE).get(id);
-    const record = await new Promise<EncryptedDraftRecord | null>((resolve, reject) => {
-      request.onsuccess = () => resolve((request.result as EncryptedDraftRecord | undefined) ?? null);
-      request.onerror = () => reject(request.error ?? new Error("Could not read the local note draft."));
-    });
-    await transactionComplete(transaction);
-    if (!record) return null;
+  const transaction = database.transaction(DRAFT_STORE, "readonly");
+  const request = transaction.objectStore(DRAFT_STORE).get(id);
+  const record = await new Promise<EncryptedDraftRecord | null>((resolve, reject) => {
+    request.onsuccess = () => resolve((request.result as EncryptedDraftRecord | undefined) ?? null);
+    request.onerror = () => reject(request.error ?? new Error("Could not read the local note draft."));
+  });
+  await transactionComplete(transaction);
+  if (!record) return null;
 
-    const key = await getCachedDeviceKey(database);
-    const plaintext = await window.crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: new Uint8Array(record.iv) },
-      key,
-      new Uint8Array(record.ciphertext),
-    );
-    const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as LocalNoteDraft;
-    if (parsed.version !== 1 || typeof parsed.savedAt !== "number") return null;
-    return parsed;
-  }
+  const key = await getCachedDeviceKey(database);
+  const plaintext = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: new Uint8Array(record.iv) },
+    key,
+    new Uint8Array(record.ciphertext),
+  );
+  const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as LocalNoteDraft;
+  if (parsed.version !== 1 || typeof parsed.savedAt !== "number") return null;
+  return parsed;
 }
 
 export async function removeLocalNoteDraft(id: string): Promise<void> {
   const pending = pendingWrites.get(id);
   if (pending) await pending.catch(() => undefined);
   const database = await openRecoveryDatabase();
-  try {
-    const transaction = database.transaction(DRAFT_STORE, "readwrite");
-    transaction.objectStore(DRAFT_STORE).delete(id);
-    await transactionComplete(transaction);
-  } finally {
-    database.close();
-  }
+  const transaction = database.transaction(DRAFT_STORE, "readwrite");
+  transaction.objectStore(DRAFT_STORE).delete(id);
+  await transactionComplete(transaction);
 }
 
 export async function flushPendingLocalDraftWrites(): Promise<void> {
