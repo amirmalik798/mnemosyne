@@ -146,7 +146,7 @@ export default async function LibraryPage() {
     .filter((note) => note.id !== featuredNote?.id)
     .slice(0, 3);
   const recentlyTouched = recentNotes
-    .filter((note) => note.id !== featuredNote?.id && !note.pinned)
+    .filter((note) => note.id !== featuredNote?.id)
     .slice(0, 4);
   const topicDecryptionFailed = decryptionIssues.some((issue) => issue.type === "topic");
   const noteDecryptionFailed = decryptionIssues.some((issue) => issue.type === "note");
