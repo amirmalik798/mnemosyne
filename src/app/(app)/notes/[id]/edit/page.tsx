@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { NoteEditor } from "@/components/note-editor";
 
@@ -8,14 +8,14 @@ export const dynamic = "force-dynamic";
 
 export default async function EditNotePage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, session] = await Promise.all([params, requireVaultSession()]);
-  const noteResult = await db.query(
+  const noteResult = await queryAsUser(session.userId, 
     "SELECT * FROM notes WHERE id=$1 AND deleted_at IS NULL",
     [id],
   );
   if (!noteResult.rows[0]) notFound();
   const note = noteResult.rows[0];
 
-  const topic = await db.query(
+  const topic = await queryAsUser(session.userId, 
     "SELECT id FROM topics WHERE id=$1",
     [note.topic_id],
   );

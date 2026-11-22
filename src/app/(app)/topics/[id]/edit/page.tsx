@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { TopicEditForm } from "@/components/topic-edit-form";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function EditTopicPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, session] = await Promise.all([params, requireVaultSession()]);
-  const result = await db.query(
+  const result = await queryAsUser(session.userId, 
     `SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc,
             t.cover_asset_id, (SELECT COUNT(*)::int FROM notes n
             WHERE n.topic_id=t.id) AS note_count

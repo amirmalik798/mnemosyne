@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Edit3, FilePlus } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { NoteRow, EmptyState, type NoteItem } from "@/components/archive-ui";
 import { detectTextLanguage } from "@/lib/bidi";
@@ -22,7 +22,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
     requireVaultSession(),
   ]);
   const requestedPageNumber = parseArchivePage(requestedPage);
-  const result = await db.query(
+  const result = await queryAsUser(session.userId, 
     "SELECT id,title_enc,subject_enc,description_enc,category_enc,cover_asset_id,created_at,updated_at FROM topics WHERE id=$1",
     [id],
   );
@@ -30,15 +30,15 @@ export default async function TopicPage({ params, searchParams }: Props) {
   const row = result.rows[0];
 
   const [countResult, coverAssetResult] = await Promise.all([
-    db.query("SELECT COUNT(*)::int AS total FROM notes WHERE topic_id=$1 AND deleted_at IS NULL", [id]),
+    queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM notes WHERE topic_id=$1 AND deleted_at IS NULL", [id]),
     row.cover_asset_id
-      ? db.query("SELECT id FROM assets WHERE id=$1 AND owner_type='topic' AND owner_id=$2", [row.cover_asset_id, id])
+      ? queryAsUser(session.userId, "SELECT id FROM assets WHERE id=$1 AND owner_type='topic' AND owner_id=$2", [row.cover_asset_id, id])
       : Promise.resolve({ rows: [] }),
   ]);
   const totalNotes = Number(countResult.rows[0]?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(totalNotes / ARCHIVE_PAGE_SIZE));
   const currentPage = Math.min(requestedPageNumber, totalPages);
-  const notesResult = await db.query(
+  const notesResult = await queryAsUser(session.userId, 
     `SELECT id,title_enc,subject_enc,pinned,updated_at
      FROM notes
      WHERE topic_id=$1 AND deleted_at IS NULL
@@ -57,7 +57,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
     updatedAt: note.updated_at,
   }));
 
-  const imageAssetsResult = await db.query(
+  const imageAssetsResult = await queryAsUser(session.userId, 
     `SELECT COUNT(*)::int AS total
      FROM assets a
      JOIN notes n ON n.id = a.owner_id

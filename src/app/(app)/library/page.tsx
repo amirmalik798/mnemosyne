@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus, ArrowUpRight, FileText } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { EmptyState, NoteRow, TopicCard, type TopicItem, type NoteItem } from "@/components/archive-ui";
 
@@ -40,9 +40,9 @@ function decryptLibraryField(
 export default async function LibraryPage() {
   const session = await requireVaultSession();
   const [topicsResult, notesResult, totalResult] = await Promise.all([
-    db.query(`SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc, t.cover_asset_id, t.updated_at, (SELECT COUNT(*)::int FROM notes n WHERE n.topic_id=t.id AND n.deleted_at IS NULL) AS note_count FROM topics t ORDER BY t.updated_at DESC, t.id DESC LIMIT 6`),
-    db.query(`SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.updated_at, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.deleted_at IS NULL ORDER BY n.pinned DESC,n.updated_at DESC,n.id DESC LIMIT 6`),
-    db.query(`SELECT (SELECT COUNT(*)::int FROM topics) AS topics, (SELECT COUNT(*)::int FROM notes WHERE deleted_at IS NULL) AS notes, (SELECT COUNT(*)::int FROM assets) AS assets`),
+    queryAsUser(session.userId, `SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc, t.cover_asset_id, t.updated_at, (SELECT COUNT(*)::int FROM notes n WHERE n.topic_id=t.id AND n.deleted_at IS NULL) AS note_count FROM topics t ORDER BY t.updated_at DESC, t.id DESC LIMIT 6`),
+    queryAsUser(session.userId, `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.updated_at, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.deleted_at IS NULL ORDER BY n.pinned DESC,n.updated_at DESC,n.id DESC LIMIT 6`),
+    queryAsUser(session.userId, `SELECT (SELECT COUNT(*)::int FROM topics) AS topics, (SELECT COUNT(*)::int FROM notes WHERE deleted_at IS NULL) AS notes, (SELECT COUNT(*)::int FROM assets) AS assets`),
   ]);
 
   const decryptionIssues: LibraryDecryptionIssue[] = [];
