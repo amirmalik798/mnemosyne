@@ -13,7 +13,7 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
   const {id}=await params;
   const session=await requireVaultSession();
   const [result,topicsResult]=await Promise.all([
-    db.query(`SELECT n.*,t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.id=$1 AND n.deleted_at IS NULL`,[id]),
+    db.query(`SELECT n.id,n.topic_id,n.title_enc,n.subject_enc,n.content_enc,n.tags_enc,n.updated_at,t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.id=$1 AND n.deleted_at IS NULL`,[id]),
     db.query("SELECT id,title_enc FROM topics ORDER BY updated_at DESC"),
   ]);
   if(!result.rows[0])notFound();
