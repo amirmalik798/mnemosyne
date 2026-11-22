@@ -146,6 +146,8 @@ export default async function TopicsPage({ searchParams }: Props) {
       coverUrl: row.cover_asset_id ? `/api/assets/${row.cover_asset_id}` : null,
       noteCount: row.note_count,
       updatedAt: row.updated_at,
+      dateAt: sort === "created-desc" ? row.created_at : row.updated_at,
+      dateLabel: sort === "created-desc" ? "Created" : "Modified",
     });
   }
 

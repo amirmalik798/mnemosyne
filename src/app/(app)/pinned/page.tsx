@@ -56,6 +56,8 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
     subject: decryptText(row.subject_enc, session.key),
     pinned: row.pinned,
     updatedAt: row.updated_at,
+    dateAt: sort === "created-desc" ? row.created_at : row.updated_at,
+    dateLabel: sort === "created-desc" ? "Created" : "Modified",
   }));
 
   if (alphabetical) decryptedNotes.sort((a, b) => compareArchiveTitles(a, b, sort));

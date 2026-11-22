@@ -80,6 +80,8 @@ export default async function NotesPage({ searchParams }: Props) {
       subject,
       pinned: row.pinned,
       updatedAt: row.updated_at,
+      dateAt: sort === "created-desc" ? row.created_at : row.updated_at,
+      dateLabel: sort === "created-desc" ? "Created" : "Modified",
     });
   }
 

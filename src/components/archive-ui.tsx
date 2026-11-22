@@ -4,14 +4,14 @@ import { detectTextLanguage } from "@/lib/bidi";
 import { NoteRowActions } from "@/components/note-row-actions";
 import { formatArchiveDate } from "@/lib/date-format";
 
-export type TopicItem = { id: string; title: string; subject: string; description: string; category: string; coverUrl: string | null; noteCount: number; updatedAt: string | Date };
-export type NoteItem = { id: string; topicId: string; topicTitle: string; title: string; subject: string; preview?: string; pinned?: boolean; updatedAt: string | Date };
+export type TopicItem = { id: string; title: string; subject: string; description: string; category: string; coverUrl: string | null; noteCount: number; updatedAt: string | Date; dateAt?: string | Date; dateLabel?: string };
+export type NoteItem = { id: string; topicId: string; topicTitle: string; title: string; subject: string; preview?: string; pinned?: boolean; updatedAt: string | Date; dateAt?: string | Date; dateLabel?: string };
 
 export function TopicCard({ topic }: { topic: TopicItem }) {
   const glyph = topic.title.trim().charAt(0).toUpperCase() || "M";
   return <Link className="topic-card" href={`/topics/${topic.id}`}>
     <div className="topic-cover">{topic.coverUrl ? <img src={topic.coverUrl} alt={`${topic.title} cover`} loading="lazy" decoding="async" /> : <div className="cover-placeholder"><span className="cover-glyph">{glyph}</span></div>}<span className="cover-category">{topic.category || "Collection"}</span></div>
-    <div className="topic-body"><h2 className="topic-title" dir="auto" lang={detectTextLanguage(topic.title)}>{topic.title}</h2><div className="topic-subject" dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject || "A personal collection"}</div><p className="topic-description" dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description || "A place to gather notes, references and ideas worth keeping."}</p><div className="topic-meta"><span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span><span>{formatArchiveDate(topic.updatedAt)}</span></div></div>
+    <div className="topic-body"><h2 className="topic-title" dir="auto" lang={detectTextLanguage(topic.title)}>{topic.title}</h2><div className="topic-subject" dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject || "A personal collection"}</div><p className="topic-description" dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description || "A place to gather notes, references and ideas worth keeping."}</p><div className="topic-meta"><span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span><span>{topic.dateLabel ? `${topic.dateLabel} · ` : ""}{formatArchiveDate(topic.dateAt ?? topic.updatedAt)}</span></div></div>
   </Link>;
 }
 
@@ -31,7 +31,7 @@ export function NoteRow({ note }: { note: NoteItem }) {
             {note.preview && <> · <span dir="auto" lang={detectTextLanguage(note.preview)}>{note.preview}</span></>}
           </div>
         </div>
-        <div className="note-row-meta">{formatArchiveDate(note.updatedAt, true)}</div>
+        <div className="note-row-meta" title={note.dateLabel ? `${note.dateLabel} date` : undefined}>{note.dateLabel ? `${note.dateLabel} · ` : ""}{formatArchiveDate(note.dateAt ?? note.updatedAt, true)}</div>
       </Link>
       <NoteRowActions noteId={note.id} currentTopicId={note.topicId} pinned={Boolean(note.pinned)} />
     </div>

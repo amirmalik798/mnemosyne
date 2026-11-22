@@ -4045,6 +4045,14 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
     width: 100%;
     justify-content: space-between;
   }
+  .archive-toolbar-actions .archive-sort-control {
+    width: auto;
+    flex: 1 1 auto;
+  }
+  .archive-toolbar-actions .archive-sort-control > select {
+    width: auto;
+    flex: 1 1 auto;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .upload-progress-fill { transition: none; }

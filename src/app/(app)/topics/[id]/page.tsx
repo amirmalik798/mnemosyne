@@ -68,6 +68,8 @@ export default async function TopicPage({ params, searchParams }: Props) {
     subject: decryptText(note.subject_enc, session.key),
     pinned: note.pinned,
     updatedAt: note.updated_at,
+    dateAt: sort === "created-desc" ? note.created_at : note.updated_at,
+    dateLabel: sort === "created-desc" ? "Created" : "Modified",
   }));
   if (alphabetical) decryptedNotes.sort((a, b) => compareArchiveTitles(a, b, sort));
   const notes = alphabetical
