@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
-import { deleteAssetsFor, deleteUnreferencedNoteAssets } from "@/lib/storage";
+import { deleteUnreferencedNoteAssets } from "@/lib/storage";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
