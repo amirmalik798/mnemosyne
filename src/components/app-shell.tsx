@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Bookmark, Boxes, Command, FileText, FolderOpen, LockKeyhole, Pin, Plus, Search, Settings, ShieldCheck, Trash2 } from "lucide-react";
@@ -21,6 +21,78 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [showTopic, setShowTopic] = useState(false);
   const [locking, setLocking] = useState(false);
+  const redirectingToUnlockRef = useRef(false);
+  useEffect(() => {
+    const nativeFetch = window.fetch.bind(window);
+
+    const redirectToUnlock = () => {
+      if (redirectingToUnlockRef.current || window.location.pathname === "/unlock") return;
+      redirectingToUnlockRef.current = true;
+
+      // Preserve the current workspace and let the existing pagehide handler
+      // perform its best-effort session lock before the unlock screen loads.
+      saveResumeLocation();
+      window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
+      void flushPendingLocalDraftWrites();
+      window.location.replace("/unlock");
+    };
+
+    const guardedFetch: typeof window.fetch = async (input, init) => {
+      const response = await nativeFetch(input, init);
+      let requestPath = "";
+      try {
+        const requestUrl = input instanceof Request ? input.url : String(input);
+        const parsedUrl = new URL(requestUrl, window.location.href);
+        if (parsedUrl.origin === window.location.origin) requestPath = parsedUrl.pathname;
+      } catch {
+        // Non-URL fetch inputs are not session-protected application requests.
+      }
+
+      if (
+        response.status === 401 &&
+        requestPath.startsWith("/api/") &&
+        requestPath !== "/api/vault/unlock"
+      ) {
+        redirectToUnlock();
+      }
+      return response;
+    };
+
+    window.fetch = guardedFetch;
+
+    const verifySession = async () => {
+      if (redirectingToUnlockRef.current || document.visibilityState !== "visible") return;
+      try {
+        const response = await nativeFetch("/api/vault/session", {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (response.status === 401) redirectToUnlock();
+      } catch {
+        // A temporary network failure is not proof that the vault session ended.
+      }
+    };
+
+    const verifyWhenVisible = () => {
+      if (document.visibilityState === "visible") void verifySession();
+    };
+
+    const interval = window.setInterval(() => {
+      void verifySession();
+    }, 15_000);
+    window.addEventListener("focus", verifyWhenVisible);
+    document.addEventListener("visibilitychange", verifyWhenVisible);
+    void verifySession();
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", verifyWhenVisible);
+      document.removeEventListener("visibilitychange", verifyWhenVisible);
+      if (window.fetch === guardedFetch) window.fetch = nativeFetch;
+    };
+  }, []);
+
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const lockForInactivity = () => {
