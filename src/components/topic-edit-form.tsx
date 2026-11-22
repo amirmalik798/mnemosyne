@@ -29,6 +29,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
   const [description, setDescription] = useState(topic.description);
   const [category, setCategory] = useState(topic.category || "Personal");
   const [categorySuggestions, setCategorySuggestions] = useState<string[]>(categories);
+  const [categorySuggestionsError, setCategorySuggestionsError] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState(topic.coverUrl ?? "");
   const [error, setError] = useState("");
@@ -44,11 +45,16 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (!response.ok) return null;
-        return response.json();
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error || "Saved categories could not be loaded.");
+        }
+        if (!data || !Array.isArray(data.categories)) {
+          throw new Error("The server returned an invalid category list.");
+        }
+        return data;
       })
       .then((data) => {
-        if (!data || !Array.isArray(data.categories)) return;
         const incoming = data.categories.filter(
           (value: unknown): value is string => typeof value === "string" && value.trim().length > 0,
         );
@@ -61,9 +67,16 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
             ).values(),
           ).sort((a, b) => a.localeCompare(b)),
         );
+        setCategorySuggestionsError("");
       })
-      .catch(() => {
-        // Existing category text and built-in options remain usable offline.
+      .catch((cause) => {
+        if (!controller.signal.aborted) {
+          setCategorySuggestionsError(
+            cause instanceof Error
+              ? cause.message + " Your current category and custom text remain available."
+              : "Saved categories could not be loaded. Your current category and custom text remain available.",
+          );
+        }
       });
     return () => controller.abort();
   }, [topic.category]);
@@ -208,6 +221,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
                 {Array.from(new Map<string, string>(["Personal", "Philosophy", "Science", "Technology", "Research", "Reading", "Work", "Other", ...categorySuggestions, topic.category].filter(Boolean).map((value): [string, string] => [value.toLocaleLowerCase(), value])).values()).map((value) => <option key={value} value={value} />)}
               </datalist>
               <span className="form-hint">Choose an existing category or type a new one. Your category will appear in the All topics filter when saved.</span>
+              {categorySuggestionsError && <OperationStatus kind="failure" message={categorySuggestionsError} compact />}
             </div>
             <div className="form-field full">
               <label className="form-label" htmlFor="edit-topic-description">Description</label>
