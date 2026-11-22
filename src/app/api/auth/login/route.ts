@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { assertSameOrigin, createSessionRecord, setSessionCookie } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { hashPassword, derivePasswordKey } from "@/lib/crypto";
+import { derivePasswordKey } from "@/lib/crypto";
 import { issueEmailVerificationToken, normalizeEmail, verifyAccountPassword } from "@/lib/accounts";
 import { sendVerificationEmail } from "@/lib/email";
 import { enforceAuthRateLimit } from "@/lib/rate-limit";
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
     client.release();
     client = undefined;
     await setSessionCookie(sessionToken);
-    return NextResponse.json({ success: true, user: { email: user.email, displayName: user.display_name } });
+    return NextResponse.json({ success: true, user: { id: user.id, email: user.email, displayName: user.display_name } });
   } catch (error) {
     if (client) await client.query("ROLLBACK").catch(() => undefined);
     const message = error instanceof Error ? error.message : "";

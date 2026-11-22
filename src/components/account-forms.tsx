@@ -36,7 +36,6 @@ function AuthFrame({
 }
 
 export function AccountRegister() {
-  const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -120,7 +119,6 @@ export function AccountRegister() {
 }
 
 export function AccountLogin() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -149,8 +147,7 @@ export function AccountLogin() {
         return;
       }
       if (!response.ok) throw new Error(data.error || "Sign-in failed.");
-      router.replace(getResumeDestination());
-      router.refresh();
+      window.location.replace(getResumeDestination(data.user.id));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Sign-in failed.");
     } finally {

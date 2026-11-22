@@ -30,6 +30,29 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const operationNoticeTimerRef = useRef<number | null>(null);
   const redirectingToUnlockRef = useRef(false);
   useEffect(() => {
+    const activeAccountKey = "mnemosyne:active-account";
+    const handleAccountChange = (event: StorageEvent) => {
+      if (
+        event.key === activeAccountKey &&
+        typeof event.newValue === "string" &&
+        event.newValue !== user.id
+      ) {
+        window.location.replace("/library");
+      }
+    };
+
+    window.addEventListener("storage", handleAccountChange);
+    try {
+      // The value is an opaque account UUID, not a credential.
+      window.localStorage.setItem(activeAccountKey, user.id);
+    } catch {
+      // The periodic server-side session identity check remains the fallback.
+    }
+
+    return () => window.removeEventListener("storage", handleAccountChange);
+  }, [user.id]);
+
+  useEffect(() => {
     const showOperationNotice = (event: Event) => {
       const detail = (event as CustomEvent<{ kind?: unknown; message?: unknown }>).detail;
       const allowedKinds: OperationStatusKind[] = ["loading", "waiting", "success", "error", "failure"];
@@ -59,7 +82,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
 
       // Preserve the current workspace while the expired session is re-authenticated.
       // No logout request is sent here; the server has already rejected the session.
-      saveResumeLocation();
+      saveResumeLocation(user.id);
       window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
       void flushPendingLocalDraftWrites();
       window.location.replace("/login");
@@ -108,7 +131,18 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           credentials: "same-origin",
           cache: "no-store",
         });
-        if (response.status === 401) redirectToUnlock();
+        if (response.status === 401) {
+          redirectToUnlock();
+          return;
+        }
+        if (response.ok) {
+          const sessionData = await response.json().catch(() => null) as { userId?: unknown } | null;
+          if (typeof sessionData?.userId === "string" && sessionData.userId !== user.id) {
+            // A different account became active in another tab. Force a full
+            // document reload so no prior account's decrypted UI remains.
+            window.location.replace("/library");
+          }
+        }
       } catch {
         // A temporary network failure is not proof that the vault session ended.
       }
@@ -165,14 +199,14 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   // the vault lock screen, restore the same workspace view.
   useEffect(() => {
     const currentHref = window.location.pathname + window.location.search + window.location.hash;
-    const saved = readResumeLocation();
+    const saved = readResumeLocation(user.id);
 
     if (saved?.href === currentHref) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => window.scrollTo(saved.scrollX, saved.scrollY));
       });
     } else {
-      saveResumeLocation({ resetScroll: true });
+      saveResumeLocation(user.id, { resetScroll: true });
     }
 
     let scrollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -180,7 +214,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       if (scrollTimer) clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => saveResumeLocation(), 220);
     };
-    const persistWhenHidden = () => saveResumeLocation();
+    const persistWhenHidden = () => saveResumeLocation(user.id);
     // A reload, full-page navigation, or closing one tab is not an explicit
     // vault-lock request. Persist navigation state only; the shared server
     // session expires by idle/absolute timeout or a deliberate Lock action.
@@ -205,14 +239,13 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   }, [router]);
   async function lockVault() {
     setLocking(true);
-    saveResumeLocation();
+    saveResumeLocation(user.id);
     window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
     try {
       await flushPendingLocalDraftWrites();
       const response = await fetch("/api/vault/lock", { method: "POST" });
       if (!response.ok) throw new Error("The server did not confirm the lock request.");
-      router.replace("/login");
-      router.refresh();
+      window.location.replace("/login");
     } catch {
       notifyOperation("error", "The vault could not be locked. Check your connection and try again.");
     } finally {

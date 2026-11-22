@@ -7,7 +7,11 @@ export type ResumeLocation = {
   savedAt: number;
 };
 
-const STORAGE_KEY = "mnemosyne-resume-location";
+const STORAGE_KEY_PREFIX = "mnemosyne-resume-location:";
+
+function storageKey(userId: string): string {
+  return STORAGE_KEY_PREFIX + userId;
+}
 
 function isSafeInternalHref(value: string): boolean {
   if (!value.startsWith("/") || value.startsWith("//")) return false;
@@ -22,8 +26,8 @@ function isSafeInternalHref(value: string): boolean {
   }
 }
 
-export function saveResumeLocation(options: { resetScroll?: boolean } = {}): void {
-  if (typeof window === "undefined") return;
+export function saveResumeLocation(userId: string, options: { resetScroll?: boolean } = {}): void {
+  if (typeof window === "undefined" || !userId) return;
   const href = window.location.pathname + window.location.search + window.location.hash;
   if (!isSafeInternalHref(href)) return;
 
@@ -34,16 +38,16 @@ export function saveResumeLocation(options: { resetScroll?: boolean } = {}): voi
     savedAt: Date.now(),
   };
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(storageKey(userId), JSON.stringify(state));
   } catch {
     // Resume navigation is best-effort if browser storage is disabled.
   }
 }
 
-export function readResumeLocation(): ResumeLocation | null {
-  if (typeof window === "undefined") return null;
+export function readResumeLocation(userId: string): ResumeLocation | null {
+  if (typeof window === "undefined" || !userId) return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey(userId));
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<ResumeLocation>;
     if (typeof value.href !== "string" || !isSafeInternalHref(value.href)) return null;
@@ -58,6 +62,6 @@ export function readResumeLocation(): ResumeLocation | null {
   }
 }
 
-export function getResumeDestination(): string {
-  return readResumeLocation()?.href ?? "/library";
+export function getResumeDestination(userId: string): string {
+  return readResumeLocation(userId)?.href ?? "/library";
 }
