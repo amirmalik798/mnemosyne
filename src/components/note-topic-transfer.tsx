@@ -11,7 +11,9 @@ export type NoteTopicOption = { id: string; title: string };
 type Props = {
   noteId: string;
   currentTopicId: string;
-  topics: NoteTopicOption[];
+  // Editors already have topic options. The reader loads them only when the
+  // user opens Move / copy, avoiding an unconditional query on every read.
+  topics?: NoteTopicOption[];
   beforeTransfer?: () => Promise<boolean>;
 };
 
@@ -20,24 +22,66 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
   const [open, setOpen] = useState(false);
   const [action, setAction] = useState<"move" | "copy">("move");
   const [destinationTopicId, setDestinationTopicId] = useState("");
+  const [availableTopics, setAvailableTopics] = useState<NoteTopicOption[]>(topics ?? []);
+  const [topicsLoaded, setTopicsLoaded] = useState(topics !== undefined);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [topicsError, setTopicsError] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [processingMessage, setProcessingMessage] = useState("");
 
   const destinations = useMemo(
-    () => topics.filter((topic) => topic.id !== currentTopicId),
-    [topics, currentTopicId],
+    () => availableTopics.filter((topic) => topic.id !== currentTopicId),
+    [availableTopics, currentTopicId],
   );
+
+  async function loadTopics() {
+    setTopicsLoading(true);
+    setTopicsError("");
+    try {
+      const response = await fetch("/api/topics/options", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load destination topics.");
+      const nextTopics: NoteTopicOption[] = Array.isArray(data.topics)
+        ? data.topics.filter((topic: unknown): topic is NoteTopicOption =>
+            Boolean(topic) &&
+            typeof topic === "object" &&
+            typeof (topic as NoteTopicOption).id === "string" &&
+            typeof (topic as NoteTopicOption).title === "string",
+          )
+        : [];
+      setAvailableTopics(nextTopics);
+      setTopicsLoaded(true);
+      setDestinationTopicId(nextTopics.find((topic) => topic.id !== currentTopicId)?.id ?? "");
+    } catch (cause) {
+      setTopicsError(cause instanceof Error ? cause.message : "Could not load destination topics.");
+    } finally {
+      setTopicsLoading(false);
+    }
+  }
 
   function openDialog() {
     setAction("move");
-    setDestinationTopicId(destinations[0]?.id ?? "");
     setError("");
+    setTopicsError("");
     setOpen(true);
+
+    if (topics !== undefined) {
+      setAvailableTopics(topics);
+      setTopicsLoaded(true);
+      setDestinationTopicId(topics.find((topic) => topic.id !== currentTopicId)?.id ?? "");
+    } else if (topicsLoaded) {
+      setDestinationTopicId(destinations[0]?.id ?? "");
+    } else {
+      void loadTopics();
+    }
   }
 
   async function submit() {
-    if (!destinationTopicId || busy) return;
+    if (!destinationTopicId || busy || topicsLoading) return;
     setBusy(true);
     setError("");
 
@@ -70,50 +114,89 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
     }
   }
 
-  return <>
-    <button type="button" className="secondary-btn" onClick={openDialog}>
-      <ArrowRightLeft size={14} /> Move / copy
-    </button>
-    {open && <div className="transfer-backdrop" onMouseDown={(event: ReactMouseEvent<HTMLDivElement>) => { if (event.target === event.currentTarget && !busy) setOpen(false); }}>
-      <section className="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
-        <header className="transfer-dialog-head">
-          <div>
-            <div className="eyebrow">Organize your archive</div>
-            <h2 id="transfer-title" className="transfer-title">Move or copy note</h2>
-            <p className="transfer-subtitle">Choose what should happen to this note and where it belongs.</p>
-          </div>
-          <button type="button" className="icon-button" onClick={() => setOpen(false)} disabled={busy} aria-label="Close dialog"><X size={16}/></button>
-        </header>
+  return (
+    <>
+      <button type="button" className="secondary-btn" onClick={openDialog}>
+        <ArrowRightLeft size={14} /> Move / copy
+      </button>
+      {open && (
+        <div
+          className="transfer-backdrop"
+          onMouseDown={(event: ReactMouseEvent<HTMLDivElement>) => {
+            if (event.target === event.currentTarget && !busy && !topicsLoading) setOpen(false);
+          }}
+        >
+          <section className="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
+            <header className="transfer-dialog-head">
+              <div>
+                <div className="eyebrow">Organize your archive</div>
+                <h2 id="transfer-title" className="transfer-title">Move or copy note</h2>
+                <p className="transfer-subtitle">Choose what should happen to this note and where it belongs.</p>
+              </div>
+              <button type="button" className="icon-button" onClick={() => setOpen(false)} disabled={busy || topicsLoading} aria-label="Close dialog">
+                <X size={16} />
+              </button>
+            </header>
 
-        <div className="transfer-choice-grid" role="group" aria-label="Transfer action">
-          <button type="button" className={`transfer-choice ${action === "move" ? "selected" : ""}`} aria-pressed={action === "move"} onClick={() => setAction("move")}>
-            <span className="transfer-choice-icon"><FolderInput size={17}/></span>
-            <span className="transfer-choice-copy"><strong>Move note</strong><small>Relocate the original. It will leave its current topic.</small></span>
-            <span className="transfer-choice-radio" aria-hidden="true" />
-          </button>
-          <button type="button" className={`transfer-choice ${action === "copy" ? "selected" : ""}`} aria-pressed={action === "copy"} onClick={() => setAction("copy")}>
-            <span className="transfer-choice-icon"><Copy size={17}/></span>
-            <span className="transfer-choice-copy"><strong>Copy note</strong><small>Create a separate duplicate. The original stays where it is.</small></span>
-            <span className="transfer-choice-radio" aria-hidden="true" />
-          </button>
+            <div className="transfer-choice-grid" role="group" aria-label="Transfer action">
+              <button type="button" className={`transfer-choice ${action === "move" ? "selected" : ""}`} aria-pressed={action === "move"} onClick={() => setAction("move")}>
+                <span className="transfer-choice-icon"><FolderInput size={17} /></span>
+                <span className="transfer-choice-copy"><strong>Move note</strong><small>Relocate the original. It will leave its current topic.</small></span>
+                <span className="transfer-choice-radio" aria-hidden="true" />
+              </button>
+              <button type="button" className={`transfer-choice ${action === "copy" ? "selected" : ""}`} aria-pressed={action === "copy"} onClick={() => setAction("copy")}>
+                <span className="transfer-choice-icon"><Copy size={17} /></span>
+                <span className="transfer-choice-copy"><strong>Copy note</strong><small>Create a separate duplicate. The original stays where it is.</small></span>
+                <span className="transfer-choice-radio" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="transfer-destination">
+              <label className="property-label" htmlFor={`destination-${noteId}`}>Destination topic</label>
+              {topicsLoading ? (
+                <OperationStatus kind="loading" message="Loading your topics…" />
+              ) : topicsError ? (
+                <div>
+                  <OperationStatus kind="failure" message={topicsError} />
+                  <button type="button" className="secondary-btn" onClick={() => void loadTopics()}>Retry loading topics</button>
+                </div>
+              ) : destinations.length > 0 ? (
+                <select
+                  id={`destination-${noteId}`}
+                  dir="auto"
+                  lang={detectTextLanguage(destinations.find((topic) => topic.id === destinationTopicId)?.title ?? "")}
+                  className="select-field"
+                  value={destinationTopicId}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => setDestinationTopicId(event.target.value)}
+                >
+                  {destinations.map((topic) => <option key={topic.id} value={topic.id}>{topic.title}</option>)}
+                </select>
+              ) : (
+                <div className="transfer-no-destination">
+                  <p>Create another topic before you can move or copy this note to a different collection.</p>
+                  <a href="/topics" className="secondary-btn">Create a topic</a>
+                </div>
+              )}
+              <p className="form-hint">
+                {action === "move"
+                  ? "The note keeps its images, tags and pinned status. Only its topic changes."
+                  : "A new note is created with its text, formatting, tags, pinned status and independent copies of its images."}
+              </p>
+            </div>
+
+            {busy && <OperationStatus kind="loading" message={processingMessage || "Working…"} />}
+            {error && <OperationStatus kind="failure" message={error} />}
+            <footer className="transfer-dialog-actions">
+              <button type="button" className="secondary-btn" onClick={() => setOpen(false)} disabled={busy || topicsLoading}>Cancel</button>
+              <button type="button" className="primary-btn" onClick={() => void submit()} disabled={busy || topicsLoading || Boolean(topicsError) || !destinationTopicId}>
+                {busy
+                  ? <><LoaderCircle className="operation-spinner" size={14} /> {processingMessage.includes("Saving") ? "Saving…" : action === "move" ? "Moving…" : "Copying…"}</>
+                  : action === "move" ? "Move note" : "Create copy"}
+              </button>
+            </footer>
+          </section>
         </div>
-
-        <div className="transfer-destination">
-          <label className="property-label" htmlFor={`destination-${noteId}`}>Destination topic</label>
-          {destinations.length > 0 ? <select id={`destination-${noteId}`} dir="auto" lang={detectTextLanguage(destinations.find((topic) => topic.id === destinationTopicId)?.title ?? "")} className="select-field" value={destinationTopicId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setDestinationTopicId(event.target.value)}>
-            {destinations.map((topic: NoteTopicOption) => <option key={topic.id} value={topic.id}>{topic.title}</option>)}
-          </select> : <div className="transfer-no-destination"><p>Create another topic before you can move or copy this note to a different collection.</p><a href="/topics" className="secondary-btn">Create a topic</a></div>}
-          <p className="form-hint">{action === "move" ? "The note keeps its images, tags and pinned status. Only its topic changes." : "A new note is created with its text, formatting, tags, pinned status and independent copies of its images."}</p>
-        </div>
-
-        {busy && <OperationStatus kind="loading" message={processingMessage || "Working…"} />}\n        {error && <OperationStatus kind="failure" message={error} />}
-        <footer className="transfer-dialog-actions">
-          <button type="button" className="secondary-btn" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
-          <button type="button" className="primary-btn" onClick={() => void submit()} disabled={busy || !destinationTopicId}>
-            {busy ? <><LoaderCircle className="operation-spinner" size={14} /> {processingMessage.includes("Saving") ? "Saving…" : action === "move" ? "Moving…" : "Copying…"}</> : action === "move" ? "Move note" : "Create copy"}
-          </button>
-        </footer>
-      </section>
-    </div>}
-  </>;
+      )}
+    </>
+  );
 }
