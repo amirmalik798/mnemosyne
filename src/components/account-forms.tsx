@@ -92,9 +92,9 @@ function FieldMessage({ id, children }: { id: string; children: React.ReactNode 
   return <span className="auth-field-error" id={id} role="alert"><CircleAlert size={13} />{children}</span>;
 }
 
-function PasswordVisibilityButton({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+function PasswordVisibilityButton({ visible, onToggle, disabled = false }: { visible: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
-    <button type="button" className="auth-password-toggle" onClick={onToggle} aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible}>
+    <button type="button" className="auth-password-toggle" onClick={onToggle} disabled={disabled} aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible}>
       {visible ? <EyeOff size={17} /> : <Eye size={17} />}
     </button>
   );
@@ -187,12 +187,12 @@ export function AccountRegister() {
 
   return (
     <AuthFrame mode="register" kicker="Your private archive" title="Create your account" description="A personal, encrypted space for everything worth keeping.">
-      <form className="auth-form" onSubmit={submit} noValidate>
+      <form className="auth-form" onSubmit={submit} noValidate aria-busy={busy}>
         <div className="auth-field-group">
           <label className="form-label" htmlFor="register-displayName">Your name</label>
           <div className={`auth-input-wrap ${errors.displayName && (touched.displayName || submitted) ? "has-error" : ""}`}>
             <UserRound className="auth-input-icon" size={17} />
-            <input id="register-displayName" className="field auth-field" value={displayName} onChange={(event) => updateField("displayName", event.target.value)} onBlur={() => touch("displayName")} maxLength={80} autoComplete="name" required placeholder="How should we address you?" aria-invalid={Boolean(errors.displayName && (touched.displayName || submitted))} aria-describedby={errors.displayName ? "register-name-error" : undefined} />
+            <input id="register-displayName" className="field auth-field" disabled={busy} value={displayName} onChange={(event) => updateField("displayName", event.target.value)} onBlur={() => touch("displayName")} maxLength={80} autoComplete="name" required placeholder="How should we address you?" aria-invalid={Boolean(errors.displayName && (touched.displayName || submitted))} aria-describedby={errors.displayName ? "register-name-error" : undefined} />
           </div>
           <FieldMessage id="register-name-error">{(touched.displayName || submitted) ? errors.displayName : ""}</FieldMessage>
         </div>
@@ -200,7 +200,7 @@ export function AccountRegister() {
           <label className="form-label" htmlFor="register-email">Email address</label>
           <div className={`auth-input-wrap ${errors.email && (touched.email || submitted) ? "has-error" : ""}`}>
             <AtSign className="auth-input-icon" size={17} />
-            <input id="register-email" className="field auth-field" type="email" inputMode="email" value={email} onChange={(event) => updateField("email", event.target.value)} onBlur={() => touch("email")} maxLength={254} autoComplete="email" required placeholder="you@example.com" aria-invalid={Boolean(errors.email && (touched.email || submitted))} aria-describedby={errors.email ? "register-email-error" : undefined} />
+            <input id="register-email" className="field auth-field" disabled={busy} type="email" inputMode="email" value={email} onChange={(event) => updateField("email", event.target.value)} onBlur={() => touch("email")} maxLength={254} autoComplete="email" required placeholder="you@example.com" aria-invalid={Boolean(errors.email && (touched.email || submitted))} aria-describedby={errors.email ? "register-email-error" : undefined} />
           </div>
           <FieldMessage id="register-email-error">{(touched.email || submitted) ? errors.email : ""}</FieldMessage>
         </div>
@@ -208,8 +208,8 @@ export function AccountRegister() {
           <label className="form-label" htmlFor="register-password">Create a password</label>
           <div className={`auth-input-wrap auth-password-wrap ${errors.password && (touched.password || submitted) ? "has-error" : ""}`}>
             <KeyRound className="auth-input-icon" size={17} />
-            <input id="register-password" className="field auth-field" type={showPassword ? "text" : "password"} value={password} onChange={(event) => updateField("password", event.target.value)} onBlur={() => touch("password")} minLength={16} maxLength={256} autoComplete="new-password" required placeholder="Create a long, unique passphrase" aria-invalid={Boolean(errors.password && (touched.password || submitted))} aria-describedby="register-password-hint" />
-            <PasswordVisibilityButton visible={showPassword} onToggle={() => setShowPassword((value) => !value)} />
+            <input id="register-password" className="field auth-field" disabled={busy} type={showPassword ? "text" : "password"} value={password} onChange={(event) => updateField("password", event.target.value)} onBlur={() => touch("password")} minLength={16} maxLength={256} autoComplete="new-password" required placeholder="Create a long, unique passphrase" aria-invalid={Boolean(errors.password && (touched.password || submitted))} aria-describedby="register-password-hint" />
+            <PasswordVisibilityButton visible={showPassword} onToggle={() => setShowPassword((value) => !value)} disabled={busy} />
           </div>
           <span className="form-hint" id="register-password-hint">Your passphrase protects your account and unlocks your personal encryption key.</span>
           <div className="auth-password-checks" aria-label="Password requirements">
@@ -221,7 +221,7 @@ export function AccountRegister() {
           <label className="form-label" htmlFor="register-confirmation">Confirm password</label>
           <div className={`auth-input-wrap auth-password-wrap ${errors.confirmation && (touched.confirmation || submitted) ? "has-error" : ""}`}>
             <ShieldCheck className="auth-input-icon" size={17} />
-            <input id="register-confirmation" className="field auth-field" type={showPassword ? "text" : "password"} value={confirmation} onChange={(event) => updateField("confirmation", event.target.value)} onBlur={() => touch("confirmation")} autoComplete="new-password" required placeholder="Enter the same passphrase again" aria-invalid={Boolean(errors.confirmation && (touched.confirmation || submitted))} aria-describedby={errors.confirmation ? "register-confirmation-error" : undefined} />
+            <input id="register-confirmation" className="field auth-field" disabled={busy} type={showPassword ? "text" : "password"} value={confirmation} onChange={(event) => updateField("confirmation", event.target.value)} onBlur={() => touch("confirmation")} autoComplete="new-password" required placeholder="Enter the same passphrase again" aria-invalid={Boolean(errors.confirmation && (touched.confirmation || submitted))} aria-describedby={errors.confirmation ? "register-confirmation-error" : undefined} />
           </div>
           <FieldMessage id="register-confirmation-error">{(touched.confirmation || submitted) ? errors.confirmation : ""}</FieldMessage>
         </div>
@@ -324,12 +324,12 @@ export function AccountLogin() {
 
   return (
     <AuthFrame mode="login" kicker="Welcome back" title="Sign in to Mnemosyne" description="Your private archive is just a moment away.">
-      <form className="auth-form auth-login-form" onSubmit={submit} noValidate>
+      <form className="auth-form auth-login-form" onSubmit={submit} noValidate aria-busy={busy || resending}>
         <div className="auth-field-group">
           <label className="form-label" htmlFor="login-email">Email address</label>
           <div className={`auth-input-wrap ${errors.email && (touched.email || submitted) ? "has-error" : ""}`}>
             <AtSign className="auth-input-icon" size={17} />
-            <input id="login-email" className="field auth-field" type="email" inputMode="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(""); if (touched.email || submitted) setErrors(validate({ email: event.target.value, password })); }} onBlur={() => touch("email")} autoComplete="email" maxLength={254} required placeholder="you@example.com" aria-invalid={Boolean(errors.email && (touched.email || submitted))} aria-describedby={errors.email ? "login-email-error" : undefined} />
+            <input id="login-email" className="field auth-field" disabled={busy || resending} type="email" inputMode="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(""); if (touched.email || submitted) setErrors(validate({ email: event.target.value, password })); }} onBlur={() => touch("email")} autoComplete="email" maxLength={254} required placeholder="you@example.com" aria-invalid={Boolean(errors.email && (touched.email || submitted))} aria-describedby={errors.email ? "login-email-error" : undefined} />
           </div>
           <FieldMessage id="login-email-error">{(touched.email || submitted) ? errors.email : ""}</FieldMessage>
         </div>
@@ -337,22 +337,22 @@ export function AccountLogin() {
           <div className="auth-label-row"><label className="form-label" htmlFor="login-password">Password</label><span className="auth-label-caption">Your account passphrase</span></div>
           <div className={`auth-input-wrap auth-password-wrap ${errors.password && (touched.password || submitted) ? "has-error" : ""}`}>
             <KeyRound className="auth-input-icon" size={17} />
-            <input id="login-password" className="field auth-field" type={showPassword ? "text" : "password"} value={password} onChange={(event) => { setPassword(event.target.value); setError(""); if (touched.password || submitted) setErrors(validate({ email, password: event.target.value })); }} onBlur={() => touch("password")} autoComplete="current-password" maxLength={256} required placeholder="Enter your password" aria-invalid={Boolean(errors.password && (touched.password || submitted))} aria-describedby={errors.password ? "login-password-error" : undefined} />
-            <PasswordVisibilityButton visible={showPassword} onToggle={() => setShowPassword((value) => !value)} />
+            <input id="login-password" className="field auth-field" disabled={busy || resending} type={showPassword ? "text" : "password"} value={password} onChange={(event) => { setPassword(event.target.value); setError(""); if (touched.password || submitted) setErrors(validate({ email, password: event.target.value })); }} onBlur={() => touch("password")} autoComplete="current-password" maxLength={256} required placeholder="Enter your password" aria-invalid={Boolean(errors.password && (touched.password || submitted))} aria-describedby={errors.password ? "login-password-error" : undefined} />
+            <PasswordVisibilityButton visible={showPassword} onToggle={() => setShowPassword((value) => !value)} disabled={busy || resending} />
           </div>
           <FieldMessage id="login-password-error">{(touched.password || submitted) ? errors.password : ""}</FieldMessage>
         </div>
         {error && <OperationStatus kind="failure" message={error} />}
         {message && <OperationStatus kind={needsVerification ? "waiting" : "success"} message={message} />}
         {busy && <OperationStatus kind="processing" message="Verifying your account and unlocking your private archive…" />}
-        <button className="primary-btn auth-submit" type="submit" disabled={busy}>
+        <button className="primary-btn auth-submit" type="submit" disabled={busy || resending}>
           {busy ? <LoaderCircle className="operation-spinner" size={17} /> : <KeyRound size={17} />}
           {busy ? "Signing you in…" : "Sign in securely"}
           {!busy && <ArrowRight size={16} />}
         </button>
         {resending && <OperationStatus kind="processing" message="Sending a fresh email confirmation link…" />}
         {needsVerification && (
-          <button type="button" className="secondary-btn auth-resend" disabled={resending || !email || !password} onClick={resend} aria-busy={resending}>
+          <button type="button" className="secondary-btn auth-resend" disabled={busy || resending || !email || !password} onClick={resend} aria-busy={resending}>
             {resending ? <LoaderCircle className="operation-spinner" size={15} /> : <MailCheck size={15} />}
             {resending ? "Sending confirmation…" : "Resend confirmation email"}
           </button>

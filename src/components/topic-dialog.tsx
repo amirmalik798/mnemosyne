@@ -11,6 +11,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLElement>(null);
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [category, setCategory] = useState("Personal");
@@ -32,10 +33,46 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
     description !== "" ||
     file !== null;
 
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    return () => previouslyFocused?.focus();
+  }, []);
+
   useEffect(() => () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     previewUrlRef.current = null;
   }, []);
+
+  useEffect(() => {
+    if (confirmDiscard) return;
+
+    const container = modalRef.current;
+    if (!container) return;
+
+    function handleTab(event: KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      const focusable = container?.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled]):not([type='hidden']), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])",
+      );
+      if (!focusable?.length || !container) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+
+      if (event.shiftKey && (active === first || !container.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !container.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleTab, true);
+    return () => document.removeEventListener("keydown", handleTab, true);
+  }, [confirmDiscard]);
 
   function requestClose() {
     if (busy) return;
@@ -180,14 +217,14 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
       setBusy(false);
     }
   }
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) requestClose(); }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="topic-modal-title">
-    <div className="modal-head"><div><div className="eyebrow">Add to your archive</div><h2 className="modal-title" id="topic-modal-title">Create a topic</h2><p className="modal-subtitle">Give a subject a considered home.</p></div><button className="icon-button" onClick={requestClose} aria-label="Close" disabled={busy}><X /></button></div>
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) requestClose(); }}><section ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="topic-modal-title" aria-describedby="topic-modal-description">
+    <div className="modal-head"><div><div className="eyebrow">Add to your archive</div><h2 className="modal-title" id="topic-modal-title">Create a topic</h2><p className="modal-subtitle" id="topic-modal-description">Give a subject a considered home.</p></div><button type="button" className="icon-button" onClick={requestClose} aria-label="Close" disabled={busy}><X /></button></div>
     <form onSubmit={submit}><div className="form-grid" aria-busy={busy}>
       <div className="form-field full"><label className="form-label" htmlFor="new-topic-title">Topic title *</label><input id="new-topic-title" dir="auto" lang={detectTextLanguage(title)} className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. The Architecture of Thought" maxLength={120} required autoFocus disabled={busy} /></div>
       <div className="form-field"><label className="form-label" htmlFor="new-topic-subject">Subject</label><input id="new-topic-subject" dir="auto" lang={detectTextLanguage(subject)} className="field" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="A short subtitle" maxLength={120} disabled={busy} /></div>
       <div className="form-field"><label className="form-label" htmlFor="new-topic-category">Category</label><div className="category-combobox" ref={categoryRef}><div className="category-combobox-input-wrap"><input id="new-topic-category" disabled={busy} className="field category-combobox-input" role="combobox" aria-autocomplete="list" aria-expanded={categoryMenuOpen} aria-controls="new-topic-category-options" autoComplete="off" value={category} onFocus={() => { setCategoryMenuOpen(true); setFilterCategories(false); }} onClick={() => { setCategoryMenuOpen(true); setFilterCategories(false); }} onChange={(e) => { setCategory(e.target.value); setCategoryMenuOpen(true); setFilterCategories(true); }} onKeyDown={(e) => { if (e.key === "Escape") { setCategoryMenuOpen(false); setFilterCategories(false); } else if (e.key === "ArrowDown") { e.preventDefault(); setCategoryMenuOpen(true); setFilterCategories(true); } else if (e.key === "Enter" && categoryMenuOpen) { e.preventDefault(); if (visibleCategories.length) chooseCategory(visibleCategories[0]); else { setCategoryMenuOpen(false); setFilterCategories(false); } } }} placeholder="Choose or create a category" maxLength={60}/><button type="button" disabled={busy} className="category-combobox-toggle" aria-label={categoryMenuOpen ? "Close categories" : "Open categories"} aria-expanded={categoryMenuOpen} onClick={() => { setCategoryMenuOpen((open) => !open); setFilterCategories(false); }}><ChevronDown size={17}/></button></div>{categoryMenuOpen && <div className="category-combobox-menu" id="new-topic-category-options" role="listbox" aria-label="Available categories">{visibleCategories.map((item) => <button type="button" role="option" aria-selected={category.toLocaleLowerCase() === item.toLocaleLowerCase()} className="category-combobox-option" key={item} onMouseDown={(e) => e.preventDefault()} onClick={() => chooseCategory(item)}><span>{item}</span>{category.toLocaleLowerCase() === item.toLocaleLowerCase() && <Check size={15}/>}</button>)}{category.trim() && !hasExactCategory && <button type="button" role="option" aria-selected="false" className="category-combobox-option category-combobox-create" onMouseDown={(e) => e.preventDefault()} onClick={() => chooseCategory(category.trim())}><Plus size={15}/><span>Create “{category.trim()}”</span></button>}{visibleCategories.length === 0 && hasExactCategory === false && !category.trim() && <div className="category-combobox-empty">No categories yet. Type a name to create one.</div>}</div>}</div><span className="form-hint">Choose an existing category or type a new one. New categories become available after you create this topic.</span></div>
       <div className="form-field full"><label className="form-label" htmlFor="new-topic-description">Description</label><textarea id="new-topic-description" dir="auto" lang={detectTextLanguage(description)} className="textarea-field" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What belongs in this collection?" maxLength={1000} disabled={busy} /></div>
-      <div className="form-field full"><label className="form-label" htmlFor="new-topic-cover">Custom thumbnail</label><input id="new-topic-cover" ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => chooseFile(e.target.files?.[0] ?? null)} /><button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy}>{preview ? <><img src={preview} alt="Cover preview" /><span className="cover-upload-text"><strong style={{ color: "var(--text)" }}>{file?.name}</strong><br />Click to replace cover · 8 MB maximum</span></> : <><span className="brand-mark"><ImagePlus /></span><span className="cover-upload-text"><strong style={{ color: "var(--text)" }}>Choose a cover image</strong><br />PNG, JPEG, WebP or GIF · up to 8 MB</span><UploadCloud size={18} /></>}</button></div>
+      <div className="form-field full"><label className="form-label" htmlFor="new-topic-cover">Custom thumbnail</label><input id="new-topic-cover" ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => { chooseFile(e.target.files?.[0] ?? null); e.currentTarget.value = ""; }} /><button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy}>{preview ? <><img src={preview} alt="Cover preview" /><span className="cover-upload-text"><strong style={{ color: "var(--text)" }}>{file?.name}</strong><br />Click to replace cover · 8 MB maximum</span></> : <><span className="brand-mark"><ImagePlus /></span><span className="cover-upload-text"><strong style={{ color: "var(--text)" }}>Choose a cover image</strong><br />PNG, JPEG, WebP or GIF · up to 8 MB</span><UploadCloud size={18} /></>}</button></div>
     </div>{busy && <OperationStatus kind="processing" message={processingMessage} />} {error && <OperationStatus kind="failure" message={error} />}<div className="form-actions"><button type="button" className="secondary-btn" onClick={requestClose} disabled={busy}>Cancel</button><button type="submit" className="primary-btn" disabled={busy}>{busy ? <><LoaderCircle className="operation-spinner" size={14} /> {processingMessage.includes("Uploading") ? "Uploading cover…" : "Creating…"}</> : "Create topic"}</button></div></form>
   </section>
     {confirmDiscard && <ConfirmationDialog

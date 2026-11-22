@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Copy, FolderInput, LoaderCircle, X } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
@@ -30,6 +30,10 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
   const [error, setError] = useState("");
   const [processingMessage, setProcessingMessage] = useState("");
   const topicsRequestRef = useRef<AbortController | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
 
   const destinations = useMemo(
     () => availableTopics.filter((topic) => topic.id !== currentTopicId),
@@ -82,6 +86,9 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
   }
 
   function openDialog() {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     topicsRequestRef.current?.abort();
     setAction("move");
     setError("");
@@ -98,6 +105,61 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
       void loadTopics();
     }
   }
+
+  const closeDialog = useCallback(() => {
+    if (busyRef.current) return;
+    topicsRequestRef.current?.abort();
+    topicsRequestRef.current = null;
+    setTopicsLoading(false);
+    setOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const container = dialogRef.current;
+    const frame = window.requestAnimationFrame(() => {
+      const focusable = container?.querySelector<HTMLElement>(
+        "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])",
+      );
+      focusable?.focus();
+    });
+
+    function handleDialogKeys(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        if (busy) return;
+        event.preventDefault();
+        event.stopPropagation();
+        closeDialog();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const focusable = container?.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])",
+      );
+      if (!focusable?.length || !container) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+
+      if (event.shiftKey && (active === first || !container.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !container.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleDialogKeys, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", handleDialogKeys, true);
+      returnFocusRef.current?.focus();
+      returnFocusRef.current = null;
+    };
+  }, [open, closeDialog]);
 
   async function submit() {
     if (!destinationTopicId || busy || topicsLoading) return;
@@ -135,24 +197,24 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
 
   return (
     <>
-      <button type="button" className="secondary-btn" onClick={openDialog}>
+      <button type="button" className="secondary-btn" onClick={openDialog} aria-haspopup="dialog" aria-expanded={open}>
         <ArrowRightLeft size={14} /> Move / copy
       </button>
       {open && (
         <div
           className="transfer-backdrop"
           onMouseDown={(event: ReactMouseEvent<HTMLDivElement>) => {
-            if (event.target === event.currentTarget && !busy && !topicsLoading) setOpen(false);
+            if (event.target === event.currentTarget && !busy) closeDialog();
           }}
         >
-          <section className="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title" aria-busy={busy || topicsLoading}>
+          <section ref={dialogRef} className="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title" aria-describedby="transfer-description" aria-busy={busy || topicsLoading}>
             <header className="transfer-dialog-head">
               <div>
                 <div className="eyebrow">Organize your archive</div>
                 <h2 id="transfer-title" className="transfer-title">Move or copy note</h2>
-                <p className="transfer-subtitle">Choose what should happen to this note and where it belongs.</p>
+                <p id="transfer-description" className="transfer-subtitle">Choose what should happen to this note and where it belongs.</p>
               </div>
-              <button type="button" className="icon-button" onClick={() => { topicsRequestRef.current?.abort(); setOpen(false); }} disabled={busy || topicsLoading} aria-label="Close dialog">
+              <button type="button" className="icon-button" onClick={closeDialog} disabled={busy} aria-label="Close dialog">
                 <X size={16} />
               </button>
             </header>
@@ -207,7 +269,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
             {busy && <OperationStatus kind="processing" message={processingMessage || "Working…"} />}
             {error && <OperationStatus kind="failure" message={error} />}
             <footer className="transfer-dialog-actions">
-              <button type="button" className="secondary-btn" onClick={() => { topicsRequestRef.current?.abort(); setOpen(false); }} disabled={busy || topicsLoading}>Cancel</button>
+              <button type="button" className="secondary-btn" onClick={closeDialog} disabled={busy}>Cancel</button>
               <button type="button" className="primary-btn" onClick={() => void submit()} disabled={busy || topicsLoading || Boolean(topicsError) || !destinationTopicId}>
                 {busy
                   ? <><LoaderCircle className="operation-spinner" size={14} /> {processingMessage.includes("Saving") ? "Saving…" : action === "move" ? "Moving…" : "Copying…"}</>
