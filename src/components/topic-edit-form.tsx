@@ -63,7 +63,6 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not save topic.";
       setError(message);
-      notifyOperation("failure", message);
     } finally {
       setBusy(false);
       setProcessingMessage("");
