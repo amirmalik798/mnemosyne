@@ -1,0 +1,63 @@
+"use client";
+
+export type ResumeLocation = {
+  href: string;
+  scrollX: number;
+  scrollY: number;
+  savedAt: number;
+};
+
+const STORAGE_KEY = "mnemosyne-resume-location";
+
+function isSafeInternalHref(value: string): boolean {
+  if (!value.startsWith("/") || value.startsWith("//")) return false;
+  try {
+    const parsed = new URL(value, window.location.origin);
+    return parsed.origin === window.location.origin &&
+      !parsed.pathname.startsWith("/api/") &&
+      parsed.pathname !== "/unlock" &&
+      parsed.pathname !== "/setup";
+  } catch {
+    return false;
+  }
+}
+
+export function saveResumeLocation(): void {
+  if (typeof window === "undefined") return;
+  const href = window.location.pathname + window.location.search + window.location.hash;
+  if (!isSafeInternalHref(href)) return;
+
+  const state: ResumeLocation = {
+    href,
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+    savedAt: Date.now(),
+  };
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Resume navigation is best-effort if browser storage is disabled.
+  }
+}
+
+export function readResumeLocation(): ResumeLocation | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<ResumeLocation>;
+    if (typeof value.href !== "string" || !isSafeInternalHref(value.href)) return null;
+    return {
+      href: value.href,
+      scrollX: typeof value.scrollX === "number" ? value.scrollX : 0,
+      scrollY: typeof value.scrollY === "number" ? value.scrollY : 0,
+      savedAt: typeof value.savedAt === "number" ? value.savedAt : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function getResumeDestination(): string {
+  return readResumeLocation()?.href ?? "/library";
+}
