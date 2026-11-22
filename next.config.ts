@@ -9,6 +9,7 @@ const securityHeaders = [
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
   { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
+  { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet" },
 ];
 
 if (process.env.NODE_ENV === "production") {
