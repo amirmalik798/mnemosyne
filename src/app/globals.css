@@ -5306,3 +5306,222 @@ html[data-theme="light"] .note-row-more-menu .note-row-action:last-child { color
     transform: none !important;
   }
 }
+
+
+/* Topic creation dialog: make required/optional fields, limits and file selection explicit. */
+.topic-create-modal .modal-head {
+  align-items: flex-start;
+}
+.topic-create-modal .modal-subtitle {
+  max-width: 560px;
+}
+.topic-dialog-guidance {
+  margin: 0 0 17px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--gold) 6%, var(--surface));
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.topic-create-modal .form-grid {
+  align-items: start;
+  row-gap: 18px;
+}
+.topic-field-label-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.topic-field-label-row .form-label {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.topic-field-required,
+.topic-field-optional {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .045em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.topic-field-required {
+  border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--line));
+  background: var(--gold-soft);
+  color: var(--gold-bright);
+}
+.topic-field-optional {
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.topic-field-help,
+.topic-field-meta {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.topic-field-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.topic-field-meta > span:first-child { min-width: 0; }
+.topic-field-counter {
+  flex: 0 0 auto;
+  color: var(--dim);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.topic-create-modal .field:focus-visible,
+.topic-create-modal .textarea-field:focus-visible,
+.topic-create-modal .category-combobox-toggle:focus-visible,
+.topic-create-modal .cover-upload:focus-visible,
+.topic-create-modal .topic-cover-remove:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.topic-create-modal .category-combobox-input[aria-expanded="true"] {
+  border-color: var(--gold);
+}
+.topic-create-modal .category-combobox-toggle[aria-expanded="true"] {
+  color: var(--gold-bright);
+  background: var(--gold-soft);
+}
+.topic-cover-field { min-width: 0; }
+.topic-create-modal .cover-upload {
+  min-height: 92px;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 9px 13px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+  transition: border-color .18s ease, background .18s ease;
+}
+.topic-create-modal .cover-upload:hover:not(:disabled) {
+  border-color: var(--gold);
+  background: var(--surface-2);
+}
+.topic-create-modal .cover-upload > img {
+  flex-basis: 104px;
+  width: 104px;
+  height: 72px;
+  border-radius: 8px;
+}
+.topic-create-modal .cover-upload > span {
+  text-align: left;
+  font-size: 12px;
+}
+.topic-cover-selection {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--icon-success-action) 30%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--icon-success-action) 6%, var(--surface));
+}
+.topic-cover-selection-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--icon-success-action) 12%, var(--surface-2));
+  color: var(--icon-success-action);
+}
+.topic-cover-selection-info {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+.topic-cover-selection-info strong {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.topic-cover-selection-info small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+.topic-cover-remove {
+  min-width: 0;
+  min-height: 34px;
+  height: auto;
+  flex: 0 0 auto;
+  gap: 5px;
+  padding: 6px 8px;
+  font-size: 10px;
+}
+.topic-cover-remove > span { font-size: 10px; font-weight: 650; }
+.topic-create-modal .form-actions {
+  align-items: center;
+  margin-top: 21px;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+.topic-create-modal .form-actions .topic-dialog-action {
+  min-height: 44px;
+}
+.topic-create-modal .topic-dialog-action[aria-busy="true"] {
+  cursor: progress;
+}
+html[data-theme="light"] .topic-dialog-guidance {
+  background: #F7F2E7;
+  border-color: #E7DDC9;
+  border-left-color: #A4781A;
+  color: #575C66;
+}
+html[data-theme="light"] .topic-field-required {
+  color: #805A12;
+  background: #F4EEDF;
+  border-color: #DFD4BF;
+}
+html[data-theme="light"] .topic-field-optional {
+  color: #625D53;
+  background: #F4F1EA;
+  border-color: #E2DACE;
+}
+html[data-theme="light"] .topic-cover-selection {
+  background: #EFF7F1;
+  border-color: #C9E2D0;
+}
+html[data-theme="light"] .topic-cover-selection-icon {
+  background: #E0F0E5;
+  color: #176B45;
+}
+html[data-theme="light"] .topic-cover-selection-info strong { color: #292B30; }
+html[data-theme="light"] .topic-cover-selection-info small { color: #575C66; }
+@media (max-width: 560px) {
+  .topic-dialog-guidance { font-size: 11px; }
+  .topic-field-label-row .form-label { font-size: 11px; }
+  .topic-cover-selection {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .topic-cover-selection-info { flex-basis: calc(100% - 44px); }
+  .topic-cover-remove { margin-left: 40px; }
+  .topic-create-modal .form-actions { margin-top: 17px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topic-create-modal .cover-upload { transition: none; }
+}
