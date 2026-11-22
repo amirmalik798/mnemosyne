@@ -1250,7 +1250,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         </label>
         <button
           type="button"
-          className="format-reset-btn icon-only-btn"
+          className="format-reset-btn"
           aria-label="Clear text formatting"
           disabled={!editor || busy || imageUploading}
           onClick={() => {
