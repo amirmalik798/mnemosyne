@@ -11,23 +11,36 @@ type PendingAction = { id: string; action: "restore" | "delete" } | null;
 export function TrashWorkspace() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<PendingAction>(null);
   const router = useRouter();
 
-  async function load() {
-    setLoading(true);
-    setLoadError("");
+  async function load(append = false) {
+    if (append) setLoadingMore(true);
+    else {
+      setLoading(true);
+      setLoadError("");
+    }
+
     try {
-      const response = await fetch("/api/trash");
+      const offset = append ? items.length : 0;
+      const response = await fetch(`/api/trash?limit=50&offset=${offset}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not load recently deleted notes.");
-      setItems(Array.isArray(data.notes) ? data.notes : []);
+      const nextItems = Array.isArray(data.notes) ? data.notes : [];
+      setItems((current) => append ? [...current, ...nextItems] : nextItems);
+      setHasMore(data.pagination?.hasMore === true);
+      if (append) setError("");
     } catch (cause) {
-      setLoadError(cause instanceof Error ? cause.message : "Could not load recently deleted notes.");
+      const message = cause instanceof Error ? cause.message : "Could not load recently deleted notes.";
+      if (append) setError(message);
+      else setLoadError(message);
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
   }
 
@@ -126,6 +139,13 @@ export function TrashWorkspace() {
             )}
           </div>
         </section>
+      )}
+      {!loading && !loadError && hasMore && (
+        <div className="archive-pagination-controls" style={{ justifyContent: "center", marginTop: 18 }}>
+          <button type="button" className="secondary-btn" onClick={() => void load(true)} disabled={loadingMore}>
+            {loadingMore ? "Loading more…" : "Load more deleted notes"}
+          </button>
+        </div>
       )}
     </main>
   );
