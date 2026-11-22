@@ -257,6 +257,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS assets_user_id_id_uidx ON assets(user_id, id);
 CREATE INDEX IF NOT EXISTS topics_user_updated_idx ON topics(user_id, updated_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS notes_user_recent_idx
   ON notes(user_id, pinned DESC, updated_at DESC, id DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS notes_user_search_order_idx
+  ON notes(user_id, updated_at DESC, id DESC) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS notes_user_trash_idx
   ON notes(user_id, deleted_at DESC, id DESC) WHERE deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS assets_user_owner_idx ON assets(user_id, owner_type, owner_id);
