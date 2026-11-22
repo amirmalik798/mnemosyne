@@ -1,4 +1,7 @@
-import React from "react";
+"use client";
+
+import React, { useCallback, useState } from "react";
+import { ImageLightbox } from "@/components/image-lightbox";
 import { detectTextDirection, detectTextLanguage } from "@/lib/bidi";
 
 type RichNode = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: Array<{ type: string; attrs?: Record<string, unknown> }>; content?: RichNode[] };
@@ -44,8 +47,14 @@ function renderText(node: RichNode, key: React.Key): React.ReactNode {
   return result;
 }
 
-function renderNode(node: RichNode, index: React.Key): React.ReactNode {
-  const children = (node.content ?? []).map((child, i) => renderNode(child, `${String(index)}-${i}`));
+function renderNode(
+  node: RichNode,
+  index: React.Key,
+  onImageClick: (src: string, alt: string) => void,
+): React.ReactNode {
+  const children = (node.content ?? []).map((child, i) =>
+    renderNode(child, `${String(index)}-${i}`, onImageClick),
+  );
   const bidi = blockBidiProps(node);
   if (node.type === "text") return <React.Fragment key={index}>{renderText(node, index)}</React.Fragment>;
   if (node.type === "paragraph") return <p key={index} {...bidi}>{children}</p>;
@@ -64,14 +73,42 @@ function renderNode(node: RichNode, index: React.Key): React.ReactNode {
   if (node.type === "image") {
     const src = String(node.attrs?.src ?? "");
     if (!src.startsWith("/api/assets/")) return null;
-    return <figure key={index}><img src={src} alt={String(node.attrs?.alt ?? "Note image")} /></figure>;
+    const alt = String(node.attrs?.alt ?? "Note image");
+    return (
+      <figure key={index}>
+        <button
+          type="button"
+          className="note-image-trigger"
+          aria-label={`View image: ${alt}`}
+          onClick={() => onImageClick(src, alt)}
+        >
+          <img src={src} alt={alt} />
+        </button>
+      </figure>
+    );
   }
   return <React.Fragment key={index}>{children}</React.Fragment>;
 }
 
 export function RichContent({ content }: { content: unknown }) {
+  const [activeImage, setActiveImage] = useState<{ src: string; alt: string } | null>(null);
+  const closeImage = useCallback(() => setActiveImage(null), []);
   const root = content && typeof content === "object" ? content as RichNode : { type: "doc", content: [] };
-  return <div className="reader-content" dir="ltr">{(root.content ?? []).map((node, index) => renderNode(node, index))}</div>;
+
+  return (
+    <>
+      <div className="reader-content" dir="ltr">
+        {(root.content ?? []).map((node, index) =>
+          renderNode(node, index, (src, alt) => setActiveImage({ src, alt })),
+        )}
+      </div>
+      <ImageLightbox
+        src={activeImage?.src ?? null}
+        alt={activeImage?.alt ?? "Note image"}
+        onClose={closeImage}
+      />
+    </>
+  );
 }
 
 export function extractText(content: unknown): string {
