@@ -86,6 +86,12 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   }, [user.id]);
 
   useEffect(() => {
+    const openTopicDialog = () => setShowTopic(true);
+    window.addEventListener("mnemosyne:open-topic-dialog", openTopicDialog);
+    return () => window.removeEventListener("mnemosyne:open-topic-dialog", openTopicDialog);
+  }, []);
+
+  useEffect(() => {
     const showOperationNotice = (event: Event) => {
       const detail = (event as CustomEvent<{ kind?: unknown; message?: unknown }>).detail;
       const allowedKinds: OperationStatusKind[] = ["loading", "waiting", "busy", "processing", "success", "error", "failure"];
