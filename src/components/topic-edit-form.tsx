@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, LoaderCircle, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, ImagePlus, LoaderCircle, Save, Trash2, X } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
 import { UploadProgress } from "@/components/upload-progress";
