@@ -394,6 +394,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     setImageUploading(true);
     let id = noteId;
     const isNewNote = !id;
+    let imageInserted = false;
 
     try {
       // For a new note, create the server record without navigating away.
@@ -418,56 +419,65 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         throw new Error("The server uploaded the image but did not return its address.");
       }
 
-      // The initial draft save temporarily made ProseMirror read-only.
-      // Re-enable it before inserting the returned asset into this same view.
+      // Re-enable after the initial note-creation save, then insert into the
+      // still-mounted editor. ProseMirror dispatches the insertion immediately.
       editor?.setEditable(true);
-      editor?.chain().focus().setImage({ src: data.asset.url, alt: file.name }).run();
-      const updatedContent = editor?.getJSON() ?? content;
+      const inserted = editor?.chain().focus().setImage({ src: data.asset.url, alt: file.name }).run();
+      if (!inserted || !editor) {
+        throw new Error("The image uploaded, but the editor could not insert it. Reopen the note and try again.");
+      }
+      imageInserted = true;
+      const updatedContent = editor.getJSON();
       setContent(updatedContent);
-      setStatus("Image added");
+      setDirty(true);
+      setStatus("Saving image to note…");
+
+      // Persist the image URL as part of the note document immediately. Do not
+      // rely on the delayed autosave timer for a successful image operation.
+      setBusy(true);
+      const tags = tagsInput
+        .split(",")
+        .map((tag) => tag.trim().replace(/^#/, ""))
+        .filter(Boolean)
+        .slice(0, 30);
+      const saveResponse = await fetch(`/api/notes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          topicId,
+          title,
+          subject,
+          content: updatedContent,
+          tags,
+          pinned,
+        }),
+      });
+      const saveData = await saveResponse.json().catch(() => null);
+      if (!saveResponse.ok) {
+        throw new Error(saveData?.error || "The image uploaded, but the note could not be updated. Your local recovery copy is being kept.");
+      }
+
+      setDirty(false);
+      setStatus("All changes saved");
+      setRecoveryStatus("Saved securely to your archive");
+      await Promise.all([
+        removeLocalNoteDraft("note:new").catch(() => undefined),
+        removeLocalNoteDraft(`note:${id}`).catch(() => undefined),
+      ]);
 
       if (isNewNote) {
-        // Persist the image reference immediately before changing routes.
-        // The ordinary autosave effect is intentionally not relied on here.
-        const tags = tagsInput
-          .split(",")
-          .map((tag) => tag.trim().replace(/^#/, ""))
-          .filter(Boolean)
-          .slice(0, 30);
-        const saveResponse = await fetch(`/api/notes/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({
-            topicId,
-            title,
-            subject,
-            content: updatedContent,
-            tags,
-            pinned,
-          }),
-        });
-        const saveData = await saveResponse.json().catch(() => null);
-        if (!saveResponse.ok) {
-          throw new Error(saveData?.error || "The image uploaded, but the note could not be updated.");
-        }
-
-        setDirty(false);
-        setStatus("All changes saved");
-        setRecoveryStatus("Saved securely to your archive");
-        await Promise.all([
-          removeLocalNoteDraft("note:new").catch(() => undefined),
-          removeLocalNoteDraft(`note:${id}`).catch(() => undefined),
-        ]);
         router.replace(`/notes/${id}/edit`);
         router.refresh();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Image upload failed.");
-      setStatus("Upload failed");
-      // Keep the current editor mounted on upload failure so the user can
-      // retry without losing the text or the selected file context.
+      setStatus(imageInserted ? "Image added; save needs attention" : "Upload failed");
+      if (imageInserted) setDirty(true);
+      // Keep the current editor mounted on failure so the user can retry
+      // without losing the text or locally recovered image reference.
     } finally {
+      setBusy(false);
       setImageUploading(false);
     }
   }
