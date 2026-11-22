@@ -1,70 +1,39 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Layers3, X } from "lucide-react";
 import { EmptyState, TopicCard, type TopicItem } from "@/components/archive-ui";
 
-const TOPIC_PAGE_SIZE = 24;
+const UNCATEGORIZED = "__uncategorized__";
 
 export function TopicArchive({
   topics,
   categories,
+  categoryCounts,
+  uncategorizedCount,
+  totalTopics,
+  allTopicsCount,
+  selectedCategory,
 }: {
   topics: TopicItem[];
   categories: string[];
+  categoryCounts: Record<string, number>;
+  uncategorizedCount: number;
+  totalTopics: number;
+  allTopicsCount: number;
+  selectedCategory: string;
 }) {
-  const [selectedCategory, setSelectedCategory] = useState<
-    { type: "all" } | { type: "category"; value: string } | { type: "uncategorized" }
-  >({ type: "all" });
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const topic of topics) {
-      const category = topic.category.trim();
-      if (!category) continue;
-      const key = category.toLocaleLowerCase();
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-    return counts;
-  }, [topics]);
-
-  const uncategorizedCount = useMemo(
-    () => topics.filter((topic) => !topic.category.trim()).length,
-    [topics],
-  );
-
-  const filteredTopics = useMemo(() => {
-    if (selectedCategory.type === "all") return topics;
-    if (selectedCategory.type === "uncategorized") {
-      return topics.filter((topic) => !topic.category.trim());
-    }
-    const selected = selectedCategory.value.toLocaleLowerCase();
-    return topics.filter(
-      (topic) => topic.category.trim().toLocaleLowerCase() === selected,
-    );
-  }, [topics, selectedCategory]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredTopics.length / TOPIC_PAGE_SIZE));
-  const page = Math.min(currentPage, totalPages);
-  const visibleTopics = useMemo(
-    () => filteredTopics.slice((page - 1) * TOPIC_PAGE_SIZE, page * TOPIC_PAGE_SIZE),
-    [filteredTopics, page],
-  );
-
-  function chooseAllCategories() {
-    setSelectedCategory({ type: "all" });
-    setCurrentPage(1);
-  }
+  const router = useRouter();
 
   function chooseCategory(value: string) {
-    setSelectedCategory({ type: "category", value });
-    setCurrentPage(1);
-  }
-
-  function chooseUncategorized() {
-    setSelectedCategory({ type: "uncategorized" });
-    setCurrentPage(1);
+    const nextValue = selectedCategory.toLocaleLowerCase() === value.toLocaleLowerCase()
+      ? ""
+      : value;
+    router.push(
+      nextValue
+        ? `/topics?category=${encodeURIComponent(nextValue)}`
+        : "/topics",
+    );
   }
 
   return (
@@ -77,34 +46,33 @@ export function TopicArchive({
           </p>
         </div>
         <div className="topic-browser-count" aria-live="polite">
-          <strong>{filteredTopics.length}</strong>
-          <span>{filteredTopics.length === 1 ? "topic" : "topics"}</span>
-          {selectedCategory.type !== "all" && <span>of {topics.length}</span>}
+          <strong>{totalTopics}</strong>
+          <span>{totalTopics === 1 ? "topic" : "topics"}</span>
+          {selectedCategory && <span>of {allTopicsCount}</span>}
         </div>
       </div>
 
       <div className="topic-filter-chips" role="group" aria-label="Topic category filter">
         <button
           type="button"
-          className={selectedCategory.type === "all" ? "topic-filter-chip active" : "topic-filter-chip"}
-          onClick={chooseAllCategories}
-          aria-pressed={selectedCategory.type === "all"}
+          className={selectedCategory === "" ? "topic-filter-chip active" : "topic-filter-chip"}
+          onClick={() => chooseCategory("")}
+          aria-pressed={selectedCategory === ""}
         >
           <Layers3 size={14} />
           All categories
-          <span>{topics.length}</span>
+          <span>{allTopicsCount}</span>
         </button>
 
         {categories.map((category) => {
-          const count = categoryCounts.get(category.toLocaleLowerCase()) ?? 0;
-          const active = selectedCategory.type === "category" &&
-            selectedCategory.value.toLocaleLowerCase() === category.toLocaleLowerCase();
+          const active = selectedCategory.toLocaleLowerCase() === category.toLocaleLowerCase();
+          const count = categoryCounts[category.toLocaleLowerCase()] ?? 0;
           return (
             <button
               type="button"
               key={category.toLocaleLowerCase()}
               className={active ? "topic-filter-chip active" : "topic-filter-chip"}
-              onClick={() => active ? chooseAllCategories() : chooseCategory(category)}
+              onClick={() => chooseCategory(category)}
               aria-pressed={active}
             >
               {category}
@@ -116,9 +84,9 @@ export function TopicArchive({
         {uncategorizedCount > 0 && (
           <button
             type="button"
-            className={selectedCategory.type === "uncategorized" ? "topic-filter-chip active" : "topic-filter-chip"}
-            onClick={() => selectedCategory.type === "uncategorized" ? chooseAllCategories() : chooseUncategorized()}
-            aria-pressed={selectedCategory.type === "uncategorized"}
+            className={selectedCategory === UNCATEGORIZED ? "topic-filter-chip active" : "topic-filter-chip"}
+            onClick={() => chooseCategory(UNCATEGORIZED)}
+            aria-pressed={selectedCategory === UNCATEGORIZED}
           >
             Uncategorized
             <span>{uncategorizedCount}</span>
@@ -126,34 +94,22 @@ export function TopicArchive({
         )}
       </div>
 
-      {visibleTopics.length > 0 ? (
-        <>
-          <div className="topic-grid">
-            {visibleTopics.map((topic) => <TopicCard key={topic.id} topic={topic} />)}
-          </div>
-          {totalPages > 1 && (
-            <nav className="archive-pagination" aria-label="Topic pages">
-              <span className="archive-pagination-summary">
-                Showing {(page - 1) * TOPIC_PAGE_SIZE + 1}–{Math.min(page * TOPIC_PAGE_SIZE, filteredTopics.length)} of {filteredTopics.length}
-              </span>
-              <div className="archive-pagination-controls">
-                <button type="button" className="secondary-btn" onClick={() => setCurrentPage((value) => Math.max(1, value - 1))} disabled={page === 1}>Previous</button>
-                <span className="archive-pagination-page">Page {page} of {totalPages}</span>
-                <button type="button" className="secondary-btn" onClick={() => setCurrentPage((value) => Math.min(totalPages, value + 1))} disabled={page === totalPages}>Next</button>
-              </div>
-            </nav>
-          )}
-        </>
+      {topics.length > 0 ? (
+        <div className="topic-grid">
+          {topics.map((topic) => <TopicCard key={topic.id} topic={topic} />)}
+        </div>
       ) : (
         <div className="topic-filter-empty">
           <EmptyState
-            title="No topics in this category"
-            copy="Choose another category or return to the full collection."
-            action={
-              <button type="button" className="secondary-btn" onClick={chooseAllCategories}>
+            title={selectedCategory ? "No topics in this category" : "No topics created"}
+            copy={selectedCategory
+              ? "Choose another category or return to the full collection."
+              : "Create a collection for a subject, project, book or idea you want to develop."}
+            action={selectedCategory ? (
+              <button type="button" className="secondary-btn" onClick={() => chooseCategory("")}>
                 <X size={14} /> Clear category filter
               </button>
-            }
+            ) : null}
           />
         </div>
       )}

@@ -13,18 +13,20 @@ export function ArchivePagination({
   totalItems,
   pageSize = ARCHIVE_PAGE_SIZE,
   basePath,
+  query,
 }: {
   currentPage: number;
   totalItems: number;
   pageSize?: number;
   basePath: string;
+  query?: string;
 }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   if (totalPages <= 1) return null;
 
   const firstItem = (currentPage - 1) * pageSize + 1;
   const lastItem = Math.min(currentPage * pageSize, totalItems);
-  const href = (page: number) => `${basePath}?page=${page}`;
+  const href = (page: number) => `${basePath}?${query ? query + "&" : ""}page=${page}`;
 
   return (
     <nav className="archive-pagination" aria-label="Archive pages">

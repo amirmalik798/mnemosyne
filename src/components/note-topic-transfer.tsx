@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Copy, FolderInput, LoaderCircle, X } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
@@ -29,6 +29,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [processingMessage, setProcessingMessage] = useState("");
+  const topicsRequestRef = useRef<AbortController | null>(null);
 
   const destinations = useMemo(
     () => availableTopics.filter((topic) => topic.id !== currentTopicId),
@@ -38,32 +39,50 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
   async function loadTopics() {
     setTopicsLoading(true);
     setTopicsError("");
+    topicsRequestRef.current?.abort();
+    const controller = new AbortController();
+    topicsRequestRef.current = controller;
     try {
-      const response = await fetch("/api/topics/options", {
-        credentials: "same-origin",
-        cache: "no-store",
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Could not load destination topics.");
-      const nextTopics: NoteTopicOption[] = Array.isArray(data.topics)
-        ? data.topics.filter((topic: unknown): topic is NoteTopicOption =>
-            Boolean(topic) &&
-            typeof topic === "object" &&
-            typeof (topic as NoteTopicOption).id === "string" &&
-            typeof (topic as NoteTopicOption).title === "string",
-          )
-        : [];
+      const nextTopics: NoteTopicOption[] = [];
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const response = await fetch(`/api/topics/options?limit=100&offset=${offset}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not load destination topics.");
+        const pageTopics: NoteTopicOption[] = Array.isArray(data.topics)
+          ? data.topics.filter((topic: unknown): topic is NoteTopicOption =>
+              Boolean(topic) &&
+              typeof topic === "object" &&
+              typeof (topic as NoteTopicOption).id === "string" &&
+              typeof (topic as NoteTopicOption).title === "string",
+            )
+          : [];
+        nextTopics.push(...pageTopics);
+        hasMore = data.pagination?.hasMore === true;
+        offset += Number.isSafeInteger(data.pagination?.limit) && data.pagination.limit > 0
+          ? data.pagination.limit
+          : 100;
+      }
       setAvailableTopics(nextTopics);
       setTopicsLoaded(true);
       setDestinationTopicId(nextTopics.find((topic) => topic.id !== currentTopicId)?.id ?? "");
     } catch (cause) {
       setTopicsError(cause instanceof Error ? cause.message : "Could not load destination topics.");
     } finally {
-      setTopicsLoading(false);
+      if (topicsRequestRef.current === controller) {
+        topicsRequestRef.current = null;
+        setTopicsLoading(false);
+      }
     }
   }
 
   function openDialog() {
+    topicsRequestRef.current?.abort();
     setAction("move");
     setError("");
     setTopicsError("");
@@ -133,7 +152,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
                 <h2 id="transfer-title" className="transfer-title">Move or copy note</h2>
                 <p className="transfer-subtitle">Choose what should happen to this note and where it belongs.</p>
               </div>
-              <button type="button" className="icon-button" onClick={() => setOpen(false)} disabled={busy || topicsLoading} aria-label="Close dialog">
+              <button type="button" className="icon-button" onClick={() => { topicsRequestRef.current?.abort(); setOpen(false); }} disabled={busy || topicsLoading} aria-label="Close dialog">
                 <X size={16} />
               </button>
             </header>
@@ -187,7 +206,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
             {busy && <OperationStatus kind="loading" message={processingMessage || "Working…"} />}
             {error && <OperationStatus kind="failure" message={error} />}
             <footer className="transfer-dialog-actions">
-              <button type="button" className="secondary-btn" onClick={() => setOpen(false)} disabled={busy || topicsLoading}>Cancel</button>
+              <button type="button" className="secondary-btn" onClick={() => { topicsRequestRef.current?.abort(); setOpen(false); }} disabled={busy || topicsLoading}>Cancel</button>
               <button type="button" className="primary-btn" onClick={() => void submit()} disabled={busy || topicsLoading || Boolean(topicsError) || !destinationTopicId}>
                 {busy
                   ? <><LoaderCircle className="operation-spinner" size={14} /> {processingMessage.includes("Saving") ? "Saving…" : action === "move" ? "Moving…" : "Copying…"}</>

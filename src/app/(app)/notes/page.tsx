@@ -17,35 +17,20 @@ export default async function NotesPage({ searchParams }: Props) {
   ]);
   const requestedPageNumber = parseArchivePage(requestedPage);
 
-  const [countResult, pageResult] = await Promise.all([
-    db.query("SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NULL"),
-    db.query(
-      `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.updated_at,
+  const countResult = await db.query("SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NULL");
+  const totalNotes = Number(countResult.rows[0]?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(totalNotes / ARCHIVE_PAGE_SIZE));
+  const currentPage = Math.min(requestedPageNumber, totalPages);
+  const result = await db.query(
+    `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.updated_at,
               t.title_enc AS topic_title_enc
        FROM notes n
        JOIN topics t ON t.id = n.topic_id
        WHERE n.deleted_at IS NULL
        ORDER BY n.pinned DESC, n.updated_at DESC, n.id DESC
        LIMIT $1 OFFSET $2`,
-      [ARCHIVE_PAGE_SIZE, (requestedPageNumber - 1) * ARCHIVE_PAGE_SIZE],
-    ),
-  ]);
-
-  const totalNotes = Number(countResult.rows[0]?.total ?? 0);
-  const totalPages = Math.max(1, Math.ceil(totalNotes / ARCHIVE_PAGE_SIZE));
-  const currentPage = Math.min(requestedPageNumber, totalPages);
-  const result = currentPage === requestedPageNumber
-    ? pageResult
-    : await db.query(
-        `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.updated_at,
-                t.title_enc AS topic_title_enc
-         FROM notes n
-         JOIN topics t ON t.id = n.topic_id
-         WHERE n.deleted_at IS NULL
-         ORDER BY n.pinned DESC, n.updated_at DESC, n.id DESC
-         LIMIT $1 OFFSET $2`,
-        [ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
-      );
+    [ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
+  );
 
   const notes: NoteItem[] = result.rows.map((row) => ({
     id: row.id,

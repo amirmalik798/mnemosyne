@@ -210,6 +210,9 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const savingRef = useRef(false);
   const [noteId, setNoteId] = useState<string | null>(initialNote?.id ?? null);
   const [topicId, setTopicId] = useState(initialNote?.topicId ?? defaultTopicId ?? topics[0]?.id ?? "");
+  const [availableTopics, setAvailableTopics] = useState<Topic[]>(topics);
+  const [topicsLoading, setTopicsLoading] = useState(topics.length === 0);
+  const [topicsError, setTopicsError] = useState("");
   const [title, setTitle] = useState(initialNote?.title ?? "");
   const [subject, setSubject] = useState(initialNote?.subject ?? "");
   const [tagsInput, setTagsInput] = useState(initialNote?.tags?.join(", ") ?? "");
@@ -365,6 +368,63 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   useEffect(() => {
     editor?.setEditable(!busy && !imageUploading);
   }, [editor, busy, imageUploading]);
+
+  // Fetch destination labels after the editor mounts, in bounded pages.
+  useEffect(() => {
+    if (topics.length > 0) return;
+    const controller = new AbortController();
+    let cancelled = false;
+    setTopicsLoading(true);
+    setTopicsError("");
+
+    async function loadAllTopicOptions() {
+      const collected: Topic[] = [];
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore && !controller.signal.aborted) {
+        const response = await fetch(`/api/topics/options?limit=200&offset=${offset}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not load topics.");
+        const valid: Topic[] = Array.isArray(data.topics)
+          ? data.topics.filter((item: unknown): item is Topic =>
+              Boolean(item) &&
+              typeof item === "object" &&
+              typeof (item as Topic).id === "string" &&
+              typeof (item as Topic).title === "string",
+            )
+          : [];
+        collected.push(...valid);
+        hasMore = data.pagination?.hasMore === true;
+        offset += Number.isSafeInteger(data.pagination?.limit) && data.pagination.limit > 0
+          ? data.pagination.limit
+          : 200;
+      }
+      if (cancelled || controller.signal.aborted) return;
+      setAvailableTopics(collected);
+      if (!collected.some((topic) => topic.id === topicId) && collected[0]) {
+        setTopicId(collected[0].id);
+      }
+    }
+
+    void loadAllTopicOptions()
+      .catch((cause) => {
+        if (!cancelled && !controller.signal.aborted) {
+          setTopicsError(cause instanceof Error ? cause.message : "Could not load topics.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setTopicsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [topics]);
 
   // Synchronize uncontrolled formatting inputs after they mount and whenever
   // the editor instance changes. Selection changes keep these refs current.
@@ -865,7 +925,17 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   }
 
   const words = (editor?.getText() ?? "").trim().split(/\s+/).filter(Boolean).length;
-  if (!topics.length) return <main className="page"><div className="empty-state"><h3>Create a topic first</h3><p>Every note belongs to a topic. Create a collection, then come back to write.</p><Link href="/topics" className="primary-btn">Go to topics</Link></div></main>;
+  if (!availableTopics.length && !topicsLoading) {
+    return (
+      <main className="page">
+        <div className="empty-state">
+          <h3>{topicsError ? "Could not load your topics" : "Create a topic first"}</h3>
+          <p>{topicsError || "Every note belongs to a topic. Create a collection, then come back to write."}</p>
+          <Link href="/topics" className="primary-btn">Go to topics</Link>
+        </div>
+      </main>
+    );
+  }
 
   return <main className="page"><div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:25 }}><Link href={noteId ? `/notes/${noteId}` : "/notes"} className="breadcrumb"><ArrowLeft size={14}/> {noteId ? "Back to note" : "All notes"}</Link><div style={{ display:"flex", gap:8 }}><OperationStatus kind={getEditorStatusKind(status)} message={status} compact /><button className="primary-btn" onClick={() => void save(false)} disabled={busy || imageUploading || !title.trim()} title={!title.trim() ? "Enter a note title before saving." : "Save note"}><Save size={14}/>{busy ? "Saving…" : "Save note"}</button></div></div>
     <div className="note-layout"><section className="editor-main"><div className="eyebrow">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} placeholder="Untitled note" maxLength={180} disabled={busy || imageUploading} aria-label="Note title"/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); markDirty(); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy || imageUploading} aria-label="Note subject"/>
@@ -983,5 +1053,5 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         onClose={closeImagePreview}
       />
       <div className="editor-footer"><span>{words} words</span><OperationStatus kind={getEditorStatusKind(recoveryStatus)} message={recoveryStatus} compact /><span>Private encrypted note</span></div>
-    </section><aside className="editor-side"><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><div className="property-label">Belongs to</div><select dir="auto" lang={detectTextLanguage(topics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy || imageUploading} onChange={(e)=>{setTopicId(e.target.value);markDirty();}}>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></div><div className="property-block"><div className="property-label">Tags</div><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy || imageUploading} onChange={(e)=>{setTagsInput(e.target.value);markDirty();}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button className={`secondary-btn`} disabled={busy || imageUploading} style={{ width:"100%", justifyContent:"flex-start" }} onClick={()=>{setPinned(!pinned);markDirty();}}><Pin size={14}/>{pinned?"Remove from pinned":"Pin this note"}</button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={topics} beforeTransfer={async()=>{if(busy || imageUploading)return false;return dirty?Boolean(await save(false)):true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p></section>{noteId&&<button className="danger-btn" onClick={removeNote} disabled={busy || imageUploading}><Trash2 size={14}/> Move to Trash</button>}</aside></div>{error&&<OperationStatus kind="error" message={error} />}</main>;
+    </section><aside className="editor-side"><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><div className="property-label">Belongs to</div><select dir="auto" lang={detectTextLanguage(availableTopics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy || imageUploading} onChange={(e)=>{setTopicId(e.target.value);markDirty();}}>{availableTopics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select>{topicsLoading && <span className="form-hint">Loading topics…</span>}{topicsError && <span className="form-hint">{topicsError}</span>}</div><div className="property-block"><div className="property-label">Tags</div><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy || imageUploading} onChange={(e)=>{setTagsInput(e.target.value);markDirty();}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button className={`secondary-btn`} disabled={busy || imageUploading} style={{ width:"100%", justifyContent:"flex-start" }} onClick={()=>{setPinned(!pinned);markDirty();}}><Pin size={14}/>{pinned?"Remove from pinned":"Pin this note"}</button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={availableTopics.length ? availableTopics : undefined} beforeTransfer={async()=>{if(busy || imageUploading)return false;return dirty?Boolean(await save(false)):true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p></section>{noteId&&<button className="danger-btn" onClick={removeNote} disabled={busy || imageUploading}><Trash2 size={14}/> Move to Trash</button>}</aside></div>{error&&<OperationStatus kind="error" message={error} />}</main>;
 }
