@@ -59,6 +59,9 @@ CREATE INDEX IF NOT EXISTS notes_live_topic_order_idx
   ON notes(topic_id, pinned DESC, updated_at DESC, id DESC)
   WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS notes_trash_idx ON notes(deleted_at DESC) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS notes_trash_page_idx
+  ON notes(deleted_at DESC, id DESC)
+  WHERE deleted_at IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS assets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
