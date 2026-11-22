@@ -9,7 +9,7 @@ type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: Context) {
   let client: PoolClient | undefined;
-  let savedStorageKey: string | undefined;
+  let savedAssetId: string | undefined;
   let oldStorageKey: string | undefined;
   let commitAttempted = false;
 
@@ -42,7 +42,7 @@ export async function POST(request: Request, context: Context) {
       key: session.key,
       query: (text, values) => client!.query(text, values),
     });
-    savedStorageKey = saved.storageKey;
+    savedAssetId = saved.id;
 
     await client.query(
       "UPDATE topics SET cover_asset_id = $1, updated_at = NOW() WHERE id = $2",
@@ -55,7 +55,8 @@ export async function POST(request: Request, context: Context) {
         "DELETE FROM assets WHERE id = $1 AND owner_type = 'topic' AND owner_id = $2 RETURNING storage_key",
         [previousCoverId, id],
       );
-      oldStorageKey = removed.rows[0]?.storage_key as string | undefined;
+      const previousStorageKey = removed.rows[0]?.storage_key;
+      if (typeof previousStorageKey === "string") oldStorageKey = previousStorageKey;
     }
 
     commitAttempted = true;
@@ -64,12 +65,10 @@ export async function POST(request: Request, context: Context) {
     return NextResponse.json({ coverUrl: `/api/assets/${saved.id}` });
   } catch (error) {
     if (client) await client.query("ROLLBACK").catch(() => undefined);
-    if (savedStorageKey && !commitAttempted) {
-      await removeEncryptedStorageFile(savedStorageKey);
-    } else if (savedStorageKey && commitAttempted) {
-      console.error("[Mnemosyne] Topic-cover replacement commit outcome is uncertain; encrypted files were retained.", {
-        newStorageKey: savedStorageKey,
-        oldStorageKey,
+    if (commitAttempted) {
+      console.error("[Mnemosyne] Topic-cover replacement commit outcome is uncertain; image metadata and blob are in one database transaction.", {
+        assetId: savedAssetId,
+        legacyStorageKey: oldStorageKey,
       });
     }
     return apiError(error);
@@ -105,7 +104,8 @@ export async function DELETE(request: Request, context: Context) {
         "DELETE FROM assets WHERE id = $1 AND owner_type = 'topic' AND owner_id = $2 RETURNING storage_key",
         [currentId, id],
       );
-      oldStorageKey = removed.rows[0]?.storage_key as string | undefined;
+      const previousStorageKey = removed.rows[0]?.storage_key;
+      if (typeof previousStorageKey === "string") oldStorageKey = previousStorageKey;
     }
 
     commitAttempted = true;
@@ -115,7 +115,7 @@ export async function DELETE(request: Request, context: Context) {
   } catch (error) {
     if (client) await client.query("ROLLBACK").catch(() => undefined);
     if (commitAttempted && oldStorageKey) {
-      console.error("[Mnemosyne] Topic-cover deletion commit outcome is uncertain; encrypted file was retained.", {
+      console.error("[Mnemosyne] Topic-cover deletion commit outcome is uncertain; legacy encrypted file was retained.", {
         storageKey: oldStorageKey,
       });
     }
