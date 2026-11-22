@@ -6841,3 +6841,36 @@ html[data-theme="light"] .typography-preview { background: #FFFFFF; border-color
   .typography-settings-grid, .settings-grid { grid-template-columns: minmax(0, 1fr); }
   .typography-settings-grid { gap: 15px; }
 }
+
+
+/* Sidebar wordmark: keep the brand name and its descriptor on separate rows. */
+.brand {
+  min-width: 0;
+}
+.brand-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.brand-name {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+.brand-sub {
+  display: block;
+  margin: 0;
+  white-space: nowrap;
+  font-size: calc(8px * var(--font-scale, 1));
+  letter-spacing: .13em;
+  line-height: 1.25;
+}
+@media (max-width: 960px) {
+  .brand-copy {
+    display: none;
+  }
+}
