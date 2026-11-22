@@ -4,21 +4,68 @@ import { db } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
-export async function GET() {
+export const runtime = "nodejs";
+
+function parseBoundedInteger(value: string | null, fallback: number, minimum: number, maximum: number) {
+  if (value === null) return fallback;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback;
+}
+
+function serializeNote(row: Record<string, unknown>, key: Buffer) {
+  return {
+    id: row.id,
+    topicId: row.topic_id,
+    topicTitle: decryptText(row.topic_title_enc as Buffer, key),
+    title: decryptText(row.title_enc as Buffer, key),
+    subject: decryptText(row.subject_enc as Buffer, key),
+    content: JSON.parse(decryptText(row.content_enc as Buffer, key)),
+    tags: JSON.parse(decryptText(row.tags_enc as Buffer, key)),
+    pinned: row.pinned,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function GET(request: Request) {
   try {
     const session = await requireVaultSession();
-    const result = await db.query(
-      `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.pinned, n.created_at, n.updated_at, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id
-       WHERE n.deleted_at IS NULL ORDER BY n.pinned DESC, n.updated_at DESC`,
-    );
-    const notes = result.rows.map((row) => ({
-      id: row.id, topicId: row.topic_id, topicTitle: decryptText(row.topic_title_enc, session.key),
-      title: decryptText(row.title_enc, session.key), subject: decryptText(row.subject_enc, session.key),
-      content: JSON.parse(decryptText(row.content_enc, session.key)), tags: JSON.parse(decryptText(row.tags_enc, session.key)),
-      pinned: row.pinned, createdAt: row.created_at, updatedAt: row.updated_at,
-    }));
-    return NextResponse.json({ notes });
-  } catch (error) { return apiError(error); }
+    const params = new URL(request.url).searchParams;
+    const hasPagination = params.has("limit") || params.has("offset");
+    if (!hasPagination) {
+      // Retain the historical full response for existing API consumers.
+      const result = await db.query(
+        `SELECT n.*, t.title_enc AS topic_title_enc
+         FROM notes n JOIN topics t ON t.id = n.topic_id
+         WHERE n.deleted_at IS NULL
+         ORDER BY n.pinned DESC, n.updated_at DESC, n.id DESC`,
+      );
+      return NextResponse.json({ notes: result.rows.map((row) => serializeNote(row, session.key)) });
+    }
+
+    const limit = parseBoundedInteger(params.get("limit"), 50, 1, 100);
+    const offset = parseBoundedInteger(params.get("offset"), 0, 0, 1_000_000);
+    const [countResult, pageResult] = await Promise.all([
+      db.query("SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NULL"),
+      db.query(
+        `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc,
+                n.pinned, n.created_at, n.updated_at, t.title_enc AS topic_title_enc
+         FROM notes n JOIN topics t ON t.id = n.topic_id
+         WHERE n.deleted_at IS NULL
+         ORDER BY n.pinned DESC, n.updated_at DESC, n.id DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset],
+      ),
+    ]);
+    const notes = pageResult.rows.map((row) => serializeNote(row, session.key));
+    const total = Number(countResult.rows[0]?.total ?? 0);
+    return NextResponse.json({
+      notes,
+      pagination: { total, offset, limit, hasMore: offset + notes.length < total },
+    });
+  } catch (error) {
+    return apiError(error);
+  }
 }
 
 export async function POST(request: Request) {
@@ -43,5 +90,7 @@ export async function POST(request: Request) {
       [topicId, encryptText(title, session.key), encryptText(subject, session.key), encryptText(content, session.key), encryptText(JSON.stringify(tags), session.key), pinned],
     );
     return NextResponse.json({ note: { id: result.rows[0].id, topicId, title, subject, content: JSON.parse(content), tags, pinned, createdAt: result.rows[0].created_at, updatedAt: result.rows[0].updated_at } }, { status: 201 });
-  } catch (error) { return apiError(error); }
+  } catch (error) {
+    return apiError(error);
+  }
 }
