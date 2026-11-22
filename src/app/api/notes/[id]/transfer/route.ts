@@ -73,7 +73,7 @@ export async function POST(request: Request, context: Context) {
     client = await db.connect();
     await client.query("BEGIN");
     const sourceResult = await client.query(
-      "SELECT * FROM notes WHERE id=$1 AND deleted_at IS NULL FOR UPDATE",
+      "SELECT topic_id, title_enc, subject_enc, content_enc, tags_enc, pinned FROM notes WHERE id=$1 AND deleted_at IS NULL FOR UPDATE",
       [id],
     );
     const source = sourceResult.rows[0];
