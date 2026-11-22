@@ -95,8 +95,8 @@ export default async function TopicPage({ params, searchParams }: Props) {
           <p className="page-subtitle" dir="auto" lang={detectTextLanguage(description)} style={{ margin:0 }}>{description || "A dedicated space for the notes and references in this collection."}</p>
           <div className="topic-detail-actions" style={{ display:"flex",gap:8,flexShrink:0,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end" }}>
             <TopicImageDownload topicId={id} imageCount={imageCount}/>
-            <Link href={`/topics/${id}/edit`} className="secondary-btn icon-only-btn" aria-label="Edit topic" title="Edit topic"><Edit3 size={17}/></Link>
-            <Link href={`/notes/new?topicId=${id}`} className="primary-btn icon-only-btn" aria-label="Create a note in this topic" title="Create a note in this topic"><FilePlus size={17}/></Link>
+            <Link href={`/topics/${id}/edit`} className="secondary-btn topic-action-button" aria-label="Edit topic" title="Edit topic"><Edit3 size={16}/><span>Edit topic</span></Link>
+            <Link href={`/notes/new?topicId=${id}`} className="primary-btn topic-action-button" aria-label="Create a note in this topic" title="Create a note in this topic"><FilePlus size={16}/><span>New note</span></Link>
           </div>
         </div>
       </section>

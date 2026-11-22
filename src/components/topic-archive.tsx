@@ -68,7 +68,7 @@ export function TopicArchive({
       <div className="topic-filter-chips" role="group" aria-label="Topic category filter">
         <button
           type="button"
-          className={selectedCategory === "" ? "topic-filter-chip icon-only-btn active" : "topic-filter-chip icon-only-btn"}
+          className={selectedCategory === "" ? "topic-filter-chip active" : "topic-filter-chip"}
           onClick={() => chooseCategory("")}
           aria-pressed={selectedCategory === ""}
           aria-label={`Show all categories (${allTopicsCount} topics)`}

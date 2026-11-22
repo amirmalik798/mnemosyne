@@ -3316,9 +3316,9 @@ html[data-theme="light"] .note-revision-item span { color: #575C66; }
   justify-content: flex-end;
   gap: 3px;
   flex: 0 0 auto;
-  opacity: 0;
-  transform: translateX(4px);
-  transition: opacity .16s ease, transform .16s ease;
+  opacity: .72;
+  transform: none;
+  transition: opacity .16s ease;
 }
 .note-row:hover .note-row-actions,
 .note-row:focus-within .note-row-actions {
@@ -3489,3 +3489,36 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
   gap: 12px;
 }
 #main-content { scroll-margin-top: 120px; }
+
+
+/* Topic filters stay legible: the category name, not only its icon, is the
+   primary affordance; the count remains visually secondary. */
+.topic-filter-chip > strong {
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: 600;
+}
+.topic-filter-chip > svg {
+  flex: 0 0 auto;
+  color: currentColor;
+}
+.topic-action-button {
+  min-width: 0;
+  gap: 8px;
+  padding-inline: 13px;
+  white-space: nowrap;
+}
+.topic-action-button > span {
+  font-size: 11px;
+  font-weight: 600;
+}
+@media (max-width: 560px) {
+  .topic-detail-summary {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+  .topic-detail-actions {
+    width: 100%;
+    justify-content: flex-start !important;
+  }
+}
