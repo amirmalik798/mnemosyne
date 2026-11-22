@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export function apiError(error: unknown) {
   const message = error instanceof Error ? error.message : "Unexpected server error.";
-  if (message === "UNAUTHORIZED") return NextResponse.json({ error: "Please unlock your vault." }, { status: 401 });
+  if (message === "UNAUTHORIZED") return NextResponse.json({ error: "Please sign in to your account." }, { status: 401 });
   if (message === "FORBIDDEN_ORIGIN") return NextResponse.json({ error: "Request origin was rejected." }, { status: 403 });
   if (message === "PAYLOAD_TOO_LARGE") return NextResponse.json({ error: "The request is too large." }, { status: 413 });
   if (message === "UNSUPPORTED_MEDIA_TYPE") return NextResponse.json({ error: "Send this request using the expected content type." }, { status: 415 });

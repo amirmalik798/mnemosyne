@@ -121,7 +121,7 @@ async function main() {
       "asset_blobs_user_asset_fk",
     ];
     const constraintResult = await pool.query(
-      "SELECT conname FROM pg_constraint WHERE conname=ANY($1::text[])",
+      "SELECT conname FROM pg_constraint WHERE connamespace=current_schema()::regnamespace AND conname=ANY($1::text[])",
       [requiredConstraints],
     );
     const presentConstraints = new Set(constraintResult.rows.map((row) => row.conname));
@@ -131,7 +131,10 @@ async function main() {
     }
 
     const triggerResult = await pool.query(
-      "SELECT tgname FROM pg_trigger WHERE NOT tgisinternal AND tgname=ANY($1::text[])",
+      "SELECT t.tgname FROM pg_trigger t " +
+      "JOIN pg_class c ON c.oid=t.tgrelid " +
+      "JOIN pg_namespace n ON n.oid=c.relnamespace " +
+      "WHERE NOT t.tgisinternal AND n.nspname=current_schema() AND t.tgname=ANY($1::text[])",
       [["assets_validate_owner", "topics_validate_cover"]],
     );
     const presentTriggers = new Set(triggerResult.rows.map((row) => row.tgname));

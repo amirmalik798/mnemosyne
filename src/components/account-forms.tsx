@@ -254,7 +254,9 @@ export function VerifyEmailForm() {
   return (
     <AuthFrame kicker="Account confirmation" title="Verify your email" description="Confirm that you own this email address to activate your account.">
       {!token ? (
-        {linkLoaded ? <OperationStatus kind="failure" message="The verification link does not contain a valid token. Open the complete link from your email or request a new one." /> : <OperationStatus kind="loading" message="Reading your secure confirmation link…" />}
+        linkLoaded
+          ? <OperationStatus kind="failure" message="The verification link does not contain a valid token. Open the complete link from your email or request a new one." />
+          : <OperationStatus kind="loading" message="Reading your secure confirmation link…" />
       ) : (
         <div className="auth-form">
           <p className="form-hint">This link can be used once and expires after 24 hours. Verification only activates the account; sign in afterward to unlock your archive.</p>
