@@ -35,11 +35,13 @@ export function NoteReaderActions({
   title,
   content,
   currentTopicId,
+  showLabels = false,
 }: {
   id: string;
   title: string;
   content: unknown;
   currentTopicId: string;
+  showLabels?: boolean;
 }) {
   const router = useRouter();
   const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
@@ -120,16 +122,18 @@ export function NoteReaderActions({
 
   return (
     <>
-      <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} />
-      <button type="button" className="secondary-btn icon-only-btn" onClick={() => void copy()} aria-label={copying ? "Copying Markdown" : "Copy Markdown"} title={copying ? "Copying Markdown" : "Copy Markdown"} disabled={busy || copying} aria-busy={copying}>
+      <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} showLabel={showLabels} />
+      <button type="button" className={showLabels ? "secondary-btn reader-action-button" : "secondary-btn icon-only-btn"} onClick={() => void copy()} aria-label={copying ? "Copying Markdown" : "Copy Markdown"} title={copying ? "Copying Markdown" : "Copy Markdown"} disabled={busy || copying} aria-busy={copying}>
         {copying ? <LoaderCircle className="operation-spinner" size={16} /> : <Copy size={16} />}
+        {showLabels && <span>{copying ? "Copying…" : "Copy Markdown"}</span>}
       </button>
-      <button type="button" className="secondary-btn icon-only-btn" onClick={exportNote} aria-label="Export Markdown" title="Export Markdown" disabled={busy || copying}>
+      <button type="button" className={showLabels ? "secondary-btn reader-action-button" : "secondary-btn icon-only-btn"} onClick={exportNote} aria-label="Export Markdown" title="Export Markdown" disabled={busy || copying}>
         <Download size={16} />
+        {showLabels && <span>Export Markdown</span>}
       </button>
       <button
         type="button"
-        className="icon-button icon-only-btn"
+        className={showLabels ? "icon-button reader-action-button reader-action-button--danger" : "icon-button icon-only-btn"}
         onClick={() => void remove()}
         disabled={busy || copying}
         aria-busy={busy}
@@ -137,6 +141,7 @@ export function NoteReaderActions({
         aria-label={busy ? "Moving note to Recently deleted" : "Move to trash"}
       >
         {busy ? <LoaderCircle className="operation-spinner" /> : <Trash2 size={15} />}
+        {showLabels && <span>{busy ? "Moving…" : "Move to trash"}</span>}
       </button>
       {message && <OperationStatus kind={messageKind} message={message} compact />}
       {confirmationDialog}

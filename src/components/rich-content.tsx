@@ -94,15 +94,50 @@ function renderText(node: RichNode, key: React.Key, wikiLinks: Record<string, st
     })}
   </>;
 }
+type ReaderHeading = { id: string; title: string; level: number; path: string };
+
+function collectReaderHeadings(nodes: RichNode[]): ReaderHeading[] {
+  const headings: ReaderHeading[] = [];
+  const usedIds = new Map<string, number>();
+
+  function visit(node: RichNode, path: string) {
+    if (node.type === "heading") {
+      const title = getNodeText(node).trim();
+      if (title) {
+        const base = title.normalize("NFKD")
+          .replace(/[\\u0300-\\u036f]/g, "")
+          .toLocaleLowerCase()
+          .replace(/[^\\p{L}\\p{N}]+/gu, "-")
+          .replace(/^-+|-+$/g, "") || "section";
+        const occurrence = (usedIds.get(base) ?? 0) + 1;
+        usedIds.set(base, occurrence);
+        const levelValue = Number(node.attrs?.level ?? 2);
+        const level = Number.isFinite(levelValue) ? Math.min(3, Math.max(1, levelValue)) : 2;
+        headings.push({
+          id: `note-section-${base}${occurrence > 1 ? `-${occurrence}` : ""}`,
+          title,
+          level,
+          path,
+        });
+      }
+    }
+    node.content?.forEach((child, index) => visit(child, `${path}-${index}`));
+  }
+
+  nodes.forEach((node, index) => visit(node, String(index)));
+  return headings;
+}
+
 function renderNode(
   node: RichNode,
   index: React.Key,
   onImageClick: (src: string, alt: string) => void,
   wikiLinks: Record<string, string>,
+  headingIds: Record<string, string>,
 ): React.ReactNode {
   if (node.type === "text") return <React.Fragment key={index}>{renderText(node, index, wikiLinks)}</React.Fragment>;
   const children = (node.content ?? []).map((child, i) =>
-    renderNode(child, `${String(index)}-${i}`, onImageClick, wikiLinks),
+    renderNode(child, `${String(index)}-${i}`, onImageClick, wikiLinks, headingIds),
   );
   // Only block nodes need direction analysis. Text leaves and inline media
   // previously walked their entire subtree even though those results were unused.
@@ -110,9 +145,10 @@ function renderNode(
   if (node.type === "paragraph") return <p key={index} {...bidi}>{children}</p>;
   if (node.type === "heading") {
     const level = Math.min(3, Math.max(1, Number(node.attrs?.level ?? 2)));
-    if (level === 1) return <h1 key={index} {...bidi}>{children}</h1>;
-    if (level === 2) return <h2 key={index} {...bidi}>{children}</h2>;
-    return <h3 key={index} {...bidi}>{children}</h3>;
+    const headingId = headingIds[String(index)];
+    if (level === 1) return <h1 key={index} id={headingId} tabIndex={-1} {...bidi}>{children}</h1>;
+    if (level === 2) return <h2 key={index} id={headingId} tabIndex={-1} {...bidi}>{children}</h2>;
+    return <h3 key={index} id={headingId} tabIndex={-1} {...bidi}>{children}</h3>;
   }
   if (node.type === "blockquote") return <blockquote key={index} {...bidi}>{children}</blockquote>;
   if (node.type === "bulletList") return <ul key={index} {...bidi}>{children}</ul>;
@@ -144,14 +180,40 @@ export function RichContent({ content, wikiLinks = {} }: { content: unknown; wik
   const [activeImage, setActiveImage] = useState<{ src: string; alt: string } | null>(null);
   const closeImage = useCallback(() => setActiveImage(null), []);
   const root = content && typeof content === "object" ? content as RichNode : { type: "doc", content: [] };
+  const headings = collectReaderHeadings(root.content ?? []);
+  const headingIds = Object.fromEntries(headings.map((heading) => [heading.path, heading.id]));
 
   return (
     <>
-      <div className="reader-content" dir="ltr">
+      {headings.length >= 3 && (
+        <details className="reader-toc">
+          <summary>
+            <span>On this page</span>
+            <span className="reader-toc-count">{headings.length} sections</span>
+          </summary>
+          <nav aria-label="Note sections">
+            <ol>
+              {headings.map((heading) => (
+                <li key={heading.id}>
+                  <a
+                    href={`#${heading.id}`}
+                    className={`reader-toc-link reader-toc-link--level-${heading.level}`}
+                    dir="auto"
+                    lang={detectTextLanguage(heading.title)}
+                  >
+                    {heading.title}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        </details>
+      )}
+      <article className="reader-content" dir="ltr" aria-label="Note content">
         {(root.content ?? []).map((node, index) =>
-          renderNode(node, index, (src, alt) => setActiveImage({ src, alt }), wikiLinks),
+          renderNode(node, index, (src, alt) => setActiveImage({ src, alt }), wikiLinks, headingIds),
         )}
-      </div>
+      </article>
       <ImageLightbox
         src={activeImage?.src ?? null}
         alt={activeImage?.alt ?? "Note image"}

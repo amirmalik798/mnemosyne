@@ -15,9 +15,10 @@ type Props = {
   // user opens Move / copy, avoiding an unconditional query on every read.
   topics?: NoteTopicOption[];
   beforeTransfer?: () => Promise<boolean>;
+  showLabel?: boolean;
 };
 
-export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransfer }: Props) {
+export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransfer, showLabel = false }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [action, setAction] = useState<"move" | "copy">("move");
@@ -197,8 +198,9 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
 
   return (
     <>
-      <button type="button" className="secondary-btn icon-only-btn" onClick={openDialog} aria-haspopup="dialog" aria-expanded={open} aria-label="Move or copy note" title="Move or copy note">
+      <button type="button" className={showLabel ? "secondary-btn reader-action-button" : "secondary-btn icon-only-btn"} onClick={openDialog} aria-haspopup="dialog" aria-expanded={open} aria-label="Move or copy note" title="Move or copy note">
         <ArrowRightLeft size={17} />
+        {showLabel && <span>Move / copy</span>}
       </button>
       {open && (
         <div
