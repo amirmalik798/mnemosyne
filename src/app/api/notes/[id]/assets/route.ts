@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { detectImageMime, saveEncryptedAsset } from "@/lib/storage";
 import { apiError } from "@/lib/http";
 
+export const runtime = "nodejs";
+
 type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: Context) {
@@ -13,13 +15,18 @@ export async function POST(request: Request, context: Context) {
     const { id } = await context.params;
     const note = await db.query("SELECT id FROM notes WHERE id=$1 AND deleted_at IS NULL", [id]);
     if (!note.rows[0]) throw new Error("NOT_FOUND");
-    const form = await request.formData();
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      throw new Error("VALIDATION:The upload could not be read. Check the file size and try again.");
+    }
     const file = form.get("file");
     if (!(file instanceof File)) throw new Error("VALIDATION:Choose an image file.");
     if (file.size > 20 * 1024 * 1024) throw new Error("VALIDATION:Images must be 20 MB or smaller.");
     const bytes = Buffer.from(await file.arrayBuffer());
     const mime = detectImageMime(bytes);
-    if (!mime) throw new Error("VALIDATION:Use a PNG, JPEG, WebP or GIF image.");
+    if (!mime) throw new Error("VALIDATION:The file is not a valid PNG, JPEG, WebP or GIF image.");
     const saved = await saveEncryptedAsset({ bytes, name: file.name.slice(0, 200), mimeType: mime, ownerType: "note", ownerId: id, key: session.key });
     return NextResponse.json({ asset: { id: saved.id, url: `/api/assets/${saved.id}`, mimeType: saved.mimeType, byteSize: saved.byteSize } }, { status: 201 });
   } catch (error) { return apiError(error); }
