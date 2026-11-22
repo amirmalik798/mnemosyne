@@ -117,7 +117,7 @@ export function NoteRowActions({
     <button
       type="button"
       className="note-row-action note-row-action-labelled note-row-action--trash"
-      onClick={() => void moveToTrash()"
+      onClick={() => void moveToTrash()}
       disabled={busy !== null}
       aria-label="Move note to Recently deleted"
       title="Move note to Recently deleted"
