@@ -1892,3 +1892,40 @@ html[data-theme="light"] .category-combobox-empty {
     display: none;
   }
 }
+
+
+/* Keep long archives responsive without changing their ordering or filters. */
+.archive-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 13px 2px;
+}
+.archive-pagination-summary,
+.archive-pagination-page {
+  color: var(--muted);
+  font-size: 10px;
+}
+.archive-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.archive-pagination-controls [aria-disabled="true"],
+.archive-pagination-controls button:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+@media (max-width: 560px) {
+  .archive-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .archive-pagination-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
