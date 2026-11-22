@@ -125,6 +125,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       // Normalize older saved documents immediately, without requiring the
       // user to edit or re-paste their existing Urdu content.
       current.view.dispatch(current.state.tr.setMeta("bidi-initial-normalization", true));
+      setContent(current.getJSON());
     },
     onUpdate: ({ editor: current, transaction }) => {
       setContent(current.getJSON());
