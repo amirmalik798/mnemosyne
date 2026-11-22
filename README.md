@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Mnemosyne — The Private Knowledge Archive
 
 A single-user, password-protected Next.js knowledge archive for topics, rich-text notes, images and full-archive search. The interface uses a quiet obsidian-and-gold editorial design inspired by the supplied Marginalia bookshelf and reader examples.
@@ -117,3 +118,8 @@ The typefaces are requested from Google Fonts at runtime. An internet connection
 is needed for the preferred typefaces to load; system serif/sans-serif fallbacks
 remain available offline. For a fully offline or air-gapped deployment, host
 licensed font assets on the same server and replace the Google Fonts @import.
+=======
+Mnemosyne — The Private Knowledge Archive
+
+Initial repository commit. The complete application source and setup instructions will follow.
+>>>>>>> origin/main
