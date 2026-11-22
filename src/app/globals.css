@@ -7895,3 +7895,163 @@ html[data-theme="light"] .topic-detail-page .note-row-actions .note-row-action--
     print-color-adjust: exact;
   }
 }
+
+
+/* ==========================================================================
+   Topic detail: calmer collection hero and compact entries heading.
+   ========================================================================== */
+.topic-detail-page .topic-detail-cover {
+  height: 154px !important;
+  background:
+    radial-gradient(ellipse at 86% 12%, rgba(203,180,126,.16), transparent 28%),
+    linear-gradient(112deg, #1A2A37 0%, #131D28 56%, #151A20 100%);
+}
+.topic-detail-page .topic-detail-cover::before {
+  background: linear-gradient(90deg, rgba(8,13,19,.42), rgba(8,13,19,.08) 75%, rgba(8,13,19,.18));
+}
+.topic-detail-page .topic-detail-cover::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: -148px;
+  right: 8%;
+  width: 330px;
+  height: 330px;
+  border: 1px solid rgba(231,207,134,.13);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 34px rgba(231,207,134,.035),
+    0 0 0 70px rgba(231,207,134,.025),
+    0 0 0 108px rgba(231,207,134,.018);
+  pointer-events: none;
+}
+.topic-detail-page .topic-detail-cover .cover-placeholder {
+  background:
+    radial-gradient(ellipse at 86% 12%, rgba(203,180,126,.16), transparent 28%),
+    linear-gradient(112deg, #1A2A37 0%, #131D28 56%, #151A20 100%);
+}
+.topic-detail-page .topic-detail-cover .cover-glyph {
+  display: none !important;
+}
+.topic-detail-page .topic-detail-cover-copy {
+  left: 27px;
+  bottom: 19px;
+  width: min(76%, 760px);
+}
+.topic-detail-page .topic-detail-cover-copy .page-title {
+  margin-top: 7px !important;
+  font-size: calc(clamp(30px, 3vw, 38px) * var(--font-scale, 1));
+  line-height: 1.08;
+}
+.topic-detail-page .topic-detail-subject {
+  margin-top: 4px;
+  font-size: calc(12px * var(--font-scale, 1));
+}
+.topic-detail-page .topic-detail-section-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.topic-detail-page .topic-detail-section-heading h2 {
+  margin: 0;
+  line-height: 1.35;
+}
+.topic-detail-page .topic-detail-note-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 3px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: calc(12px * var(--font-scale, 1));
+  font-weight: 650;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+html[data-theme="light"] .topic-detail-page .topic-detail-note-count {
+  border-color: #E2DACE;
+  background: #F5F1E8;
+  color: #3F4146;
+}
+@media (max-width: 760px) {
+  .topic-detail-page .topic-detail-cover {
+    height: 148px !important;
+  }
+  .topic-detail-page .topic-detail-cover-copy {
+    left: 19px;
+    bottom: 16px;
+    width: min(82%, 600px);
+  }
+}
+@media (max-width: 480px) {
+  .topic-detail-page .topic-detail-cover {
+    height: 142px !important;
+  }
+  .topic-detail-page .topic-detail-cover-copy {
+    left: 15px;
+    bottom: 14px;
+    width: calc(100% - 30px);
+  }
+  .topic-detail-page .topic-detail-section-heading {
+    gap: 9px;
+  }
+}
+
+/* Dialog close controls are icon-only visually; their accessible names remain. */
+.dialog-close-button {
+  width: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px;
+  height: 36px !important;
+  min-height: 36px !important;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface-3);
+  color: var(--muted);
+  line-height: 1;
+}
+.dialog-close-button::after {
+  content: none !important;
+  display: none !important;
+}
+.dialog-close-button > svg {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  color: currentColor;
+}
+.dialog-close-button:hover:not(:disabled) {
+  border-color: var(--gold-border);
+  background: var(--surface-4);
+  color: var(--text);
+}
+.dialog-close-button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.dialog-close-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.transfer-dialog-close {
+  margin-left: auto;
+}
+html[data-theme="light"] .dialog-close-button {
+  border-color: #DED7C9;
+  background: #F5F1E8;
+  color: #565B61;
+}
+html[data-theme="light"] .dialog-close-button:hover:not(:disabled) {
+  border-color: #B69547;
+  background: #EEE7D8;
+  color: #27251F;
+}
