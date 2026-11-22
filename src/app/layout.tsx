@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
@@ -8,11 +9,14 @@ export const metadata: Metadata = {
   applicationName: "Mnemosyne",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
         <script
+          nonce={nonce}
           id="mnemosyne-theme-init"
           dangerouslySetInnerHTML={{
             __html: "(function(){try{var t=localStorage.getItem('mnemosyne-theme');document.documentElement.dataset.theme=t==='light'?'light':'dark';var f=localStorage.getItem('mnemosyne-font');var valid=['source-sans','inter','atkinson','lato','plus-jakarta'];document.documentElement.dataset.font=valid.indexOf(f)!==-1?f:'source-sans';}catch(_){document.documentElement.dataset.theme='dark';document.documentElement.dataset.font='source-sans';}})();",
