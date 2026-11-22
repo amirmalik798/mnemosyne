@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await requireVaultSession();
+    await requireVaultSession({ touch: false });
     return new NextResponse(null, {
       status: 204,
       headers: {
