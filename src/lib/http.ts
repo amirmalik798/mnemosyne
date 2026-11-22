@@ -11,11 +11,26 @@ export function apiError(error: unknown) {
   if (message === "CONFLICT") return NextResponse.json({ error: "This item cannot be deleted while it contains notes." }, { status: 409 });
   if (message === "ASSET_IN_USE") return NextResponse.json({ error: "This image is still used by a note. Remove it from the note and save before deleting the image." }, { status: 409 });
   if (message.startsWith("VALIDATION:")) return NextResponse.json({ error: message.slice(11) }, { status: 400 });
+
   const errorName = error instanceof Error ? error.name : "UnknownError";
   const errorCode = error && typeof error === "object" && "code" in error
     && typeof (error as { code?: unknown }).code === "string"
     ? (error as { code: string }).code
     : undefined;
+
+  // PostgreSQL's undefined_column and undefined_table errors commonly mean
+  // npm run db:migrate has not been run against this exact DATABASE_URL.
+  // Return an actionable response without exposing SQL or schema details.
+  if (errorCode === "42703" || errorCode === "42P01") {
+    console.error("Database schema is missing a required column or table.", {
+      code: errorCode,
+    });
+    return NextResponse.json(
+      { error: "The database schema is out of date. Run npm run db:migrate, then npm run db:check, and restart the application." },
+      { status: 503 },
+    );
+  }
+
   console.error("API error occurred.", { name: errorName, code: errorCode });
   return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
 }
