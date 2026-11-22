@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx --test scripts/db-config.test.ts scripts/storage-path.test.ts",
+    "test:unit": "tsx --test scripts/db-config.test.ts scripts/storage-path.test.ts scripts/archive-date.test.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:check": "tsx scripts/check-db.ts",
     "assets:migrate-to-db": "tsx scripts/migrate-assets-to-db.ts",
