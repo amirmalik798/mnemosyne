@@ -10,6 +10,7 @@ type PendingAction = { id: string; action: "restore" | "delete" } | null;
 
 export function TrashWorkspace() {
   const [items, setItems] = useState<Item[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -32,6 +33,9 @@ export function TrashWorkspace() {
       if (!response.ok) throw new Error(data.error || "Could not load recently deleted notes.");
       const nextItems = Array.isArray(data.notes) ? data.notes : [];
       setItems((current) => append ? [...current, ...nextItems] : nextItems);
+      setTotalItems(
+        Number.isSafeInteger(data.pagination?.total) ? Number(data.pagination.total) : nextItems.length,
+      );
       setHasMore(data.pagination?.hasMore === true);
       if (append) setError("");
     } catch (cause) {
@@ -87,7 +91,7 @@ export function TrashWorkspace() {
         </div>
         <div className="stats">
           <div className="stat">
-            <strong>{loading ? "—" : items.length}</strong>
+            <strong>{loading ? "—" : totalItems}</strong>
             <span>{loading ? "Loading" : "In trash"}</span>
           </div>
         </div>
