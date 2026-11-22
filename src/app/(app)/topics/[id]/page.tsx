@@ -105,7 +105,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
       </div>
       <section className="panel topic-detail-hero" aria-labelledby="topic-detail-title">
         <div className="topic-detail-cover">
-          {cover ? <img src={cover} alt={`${title} cover`} decoding="async" fetchPriority="high" style={{ width:"100%",height:"100%",objectFit:"cover",opacity:.8 }} /> : <div className="cover-placeholder" aria-hidden="true" />}
+          {cover ? <img src={cover} alt={`${title} cover`} decoding="async" fetchPriority="high" style={{ width:"100%",height:"100%",objectFit:"cover",opacity:.8 }} /> : <div className="cover-placeholder" aria-hidden="true"><span className="cover-glyph" style={{ fontSize: 90 }}>{title.charAt(0)}</span></div>}
           <div className="topic-detail-cover-overlay" aria-hidden="true" />
           <div className="topic-detail-cover-copy">
             <div className="eyebrow topic-detail-category">{category || "Collection"}</div>
