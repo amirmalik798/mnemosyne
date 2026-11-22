@@ -40,11 +40,11 @@ if (databaseTlsRequired && databaseTlsMode !== "verify-full") {
 // node-postgres parses SSL query parameters from the URL and may replace the
 // explicit ssl object below. Reject these parameters so a URL cannot silently
 // switch off certificate verification or override the configured CA policy.
-const sslUrlParameters = ["ssl", "sslmode", "sslcert", "sslkey", "sslrootcert"];
-const conflictingSslParameter = sslUrlParameters.find((name) => parsedDatabaseUrl.searchParams.has(name));
-if (conflictingSslParameter) {
+const protectedUrlParameters = ["host", "port", "ssl", "sslmode", "sslcert", "sslkey", "sslrootcert"];
+const conflictingConnectionParameter = protectedUrlParameters.find((name) => parsedDatabaseUrl.searchParams.has(name));
+if (conflictingConnectionParameter) {
   throw new Error(
-    `Remove "${conflictingSslParameter}" from DATABASE_URL. Configure verified TLS with PGSSLMODE=verify-full instead.`,
+    `Remove "${conflictingConnectionParameter}" from DATABASE_URL. Set the actual host in the URL and configure verified TLS with PGSSLMODE=verify-full.`,
   );
 }
 
