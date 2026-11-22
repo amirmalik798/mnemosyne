@@ -1451,3 +1451,30 @@ html[data-theme="light"] .topic-filter-chip.active > span {
     font-size: 11px;
   }
 }
+
+
+/* Text-entry controls should not gain a large rectangular keyboard outline.
+   Inputs keep their existing border/focus treatment; action controls retain
+   the stronger focus-visible ring for keyboard navigation. */
+input:focus-visible,
+textarea:focus-visible,
+[contenteditable="true"]:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+.editor-title:focus,
+.editor-subject:focus,
+.rich-editor:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.editor-title,
+.editor-subject,
+.rich-editor {
+  caret-color: var(--gold);
+}
+.field:focus-visible,
+.textarea-field:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+}
