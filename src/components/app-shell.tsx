@@ -118,21 +118,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const lockForInactivity = () => {
-      clearTimeout(timer);
-      timer = setTimeout(async () => {
-        saveResumeLocation();
-        window.dispatchEvent(new Event("mnemosyne:flush-local-drafts"));
-        await flushPendingLocalDraftWrites();
-        await fetch("/api/vault/lock", { method: "POST" });
-        window.location.assign("/unlock");
-      }, 20 * 60 * 1000);
+    let lastActivityPingAt = 0;
+    const reportActivity = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      // Coalesce frequent pointer/scroll/keyboard events. The server remains
+      // the authority for the 20-minute idle and 12-hour absolute expiries.
+      if (now - lastActivityPingAt < 60_000) return;
+      lastActivityPingAt = now;
+      void fetch("/api/vault/activity", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+      }).catch(() => {
+        // Temporary network trouble must not invalidate an otherwise valid
+        // session. The next interaction can retry after the throttle window.
+      });
     };
-    const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart", "scroll"];
-    events.forEach((event) => window.addEventListener(event, lockForInactivity, { passive: true }));
-    lockForInactivity();
-    return () => { clearTimeout(timer); events.forEach((event) => window.removeEventListener(event, lockForInactivity)); };
+
+    const events: Array<keyof WindowEventMap> = ["pointerdown", "pointermove", "keydown", "touchstart", "scroll"];
+    events.forEach((event) => window.addEventListener(event, reportActivity, { passive: true }));
+    document.addEventListener("visibilitychange", reportActivity);
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, reportActivity));
+      document.removeEventListener("visibilitychange", reportActivity);
+    };
   }, []);
 
   // Remember the exact protected route and scroll position. On return from
@@ -155,25 +165,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       scrollTimer = setTimeout(() => saveResumeLocation(), 220);
     };
     const persistWhenHidden = () => saveResumeLocation();
-    const lockWhenLeaving = (event: PageTransitionEvent) => {
-      if (event.persisted) return;
-      saveResumeLocation();
-      // A browser-tab close or full page shutdown should invalidate the
-      // server session. Next.js in-app navigation does not fire pagehide.
-      void fetch("/api/vault/lock", {
-        method: "POST",
-        credentials: "same-origin",
-        keepalive: true,
-      }).catch(() => undefined);
-    };
+    // A reload, full-page navigation, or closing one tab is not an explicit
+    // vault-lock request. Persist navigation state only; the shared server
+    // session expires by idle/absolute timeout or a deliberate Lock action.
 
     window.addEventListener("scroll", persistScroll, { passive: true });
-    window.addEventListener("pagehide", lockWhenLeaving);
+    window.addEventListener("pagehide", persistWhenHidden);
     document.addEventListener("visibilitychange", persistWhenHidden);
     return () => {
       if (scrollTimer) clearTimeout(scrollTimer);
       window.removeEventListener("scroll", persistScroll);
-      window.removeEventListener("pagehide", lockWhenLeaving);
+      window.removeEventListener("pagehide", persistWhenHidden);
       document.removeEventListener("visibilitychange", persistWhenHidden);
     };
   }, [pathname, searchKey]);
