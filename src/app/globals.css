@@ -2023,3 +2023,83 @@ html[data-theme="light"] .category-combobox-empty {
 @media(prefers-reduced-motion:reduce){
   .auth-input-wrap .auth-field,.auth-password-toggle{transition:none}
 }
+
+ 
+/* Shared confirmation dialogs: derive every surface and text color from the active app theme. */
+.confirmation-backdrop{
+  position:fixed;inset:0;z-index:125;display:grid;place-items:center;
+  padding:clamp(12px,3vw,28px);background:rgba(3,8,12,.68);
+  -webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);
+}
+.confirmation-dialog{
+  width:min(460px,100%);max-height:min(88dvh,680px);overflow:auto;
+  padding:clamp(21px,4vw,29px);border:1px solid var(--line-strong);
+  border-radius:20px;background:var(--surface-2);color:var(--text);
+  box-shadow:0 28px 90px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.045);
+  outline:none;animation:confirmation-dialog-in .16s ease-out;
+}
+@keyframes confirmation-dialog-in{
+  from{opacity:0;transform:translateY(7px) scale(.985)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.confirmation-dialog-top{display:flex;align-items:center;gap:11px;min-height:42px}
+.confirmation-dialog-icon{
+  width:42px;height:42px;flex:none;display:grid;place-items:center;
+  border:1px solid color-mix(in srgb,var(--red) 26%,transparent);
+  border-radius:13px;background:color-mix(in srgb,var(--red) 11%,var(--surface-2));
+  color:var(--red);
+}
+.confirmation-dialog-neutral .confirmation-dialog-icon{
+  color:var(--teal,var(--blue));border-color:color-mix(in srgb,var(--blue) 28%,transparent);
+  background:color-mix(in srgb,var(--blue) 10%,var(--surface-2));
+}
+.confirmation-dialog-eyebrow{
+  color:var(--muted);font-size:9px;font-weight:700;letter-spacing:.17em;
+  text-transform:uppercase;
+}
+.confirmation-dialog-close{
+  width:34px;height:34px;margin-left:auto;display:grid;place-items:center;
+  border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);
+}
+.confirmation-dialog-close:hover{border-color:var(--line);background:var(--surface-3);color:var(--text)}
+.confirmation-dialog-title{
+  margin:21px 0 8px;color:var(--text);font-family:var(--font-serif,Georgia,serif);
+  font-size:clamp(25px,4vw,30px);font-weight:400;line-height:1.15;letter-spacing:-.02em;
+}
+.confirmation-dialog-description{
+  margin:0;color:var(--muted);font-size:12px;line-height:1.75;
+  overflow-wrap:anywhere;
+}
+.confirmation-dialog-actions{
+  display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;
+  margin-top:25px;padding-top:17px;border-top:1px solid var(--line);
+}
+.confirmation-dialog-actions button{min-height:42px;border-radius:10px;padding-inline:17px}
+.confirmation-dialog-cancel{background:var(--surface-3);border-color:var(--line-strong);color:var(--text)}
+.confirmation-dialog-cancel:hover{background:var(--surface-4);border-color:var(--line-strong)}
+.confirmation-dialog-confirm{
+  border:1px solid color-mix(in srgb,var(--red) 38%,transparent)!important;
+  background:color-mix(in srgb,var(--red) 14%,var(--surface-2))!important;
+  color:var(--red)!important;box-shadow:none!important;
+}
+.confirmation-dialog-confirm:hover{
+  background:color-mix(in srgb,var(--red) 21%,var(--surface-2))!important;
+  border-color:color-mix(in srgb,var(--red) 54%,transparent)!important;
+}
+.confirmation-dialog-neutral .confirmation-dialog-confirm{
+  border-color:color-mix(in srgb,var(--gold) 35%,transparent)!important;
+  background:var(--gold)!important;color:var(--gold-ink,#172027)!important;
+}
+.confirmation-dialog-neutral .confirmation-dialog-confirm:hover{background:var(--gold-bright)!important}
+@media(max-width:520px){
+  .confirmation-backdrop{place-items:end center;padding:12px}
+  .confirmation-dialog{width:100%;max-width:100%;max-height:82dvh;border-radius:19px;padding:21px}
+  .confirmation-dialog-actions{display:grid;grid-template-columns:1fr 1fr}
+  .confirmation-dialog-actions button{width:100%;padding-inline:10px;font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){
+  .confirmation-dialog{animation:none}
+}
+/* Existing app modals use the same active theme tokens. */
+.modal{background:var(--surface-2);color:var(--text)}
+.form-label{color:var(--text)}
