@@ -128,7 +128,6 @@ export default async function TopicPage({ params, searchParams }: Props) {
             <h2 id="topic-detail-notes-heading" className="eyebrow">Collection entries</h2>
             <span className="topic-detail-note-count">{totalNotes} {totalNotes===1?"note":"notes"}</span>
           </div>
-          <p className="topic-detail-note-guidance">Open a note to continue reading or writing. Use its actions to organize the collection.</p>
         </div>
         <div className="archive-toolbar-actions">
           <ArchiveSortControl basePath={`/topics/${id}`} currentSort={sort} />
