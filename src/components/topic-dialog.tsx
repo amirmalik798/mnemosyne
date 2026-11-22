@@ -30,7 +30,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
           .map((topic: { category?: unknown }) => typeof topic.category === "string" ? topic.category.trim() : "")
           .filter(Boolean);
         setCategorySuggestions((current) =>
-          Array.from(new Map([...current, ...existing].map((value) => [value.toLocaleLowerCase(), value])).values())
+          Array.from(new Map<string, string>([...current, ...existing].map((value): [string, string] => [value.toLocaleLowerCase(), value])).values())
             .sort((a, b) => a.localeCompare(b)),
         );
       })
