@@ -141,13 +141,18 @@ export default async function LibraryPage() {
   }
 
   const stats = totalResult.rows[0] ?? { topics: 0, notes: 0, assets: 0 };
-  const featuredNote = recentNotes[0] ?? null;
-  const pinnedForReference = pinnedNotes
-    .filter((note) => note.id !== featuredNote?.id)
-    .slice(0, 3);
+
+  // Keep the continuation card focused on an unpinned note. Pinning updates
+  // updated_at, so the newly pinned note must stay visible in Recently touched
+  // instead of jumping into the featured card and disappearing from the list.
+  const featuredNote = recentNotes.find((note) => !note.pinned) ?? recentNotes[0] ?? null;
   const recentlyTouched = recentNotes
     .filter((note) => note.id !== featuredNote?.id)
     .slice(0, 4);
+  const recentlyTouchedIds = new Set(recentlyTouched.map((note) => note.id));
+  const pinnedForReference = pinnedNotes
+    .filter((note) => note.id !== featuredNote?.id && !recentlyTouchedIds.has(note.id))
+    .slice(0, 3);
   const topicDecryptionFailed = decryptionIssues.some((issue) => issue.type === "topic");
   const noteDecryptionFailed = decryptionIssues.some((issue) => issue.type === "note");
 
@@ -194,9 +199,9 @@ export default async function LibraryPage() {
       <section className="overview-section overview-continue-section" aria-labelledby="overview-continue-title">
         <div className="overview-section-heading">
           <div>
-            <div className="eyebrow">Your latest note</div>
+            <div className="eyebrow">A note to continue</div>
             <h2 className="overview-section-title" id="overview-continue-title">Continue thinking</h2>
-            <p className="overview-section-copy">Pick up where your latest idea left off.</p>
+            <p className="overview-section-copy">Return to a note and continue developing the idea.</p>
           </div>
           <Link className="overview-text-link" href="/notes">All notes <ArrowUpRight size={15} aria-hidden="true" /></Link>
         </div>
