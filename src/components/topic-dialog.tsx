@@ -126,6 +126,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
     setError("");
     if (!title.trim()) return setError("Give your topic a title.");
 
+    let createdTopicId: string | null = null;
     setProcessingMessage("Creating topic…");
     setBusy(true);
     try {
@@ -136,6 +137,7 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not create topic.");
+      createdTopicId = typeof data.topic?.id === "string" ? data.topic.id : null;
 
       if (file) {
         setProcessingMessage("Uploading the topic cover image…");
@@ -153,8 +155,15 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
       onClose();
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Something went wrong while creating the topic.";
-      setError(message);
-      notifyOperation("failure", message);
+      if (createdTopicId) {
+        notifyOperation("failure", "The topic was created, but its cover could not be uploaded. Add the cover from Topic settings.");
+        router.push(`/topics/${createdTopicId}/edit`);
+        router.refresh();
+        onClose();
+      } else {
+        setError(message);
+        notifyOperation("failure", message);
+      }
     } finally {
       setBusy(false);
     }
