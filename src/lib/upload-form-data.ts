@@ -18,6 +18,9 @@ export function uploadFormDataWithProgress<T = unknown>(
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("POST", url, true);
+    // Never leave an upload control spinning forever after a stalled TCP
+    // connection or a proxy that accepts but never completes the request.
+    request.timeout = 5 * 60 * 1000;
     request.withCredentials = true;
     request.setRequestHeader("Accept", "application/json");
 
