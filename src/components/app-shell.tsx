@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { BookOpen, Bookmark, Boxes, Command, FileText, FolderOpen, LoaderCircle, LockKeyhole, Pin, Plus, Search, Settings, ShieldCheck, Trash2, X } from "lucide-react";
-import { TopicDialog } from "@/components/topic-dialog";
+const TopicDialog = dynamic(
+  () => import("@/components/topic-dialog").then((module) => module.TopicDialog),
+  { loading: () => null },
+);
 import { FontSelector, ThemeToggle } from "@/components/theme-provider";
 import { readResumeLocation, saveResumeLocation } from "@/lib/resume-location";
 import { flushPendingLocalDraftWrites } from "@/lib/local-recovery";
