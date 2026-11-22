@@ -8,7 +8,7 @@ import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
-import { detectTextDirection, detectTextLanguage, getBidiAttributes } from "@/lib/bidi";
+import { detectTextLanguage, getBidiAttributes } from "@/lib/bidi";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
