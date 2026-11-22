@@ -3695,9 +3695,13 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
   max-width: 74ch;
   margin-inline: auto;
 }
+/* Keep the focused writing canvas aligned with the title and toolbar.
+   A 74ch cap here was measured against the smaller UI font, shrinking the
+   whole editor surface and creating an unintended left/right inset. */
 .note-editor-page .note-image-dropzone {
-  width: min(100%, 74ch);
-  margin-inline: auto;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
 }
 @media (max-width: 760px) {
   .note-editor-save-actions {
