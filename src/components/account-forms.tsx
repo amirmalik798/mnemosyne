@@ -94,7 +94,7 @@ function FieldMessage({ id, children }: { id: string; children: React.ReactNode 
 
 function PasswordVisibilityButton({ visible, onToggle, disabled = false }: { visible: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
-    <button type="button" className="auth-password-toggle" onClick={onToggle} disabled={disabled} aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible}>
+    <button type="button" className="auth-password-toggle" onClick={onToggle} disabled={disabled} aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible} title={visible ? "Hide password" : "Show password"}>
       {visible ? <EyeOff size={17} /> : <Eye size={17} />}
     </button>
   );
@@ -228,9 +228,9 @@ export function AccountRegister() {
         {error && <OperationStatus kind="failure" message={error} />}
         {message && <OperationStatus kind="success" message={message} />}
         {busy && <OperationStatus kind="processing" message="Creating your account and preparing email confirmation…" />}
-        <button className="primary-btn auth-submit" type="submit" disabled={busy}>
+        <button className="primary-btn auth-submit icon-only-btn" type="submit" disabled={busy} aria-label={busy ? "Creating your account" : "Create secure account"} title={busy ? "Creating your account" : "Create secure account"}>
           {busy ? <LoaderCircle className="operation-spinner" size={17} /> : <ShieldCheck size={17} />}
-          {busy ? "Creating your account…" : "Create secure account"}
+          
           {!busy && <ArrowRight size={16} />}
         </button>
       </form>
@@ -345,16 +345,16 @@ export function AccountLogin() {
         {error && <OperationStatus kind="failure" message={error} />}
         {message && <OperationStatus kind={needsVerification ? "waiting" : "success"} message={message} />}
         {busy && <OperationStatus kind="processing" message="Verifying your account and unlocking your private archive…" />}
-        <button className="primary-btn auth-submit" type="submit" disabled={busy || resending}>
+        <button className="primary-btn auth-submit icon-only-btn" type="submit" disabled={busy || resending} aria-label={busy ? "Signing in" : "Sign in securely"} title={busy ? "Signing in" : "Sign in securely"}>
           {busy ? <LoaderCircle className="operation-spinner" size={17} /> : <KeyRound size={17} />}
-          {busy ? "Signing you in…" : "Sign in securely"}
+          
           {!busy && <ArrowRight size={16} />}
         </button>
         {resending && <OperationStatus kind="processing" message="Sending a fresh email confirmation link…" />}
         {needsVerification && (
-          <button type="button" className="secondary-btn auth-resend" disabled={busy || resending || !email || !password} onClick={resend} aria-busy={resending}>
+          <button type="button" className="secondary-btn auth-resend icon-only-btn" disabled={busy || resending || !email || !password} onClick={resend} aria-busy={resending} aria-label={resending ? "Resending confirmation email" : "Resend confirmation email"} title={resending ? "Resending confirmation email" : "Resend confirmation email"}>
             {resending ? <LoaderCircle className="operation-spinner" size={15} /> : <MailCheck size={15} />}
-            {resending ? "Sending confirmation…" : "Resend confirmation email"}
+            
           </button>
         )}
       </form>
@@ -415,11 +415,11 @@ export function VerifyEmailForm() {
           {error && <OperationStatus kind="failure" message={error} />}
           {message && <OperationStatus kind="success" message={message} />}
           {busy && <OperationStatus kind="processing" message="Confirming your email address…" />}
-          {!message && <button className="primary-btn auth-submit" type="button" onClick={verify} disabled={busy}>
+          {!message && <button className="primary-btn auth-submit icon-only-btn" type="button" onClick={verify} disabled={busy} aria-label={busy ? "Verifying email address" : "Confirm email address"} title={busy ? "Verifying email address" : "Confirm email address"}>
             {busy ? <LoaderCircle className="operation-spinner" size={16} /> : <MailCheck size={16} />}
-            {busy ? "Verifying…" : "Confirm email address"}
+            
           </button>}
-          {message && <button className="primary-btn auth-submit" type="button" onClick={() => router.replace("/login")}>Continue to sign in</button>}
+          {message && <button type="button" className="primary-btn auth-submit icon-only-btn" onClick={() => router.replace("/login")} aria-label="Continue to sign in" title="Continue to sign in"><ArrowRight size={17} /></button>}
         </div>
       )}
       <p className="auth-switch"><Link href="/login">Return to sign in <ArrowRight size={13} /></Link></p>

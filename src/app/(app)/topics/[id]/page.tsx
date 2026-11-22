@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, Edit3, FilePlus } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Edit3, FilePlus, FileText } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
 import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
@@ -95,18 +95,18 @@ export default async function TopicPage({ params, searchParams }: Props) {
           <p className="page-subtitle" dir="auto" lang={detectTextLanguage(description)} style={{ margin:0 }}>{description || "A dedicated space for the notes and references in this collection."}</p>
           <div className="topic-detail-actions" style={{ display:"flex",gap:8,flexShrink:0,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end" }}>
             <TopicImageDownload topicId={id} imageCount={imageCount}/>
-            <Link href={`/topics/${id}/edit`} className="secondary-btn"><Edit3 size={14}/> Edit topic</Link>
-            <Link href={`/notes/new?topicId=${id}`} className="primary-btn"><FilePlus size={14}/> New note</Link>
+            <Link href={`/topics/${id}/edit`} className="secondary-btn icon-only-btn" aria-label="Edit topic" title="Edit topic"><Edit3 size={17}/></Link>
+            <Link href={`/notes/new?topicId=${id}`} className="primary-btn icon-only-btn" aria-label="Create a note in this topic" title="Create a note in this topic"><FilePlus size={17}/></Link>
           </div>
         </div>
       </section>
       <div className="toolbar">
         <div><div className="eyebrow">Collection entries</div><h2 className="panel-title" style={{ margin:"7px 0 0" }}>{totalNotes} {totalNotes===1?"note":"notes"}</h2></div>
-        <Link href="/notes" className="secondary-btn">Browse all notes <ArrowUpRight size={14}/></Link>
+        <Link href="/notes" className="secondary-btn icon-only-btn" aria-label="Browse all notes" title="Browse all notes"><FileText size={17}/></Link>
       </div>
       <section className="panel">
         <div className="note-list">
-          {notes.length ? notes.map((note)=><NoteRow key={note.id} note={note}/>) : <EmptyState title="An open page" copy="This topic has no notes yet. Begin with a thought, a passage or a question you want to explore." action={<Link href={`/notes/new?topicId=${id}`} className="primary-btn"><FilePlus size={14}/> Write the first note</Link>} />}
+          {notes.length ? notes.map((note)=><NoteRow key={note.id} note={note}/>) : <EmptyState title="An open page" copy="This topic has no notes yet. Begin with a thought, a passage or a question you want to explore." action={<Link href={`/notes/new?topicId=${id}`} className="primary-btn icon-only-btn" aria-label="Write the first note" title="Write the first note"><FilePlus size={17}/></Link>} />}
         </div>
       </section>
       <ArchivePagination currentPage={currentPage} totalItems={totalNotes} basePath={`/topics/${id}`} />

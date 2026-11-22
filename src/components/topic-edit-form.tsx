@@ -174,7 +174,7 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
   return (
     <main className="page">
       <div style={{ marginBottom: 18 }}>
-        <Link className="breadcrumb" href={`/topics/${topic.id}`}><ArrowLeft size={14} /> Back to topic</Link>
+        <Link className="breadcrumb icon-only-btn" href={`/topics/${topic.id}`} aria-label="Back to topic" title="Back to topic"><ArrowLeft size={17} /></Link>
       </div>
 
       <div className="page-heading">
@@ -211,14 +211,10 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
             <div className="form-field full">
               <label className="form-label">Topic thumbnail</label>
               <input hidden ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={(event) => chooseCover(event.target.files?.[0])} />
-              <button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy}>
-                {preview ? (
-                  <><img src={preview} alt="Topic cover preview" /><span className="cover-upload-text">{file?.name ?? "Current cover"}<br />Click to replace · 8 MB maximum</span></>
-                ) : (
-                  <><ImagePlus /><span className="cover-upload-text">Choose a custom thumbnail</span></>
-                )}
+              <button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy} aria-label={preview ? "Replace topic cover image" : "Choose topic cover image"} title={preview ? "Replace topic cover image" : "Choose topic cover image"}>
+                {preview ? <><img src={preview} alt="Topic cover preview" /><ImagePlus size={19} aria-hidden="true" /></> : <ImagePlus size={22} aria-hidden="true" />}
               </button>
-              {preview && <button type="button" className="secondary-btn" onClick={removeCover} disabled={busy}>Remove current cover</button>}
+              {preview && <button type="button" className="secondary-btn icon-only-btn" onClick={removeCover} disabled={busy} aria-label="Remove topic cover" title="Remove topic cover"><Trash2 size={17} /></button>}
             </div>
           </div>
 
@@ -226,15 +222,13 @@ export function TopicEditForm({ topic, categories = [] }: { topic: Topic; catego
           {error && <div style={{ marginTop: 12 }}><OperationStatus kind="failure" message={error} /></div>}
 
           <div className="form-actions" style={{ justifyContent: "space-between" }}>
-            <button type="button" className="danger-btn" onClick={() => void remove()} disabled={busy}>
-              {busy && processingMessage === "Deleting topic…" ? <LoaderCircle className="operation-spinner" size={14} /> : <Trash2 size={14} />}
-              Delete topic
+            <button type="button" className="danger-btn icon-only-btn" onClick={() => void remove()} disabled={busy} aria-label="Delete topic" title="Delete topic">
+              {busy && processingMessage === "Deleting topic…" ? <LoaderCircle className="operation-spinner" size={17} /> : <Trash2 size={17} />}
             </button>
             <div style={{ display: "flex", gap: 8 }}>
-              <Link className="secondary-btn" href={`/topics/${topic.id}`} aria-disabled={busy} onClick={(event) => { if (busy) event.preventDefault(); }}>Cancel</Link>
-              <button className="primary-btn" type="submit" disabled={busy}>
-                {busy ? <LoaderCircle className="operation-spinner" size={14} /> : <Save size={14} />}
-                {busy ? "Working…" : "Save changes"}
+              <Link className="secondary-btn icon-only-btn" href={`/topics/${topic.id}`} aria-label="Cancel editing topic" title="Cancel editing topic" aria-disabled={busy} onClick={(event) => { if (busy) event.preventDefault(); }}><X size={17} /></Link>
+              <button className="primary-btn icon-only-btn" type="submit" disabled={busy} aria-label={busy ? "Saving topic changes" : "Save topic changes"} title={busy ? "Saving topic changes" : "Save topic changes"}>
+                {busy ? <LoaderCircle className="operation-spinner" size={17} /> : <Save size={17} />}
               </button>
             </div>
           </div>

@@ -90,7 +90,7 @@ export default async function NotesPage({ searchParams }: Props) {
               copy={unavailableNoteIds.size
                 ? "Their encrypted fields could not be authenticated. The original records remain unchanged; investigate the vault key and backup before making further changes."
                 : "Start with a short thought or build a longer reflection in the editor."}
-              action={unavailableNoteIds.size ? undefined : <Link href="/notes/new" className="primary-btn"><FilePlus size={14} /> Create note</Link>}
+              action={unavailableNoteIds.size ? undefined : <Link href="/notes/new" className="primary-btn icon-only-btn" aria-label="Create note" title="Create note"><FilePlus size={17} /></Link>}
             />
           )}
         </div>

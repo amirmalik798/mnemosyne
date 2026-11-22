@@ -95,8 +95,8 @@ export function SearchWorkspace() {
             {searching ? "Searching…" : query.trim() ? `${resultCount} results` : "Ctrl / ⌘ K"}
           </span>
           {query && (
-            <button type="button" className="archive-search-clear" onClick={() => setQuery("")} aria-label="Clear search" title="Clear search">
-              <X size={15} /> <span>Clear</span>
+            <button type="button" className="archive-search-clear icon-only-btn" onClick={() => setQuery("")} aria-label="Clear search" title="Clear search">
+              <X size={17} />
             </button>
           )}
         </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export const ARCHIVE_PAGE_SIZE = 50;
 
@@ -35,24 +36,24 @@ export function ArchivePagination({
       </span>
       <div className="archive-pagination-controls">
         {currentPage > 1 ? (
-          <Link className="secondary-btn" href={href(currentPage - 1)} aria-label={`Go to page ${currentPage - 1}`}>
-            Previous
+          <Link className="secondary-btn icon-only-btn" href={href(currentPage - 1)} aria-label={`Go to page ${currentPage - 1}`} title="Previous page">
+            <ChevronLeft size={18} />
           </Link>
         ) : (
-          <button type="button" className="secondary-btn" disabled aria-label="Previous page unavailable">
-            Previous
+          <button type="button" className="secondary-btn icon-only-btn" disabled aria-label="Previous page unavailable" title="Previous page unavailable">
+            <ChevronLeft size={18} />
           </button>
         )}
         <span className="archive-pagination-page" aria-current="page" role="status" aria-live="polite">
           Page {currentPage} of {totalPages}
         </span>
         {currentPage < totalPages ? (
-          <Link className="secondary-btn" href={href(currentPage + 1)} aria-label={`Go to page ${currentPage + 1}`}>
-            Next
+          <Link className="secondary-btn icon-only-btn" href={href(currentPage + 1)} aria-label={`Go to page ${currentPage + 1}`} title="Next page">
+            <ChevronRight size={18} />
           </Link>
         ) : (
-          <button type="button" className="secondary-btn" disabled aria-label="Next page unavailable">
-            Next
+          <button type="button" className="secondary-btn icon-only-btn" disabled aria-label="Next page unavailable" title="Next page unavailable">
+            <ChevronRight size={18} />
           </button>
         )}
       </div>

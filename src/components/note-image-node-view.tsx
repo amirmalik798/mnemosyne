@@ -19,7 +19,7 @@ export function NoteImageNodeView({ node, deleteNode }: NodeViewProps) {
       />
       <button
         type="button"
-        className="note-image-delete"
+        className="note-image-delete icon-only-btn"
         aria-label={`Delete image: ${alt}`}
         title="Delete image from this note"
         onMouseDown={(event) => {
@@ -33,7 +33,6 @@ export function NoteImageNodeView({ node, deleteNode }: NodeViewProps) {
         }}
       >
         <Trash2 size={14} />
-        <span>Delete</span>
       </button>
     </NodeViewWrapper>
   );

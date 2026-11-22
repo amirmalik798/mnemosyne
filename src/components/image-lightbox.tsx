@@ -63,8 +63,9 @@ export function ImageLightbox({
       <button
         ref={closeButtonRef}
         type="button"
-        className="image-lightbox-close"
+        className="image-lightbox-close icon-only-btn"
         aria-label="Close image viewer"
+        title="Close image viewer"
         onClick={onClose}
       >
         <X size={20} />

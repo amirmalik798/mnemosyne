@@ -275,7 +275,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     </aside>
     <div className="main-area">
       <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{breadcrumbLabel}</span></div>
-        <div className="top-actions" role="group" aria-label="Workspace actions"><FontSelector /><ThemeToggle /><button type="button" className="search-trigger" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive"><Search size={15} /><span>Search your archive…</span><kbd>⌘ K</kbd></button><button type="button" className="secondary-btn" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><Plus size={15} /><span>New note</span></button><button type="button" className="primary-btn" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><Plus size={15} /><span>New topic</span></button><button type="button" className="lock-vault-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault"} aria-label={locking ? "Locking vault" : "Lock vault"}>{locking ? <LoaderCircle className="operation-spinner" size={15} /> : <LockKeyhole size={15} />}<span>{locking ? "Locking…" : "Lock vault"}</span></button></div>
+        <div className="top-actions" role="group" aria-label="Workspace actions"><FontSelector /><ThemeToggle /><button type="button" className="search-trigger icon-only-btn" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive"><Search size={17} /></button><button type="button" className="secondary-btn icon-only-btn" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><Plus size={17} /></button><button type="button" className="primary-btn icon-only-btn" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><Plus size={17} /></button><button type="button" className="lock-vault-btn icon-only-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault"} aria-label={locking ? "Locking vault" : "Lock vault"}>{locking ? <LoaderCircle className="operation-spinner" size={15} /> : <LockKeyhole size={15} />}</button></div>
       </header>
       {children}
     </div>
@@ -292,12 +292,13 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         <OperationStatus kind={operationNotice.kind} message={operationNotice.message} />
         <button
           type="button"
-          className="operation-toast-close"
+          className="operation-toast-close icon-only-btn"
           onClick={() => {
             setOperationNotice(null);
             if (operationNoticeTimerRef.current !== null) window.clearTimeout(operationNoticeTimerRef.current);
           }}
           aria-label="Dismiss notification"
+          title="Dismiss notification"
         >
           <X />
         </button>

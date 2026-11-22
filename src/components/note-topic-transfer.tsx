@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRightLeft, Copy, FolderInput, LoaderCircle, X } from "lucide-react";
+import { ArrowRightLeft, Copy, FolderInput, FolderPlus, LoaderCircle, RefreshCw, X } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
 
@@ -197,8 +197,8 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
 
   return (
     <>
-      <button type="button" className="secondary-btn" onClick={openDialog} aria-haspopup="dialog" aria-expanded={open}>
-        <ArrowRightLeft size={14} /> Move / copy
+      <button type="button" className="secondary-btn icon-only-btn" onClick={openDialog} aria-haspopup="dialog" aria-expanded={open} aria-label="Move or copy note" title="Move or copy note">
+        <ArrowRightLeft size={17} />
       </button>
       {open && (
         <div
@@ -214,20 +214,20 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
                 <h2 id="transfer-title" className="transfer-title">Move or copy note</h2>
                 <p id="transfer-description" className="transfer-subtitle">Choose what should happen to this note and where it belongs.</p>
               </div>
-              <button type="button" className="icon-button" onClick={closeDialog} disabled={busy} aria-label="Close dialog">
+              <button type="button" className="icon-button icon-only-btn" onClick={closeDialog} disabled={busy} aria-label="Close dialog" title="Close dialog">
                 <X size={16} />
               </button>
             </header>
 
             <div className="transfer-choice-grid" role="group" aria-label="Transfer action">
-              <button type="button" className={`transfer-choice ${action === "move" ? "selected" : ""}`} aria-pressed={action === "move"} onClick={() => setAction("move")} disabled={busy}>
+              <button type="button" className={`transfer-choice icon-only-btn ${action === "move" ? "selected" : ""}`} aria-label="Move note" title="Move note" aria-pressed={action === "move"} onClick={() => setAction("move")} disabled={busy}>
                 <span className="transfer-choice-icon"><FolderInput size={17} /></span>
-                <span className="transfer-choice-copy"><strong>Move note</strong><small>Relocate the original. It will leave its current topic.</small></span>
+                <span className="sr-only">Move note</span>
                 <span className="transfer-choice-radio" aria-hidden="true" />
               </button>
-              <button type="button" className={`transfer-choice ${action === "copy" ? "selected" : ""}`} aria-pressed={action === "copy"} onClick={() => setAction("copy")} disabled={busy}>
+              <button type="button" className={`transfer-choice icon-only-btn ${action === "copy" ? "selected" : ""}`} aria-label="Copy note" title="Copy note" aria-pressed={action === "copy"} onClick={() => setAction("copy")} disabled={busy}>
                 <span className="transfer-choice-icon"><Copy size={17} /></span>
-                <span className="transfer-choice-copy"><strong>Copy note</strong><small>Create a separate duplicate. The original stays where it is.</small></span>
+                <span className="sr-only">Copy note</span>
                 <span className="transfer-choice-radio" aria-hidden="true" />
               </button>
             </div>
@@ -239,7 +239,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
               ) : topicsError ? (
                 <div>
                   <OperationStatus kind="failure" message={topicsError} />
-                  <button type="button" className="secondary-btn" onClick={() => void loadTopics()}>Retry loading topics</button>
+                  <button type="button" className="secondary-btn icon-only-btn" onClick={() => void loadTopics()} aria-label="Retry loading topics" title="Retry loading topics"><RefreshCw size={17} /></button>
                 </div>
               ) : destinations.length > 0 ? (
                 <select
@@ -256,7 +256,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
               ) : (
                 <div className="transfer-no-destination">
                   <p>Create another topic before you can move or copy this note to a different collection.</p>
-                  <a href="/topics" className="secondary-btn">Create a topic</a>
+                  <a href="/topics" className="secondary-btn icon-only-btn" aria-label="Create a topic" title="Create a topic"><FolderPlus size={17} /></a>
                 </div>
               )}
               <p className="form-hint">
@@ -269,11 +269,9 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
             {busy && <OperationStatus kind="processing" message={processingMessage || "Working…"} />}
             {error && <OperationStatus kind="failure" message={error} />}
             <footer className="transfer-dialog-actions">
-              <button type="button" className="secondary-btn" onClick={closeDialog} disabled={busy}>Cancel</button>
-              <button type="button" className="primary-btn" onClick={() => void submit()} disabled={busy || topicsLoading || Boolean(topicsError) || !destinationTopicId}>
-                {busy
-                  ? <><LoaderCircle className="operation-spinner" size={14} /> {processingMessage.includes("Saving") ? "Saving…" : action === "move" ? "Moving…" : "Copying…"}</>
-                  : action === "move" ? "Move note" : "Create copy"}
+              <button type="button" className="secondary-btn icon-only-btn" onClick={closeDialog} disabled={busy} aria-label="Cancel" title="Cancel"><X size={17} /></button>
+              <button type="button" className="primary-btn icon-only-btn" onClick={() => void submit()} disabled={busy || topicsLoading || Boolean(topicsError) || !destinationTopicId} aria-label={busy ? processingMessage || "Working" : action === "move" ? "Move note" : "Create copy"} title={busy ? processingMessage || "Working" : action === "move" ? "Move note" : "Create copy"}>
+                {busy ? <LoaderCircle className="operation-spinner" size={17} /> : action === "move" ? <FolderInput size={17} /> : <Copy size={17} />}
               </button>
             </footer>
           </section>

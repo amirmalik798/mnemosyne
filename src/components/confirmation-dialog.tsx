@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { AlertTriangle, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Check, ShieldCheck, Trash2, X } from "lucide-react";
 
 export type ConfirmationOptions = {
   title: string;
@@ -88,18 +88,18 @@ export function ConfirmationDialog({
             {isDanger ? <AlertTriangle size={21} /> : <ShieldCheck size={21} />}
           </span>
           <span className="confirmation-dialog-eyebrow">{options.eyebrow ?? (isDanger ? "Please confirm" : "Confirmation required")}</span>
-          <button type="button" className="confirmation-dialog-close" onClick={onCancel} aria-label="Close confirmation">
+          <button type="button" className="confirmation-dialog-close icon-only-btn" onClick={onCancel} aria-label="Close confirmation" title="Close confirmation">
             <X size={17} />
           </button>
         </div>
         <h2 className="confirmation-dialog-title" id={titleId}>{options.title}</h2>
         <p className="confirmation-dialog-description" id={descriptionId}>{options.description}</p>
         <div className="confirmation-dialog-actions">
-          <button ref={cancelRef} type="button" className="secondary-btn confirmation-dialog-cancel" onClick={onCancel}>
-            {options.cancelLabel ?? "Cancel"}
+          <button ref={cancelRef} type="button" className="secondary-btn confirmation-dialog-cancel icon-only-btn" onClick={onCancel} aria-label={options.cancelLabel ?? "Cancel"} title={options.cancelLabel ?? "Cancel"}>
+            <X size={17} />
           </button>
-          <button type="button" className={isDanger ? "danger-btn confirmation-dialog-confirm" : "primary-btn confirmation-dialog-confirm"} onClick={onConfirm}>
-            {options.confirmLabel ?? "Confirm"}
+          <button type="button" className={isDanger ? "danger-btn confirmation-dialog-confirm icon-only-btn" : "primary-btn confirmation-dialog-confirm icon-only-btn"} onClick={onConfirm} aria-label={options.confirmLabel ?? "Confirm"} title={options.confirmLabel ?? "Confirm"}>
+            {isDanger ? <Trash2 size={17} /> : <Check size={17} />}
           </button>
         </div>
       </section>

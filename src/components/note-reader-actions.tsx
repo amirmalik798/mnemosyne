@@ -121,15 +121,15 @@ export function NoteReaderActions({
   return (
     <>
       <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} />
-      <button type="button" className="secondary-btn" onClick={() => void copy()} disabled={busy || copying} aria-busy={copying}>
-        {copying ? <LoaderCircle className="operation-spinner" size={14} /> : <Copy size={14} />} {copying ? "Copying…" : "Copy Markdown"}
+      <button type="button" className="secondary-btn icon-only-btn" onClick={() => void copy()} aria-label={copying ? "Copying Markdown" : "Copy Markdown"} title={copying ? "Copying Markdown" : "Copy Markdown"} disabled={busy || copying} aria-busy={copying}>
+        {copying ? <LoaderCircle className="operation-spinner" size={16} /> : <Copy size={16} />}
       </button>
-      <button type="button" className="secondary-btn" onClick={exportNote} disabled={busy || copying}>
-        <Download size={14} /> Export Markdown
+      <button type="button" className="secondary-btn icon-only-btn" onClick={exportNote} aria-label="Export Markdown" title="Export Markdown" disabled={busy || copying}>
+        <Download size={16} />
       </button>
       <button
         type="button"
-        className="icon-button"
+        className="icon-button icon-only-btn"
         onClick={() => void remove()}
         disabled={busy || copying}
         aria-busy={busy}

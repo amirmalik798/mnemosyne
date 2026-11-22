@@ -87,14 +87,13 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      className="theme-toggle"
+      className="theme-toggle icon-only-btn"
       onClick={toggleTheme}
       title={nextLabel}
       aria-label={nextLabel}
       aria-pressed={theme === "light"}
     >
-      {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-      <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+      {theme === "dark" ? <Sun className="theme-sun-icon" size={18} /> : <Moon className="theme-moon-icon" size={18} />}
     </button>
   );
 }
@@ -107,7 +106,7 @@ export function FontSelector() {
 
   return (
     <label className="font-selector-control" title="Choose the English font used throughout Mnemosyne">
-      <Type size={16} aria-hidden="true" />
+      <Type className="font-selector-icon" size={17} aria-hidden="true" />
       <select
         value={font}
         onChange={(event) => setFont(event.target.value as AppFont)}

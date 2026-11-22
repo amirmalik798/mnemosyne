@@ -1,10 +1,23 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Layers3, X } from "lucide-react";
+import { BookOpen, Brain, Briefcase, Cpu, FlaskConical, Folder, Globe, GraduationCap, Layers3, Palette, Tag, X } from "lucide-react";
 import { EmptyState, TopicCard, type TopicItem } from "@/components/archive-ui";
 
 const UNCATEGORIZED = "__uncategorized__";
+
+function CategoryIcon({ category }: { category: string }) {
+  const value = category.trim().toLocaleLowerCase();
+  if (/read|book|literature|writing/.test(value)) return <BookOpen size={16} aria-hidden="true" />;
+  if (/science|research|biology|chemistry|physics/.test(value)) return <FlaskConical size={16} aria-hidden="true" />;
+  if (/tech|software|computer|program|ai|code/.test(value)) return <Cpu size={16} aria-hidden="true" />;
+  if (/work|business|career|project/.test(value)) return <Briefcase size={16} aria-hidden="true" />;
+  if (/school|study|learn|education|course/.test(value)) return <GraduationCap size={16} aria-hidden="true" />;
+  if (/philosophy|psychology|mind|thought/.test(value)) return <Brain size={16} aria-hidden="true" />;
+  if (/art|design|photo|music|creative/.test(value)) return <Palette size={16} aria-hidden="true" />;
+  if (/travel|world|language|culture|history/.test(value)) return <Globe size={16} aria-hidden="true" />;
+  return <Tag size={16} aria-hidden="true" />;
+}
 
 export function TopicArchive({
   topics,
@@ -55,13 +68,13 @@ export function TopicArchive({
       <div className="topic-filter-chips" role="group" aria-label="Topic category filter">
         <button
           type="button"
-          className={selectedCategory === "" ? "topic-filter-chip active" : "topic-filter-chip"}
+          className={selectedCategory === "" ? "topic-filter-chip icon-only-btn active" : "topic-filter-chip icon-only-btn"}
           onClick={() => chooseCategory("")}
           aria-pressed={selectedCategory === ""}
+          aria-label={`Show all categories (${allTopicsCount} topics)`}
+          title={`All categories · ${allTopicsCount} topics`}
         >
-          <Layers3 size={14} />
-          All categories
-          <span>{allTopicsCount}</span>
+          <Layers3 size={16} />
         </button>
 
         {categories.map((category) => {
@@ -71,12 +84,13 @@ export function TopicArchive({
             <button
               type="button"
               key={category.toLocaleLowerCase()}
-              className={active ? "topic-filter-chip active" : "topic-filter-chip"}
+              className={active ? "topic-filter-chip icon-only-btn active" : "topic-filter-chip icon-only-btn"}
               onClick={() => chooseCategory(category)}
               aria-pressed={active}
+              aria-label={`Show ${category} topics (${count})`}
+              title={`${category} · ${count} topics`}
             >
-              {category}
-              <span>{count}</span>
+              <CategoryIcon category={category} />
             </button>
           );
         })}
@@ -84,12 +98,13 @@ export function TopicArchive({
         {uncategorizedCount > 0 && (
           <button
             type="button"
-            className={selectedCategory === UNCATEGORIZED ? "topic-filter-chip active" : "topic-filter-chip"}
+            className={selectedCategory === UNCATEGORIZED ? "topic-filter-chip icon-only-btn active" : "topic-filter-chip icon-only-btn"}
             onClick={() => chooseCategory(UNCATEGORIZED)}
             aria-pressed={selectedCategory === UNCATEGORIZED}
+            aria-label={`Show uncategorized topics (${uncategorizedCount})`}
+            title={`Uncategorized · ${uncategorizedCount} topics`}
           >
-            Uncategorized
-            <span>{uncategorizedCount}</span>
+            <Folder size={16} aria-hidden="true" />
           </button>
         )}
       </div>
@@ -106,8 +121,8 @@ export function TopicArchive({
               ? "Choose another category or return to the full collection."
               : "Create a collection for a subject, project, book or idea you want to develop."}
             action={selectedCategory ? (
-              <button type="button" className="secondary-btn" onClick={() => chooseCategory("")}>
-                <X size={14} /> Clear category filter
+              <button type="button" className="secondary-btn icon-only-btn" onClick={() => chooseCategory("")} aria-label="Clear category filter" title="Clear category filter">
+                <X size={17} />
               </button>
             ) : null}
           />

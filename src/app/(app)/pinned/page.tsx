@@ -60,7 +60,7 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
 
       <div className="toolbar">
         <div className="eyebrow">Saved for later</div>
-        <Link href="/notes" className="secondary-btn">Browse all notes <ArrowUpRight size={14} /></Link>
+        <Link href="/notes" className="secondary-btn icon-only-btn" aria-label="Browse all notes" title="Browse all notes"><ArrowUpRight size={17} /></Link>
       </div>
 
       <section className="panel">
@@ -69,7 +69,7 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
             <EmptyState
               title="Nothing pinned yet"
               copy="Pin an important note from its editor. It will appear here so you can return to it without searching your entire archive."
-              action={<Link href="/notes" className="secondary-btn"><FileText size={14} /> Explore all notes</Link>}
+              action={<Link href="/notes" className="secondary-btn icon-only-btn" aria-label="Explore all notes" title="Explore all notes"><FileText size={17} /></Link>}
             />
           )}
         </div>
