@@ -6563,3 +6563,214 @@ html[data-theme="light"] .topic-card-collection .topic-card-footer .topic-card-o
     flex-basis: 42px;
   }
 }
+
+
+/* ==========================================================================
+   App-wide readability baseline
+   Keep secondary text comfortably readable in every workspace and theme.
+   ========================================================================== */
+:root {
+  --muted: #BECACC;
+  --dim: #A2B3B5;
+}
+html[data-theme="dark"] {
+  --muted: #BECACC;
+  --dim: #A2B3B5;
+}
+html[data-theme="light"] {
+  --muted: #454B56;
+  --dim: #565249;
+}
+html body {
+  font-size: 15px;
+}
+
+/* Older screens accumulated 8–12px labels and metadata. Normalize the
+   effective small-text rules together so later component overrides cannot
+   silently make them difficult to read again. */
+.archive-pagination-summary, .archive-pagination-page,
+.archive-search-count,
+.archive-search-help,
+.archive-sort-control > label,
+.auth-caption,
+.auth-field-error,
+.auth-foot,
+.auth-input-wrap .auth-field,
+.auth-label-caption,
+.auth-legal,
+.auth-page-bottom,
+.auth-panel .auth-field-error,
+.auth-panel .auth-field-error,.auth-panel .form-hint,
+.auth-panel .auth-label-caption,
+.auth-panel .auth-legal,
+.auth-panel .auth-password-checks span,
+.auth-panel .auth-security-note,
+.auth-panel .auth-switch,
+.auth-panel .eyebrow,
+.auth-panel .form-hint,
+.auth-panel .form-label,
+.auth-password-checks span,
+.auth-primary-action,
+.auth-primary-action > span,
+.auth-secondary-action,
+.auth-secondary-action > span,
+.auth-security-note,
+.auth-story-brand small,
+.auth-story-footer,
+.auth-story-kicker,
+.auth-submit,
+.auth-switch,
+.brand-sub,
+.category-combobox-create > span,
+.category-combobox-empty,
+.command-palette-empty,
+.command-palette-footer span,
+.command-palette-help,
+.command-palette-item small,
+.command-palette-item strong,
+.command-palette-label,
+.command-palette-search-error,
+.confirmation-dialog-description,
+.confirmation-dialog-eyebrow,
+.cover-category,
+.cover-upload > span,
+.cover-upload-text,
+.editor-advanced-formatting > summary,
+.editor-property-action > span,
+.editor-slash-empty,
+.editor-slash-heading, .editor-slash-foot,
+.editor-slash-option span,
+.editor-slash-option strong,
+.editor-validation-hint,
+.error-text, .success-text,
+.eyebrow,
+.filter-chip,
+.font-selector-control select,
+.form-hint,
+.icon-only-btn.auth-submit::after,
+.icon-only-btn:not(.transfer-choice):not(.note-image-delete),
+.icon-only-btn:not(.transfer-choice):not(.note-image-delete)::after,
+.image-lightbox-caption,
+.loading,
+.lock-vault-btn,
+.nav-count,
+.nav-label,
+.note-connection-link,
+.note-connection-link small,
+.note-connections-caption,
+.note-editor-page .editor-property-action, .note-editor-page .editor-header-action, .note-editor-page .reader-action-button,
+.note-editor-page .editor-toolbar .tool-label, .note-editor-page .editor-bubble-menu .tool-label,
+.note-image-drop-message span,
+.note-revision-item span,
+.note-revision-item strong,
+.note-revisions > details > summary,
+.note-row-actions .note-row-action-labelled,
+.note-row-actions .reader-action-button,
+.note-row-actions--compact .note-row-action,
+.note-row-more-menu .reader-action-button, .note-row-more-menu .note-row-action,
+.note-row-sub,
+.operation-status,
+.operation-status--compact,
+.overview-featured-body p,
+.overview-featured-kicker,
+.overview-featured-meta,
+.overview-image-caption small,
+.overview-image-caption strong,
+.overview-image-empty-copy p,
+.overview-image-open-note,
+.overview-integrity-notice p,
+.overview-integrity-title,
+.overview-pinned-content small,
+.overview-quick-action,
+.overview-quick-capture p,
+.overview-recent-panel .note-row-actions--compact .note-row-more-menu .reader-action-button, .overview-recent-panel .note-row-actions--compact .note-row-more-menu .note-row-action,
+.overview-section-copy,
+.overview-stat-card > span:last-child,
+.overview-stat-open,
+.overview-text-link,
+.page > div:first-child > div > span:first-child,
+.pinned-page-intro,
+.primary-btn, .secondary-btn, .danger-btn,
+.primary-btn,.secondary-btn,.danger-btn,
+.profile-sub,
+.property-label,
+.reader-meta,
+.reader-toc > summary,
+.reader-toc-count,
+.reader-toc-link,
+.result-meta,
+.result-type,
+.route-error-reference,
+.search-trigger,
+.search-trigger kbd,
+.settings-nav-heading,
+.skip-link,
+.small-field,
+.stat span,
+.status-row,
+.theme-toggle,
+.topic-action-button > span,
+.topic-card-archive .cover-category,
+.topic-card-archive .topic-description,
+.topic-card-archive .topic-meta,
+.topic-card-archive .topic-subject,
+.topic-card-collection .topic-card-footer .topic-meta,
+.topic-card-open-cue,
+.topic-cover-remove > span,
+.topic-cover-selection-info small,
+.topic-cover-selection-info strong,
+.topic-create-modal .cover-upload > span,
+.topic-dialog-action > span, .topic-edit-action > span, .transfer-footer-action > span, .transfer-retry-button > span, .auth-primary-action > span,
+.topic-dialog-action, .topic-edit-action, .transfer-footer-action, .transfer-retry-button, .auth-primary-action,
+.topic-dialog-delete,
+.topic-dialog-guidance,
+.topic-edit-dialog .cover-upload > span,
+.topic-edit-dialog .form-label,
+.topic-edit-dialog .topic-field-meta, .topic-edit-dialog .form-hint, .topic-edit-dialog .topic-field-help,
+.topic-edit-dialog-head .modal-subtitle,
+.topic-field-counter,
+.topic-field-help, .topic-field-meta,
+.topic-field-label-row .form-label,
+.topic-field-required, .topic-field-optional,
+.topic-filter-chip,
+.topic-filter-chip > span,
+.topic-filter-clear-empty,
+.topic-filter-empty .empty-state p,
+.topic-filter-status-count,
+.topic-meta,
+.transfer-choice-copy small,
+.transfer-destination .form-hint,
+.transfer-no-destination p,
+.trash-action-button > span, .trash-load-more-button > span,
+.trash-action-button, .trash-load-more-button,
+.upload-progress-detail,
+.upload-progress-heading,
+.upload-progress-heading > strong,
+.vault-caption {
+  font-size: 12.5px !important;
+}
+
+/* Prioritize clarity for the active-filter confirmation and its action. */
+.topic-filter-status-copy {
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  line-height: 1.6;
+}
+.topic-filter-status-count {
+  color: var(--muted) !important;
+  font-size: 12.5px !important;
+}
+.topic-filter-clear {
+  color: var(--text) !important;
+  font-size: 12.5px !important;
+  min-height: 38px;
+}
+.auth-legal {
+  color: var(--dim) !important;
+}
+html[data-theme="light"] .auth-panel .auth-legal {
+  color: var(--muted) !important;
+}
+.overview-stat-open {
+  opacity: 1;
+}
