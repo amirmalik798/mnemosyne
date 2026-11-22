@@ -34,7 +34,16 @@ export const TextStyleMark = Mark.create({
   },
 
   parseHTML() {
-    return [{ tag: "span[style]" }];
+    return [{
+      tag: "span[style]",
+      getAttrs: (element) => {
+        const htmlElement = element as HTMLElement;
+        const hasSupportedTextStyle =
+          safeTextColor(htmlElement.style.color) !== null ||
+          safeFontFamily(htmlElement.style.fontFamily) !== null;
+        return hasSupportedTextStyle ? null : false;
+      },
+    }];
   },
 
   renderHTML({ HTMLAttributes }) {
