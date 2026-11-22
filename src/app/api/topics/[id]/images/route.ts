@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { readVerifiedImageAsset } from "@/lib/storage";
 import { apiError } from "@/lib/http";
@@ -13,7 +13,8 @@ type Context = { params: Promise<{ id: string }> };
 type AssetRow = {
   id: string;
   owner_id: string;
-  storage_key: string;
+  storage_key: string | null;
+  encrypted_bytes: Buffer | null;
   original_name_enc: Buffer;
   mime_type: string;
   byte_size: string | number;
@@ -33,7 +34,7 @@ export async function GET(_request: Request, context: Context) {
   try {
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const topicResult = await db.query(
+    const topicResult = await queryAsUser(session.userId, 
       "SELECT id, title_enc, cover_asset_id FROM topics WHERE id=$1",
       [id],
     );
@@ -49,15 +50,16 @@ export async function GET(_request: Request, context: Context) {
     // Querying this relation avoids decrypting every note document simply
     // to rediscover assets that the database already associates with notes.
     const [noteAssetsResult, noteTitleRows] = await Promise.all([
-      db.query(
-        `SELECT a.id, a.owner_id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size
+      queryAsUser(session.userId, 
+        `SELECT a.id, a.owner_id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size, b.encrypted_bytes
          FROM assets a
+         LEFT JOIN asset_blobs b ON b.asset_id = a.id
          JOIN notes n ON n.id = a.owner_id
          WHERE a.owner_type='note' AND n.topic_id=$1 AND n.deleted_at IS NULL
          ORDER BY a.created_at ASC`,
         [id],
       ),
-      db.query(
+      queryAsUser(session.userId, 
         "SELECT id, title_enc FROM notes WHERE topic_id=$1 AND deleted_at IS NULL",
         [id],
       ),
@@ -70,8 +72,8 @@ export async function GET(_request: Request, context: Context) {
 
     let coverAsset: AssetRow | null = null;
     if (topic.cover_asset_id) {
-      const coverResult = await db.query(
-        "SELECT id, owner_id, storage_key, original_name_enc, mime_type, byte_size FROM assets WHERE id=$1 AND owner_type='topic' AND owner_id=$2",
+      const coverResult = await queryAsUser(session.userId, 
+        "SELECT a.id, a.owner_id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size, b.encrypted_bytes FROM assets a LEFT JOIN asset_blobs b ON b.asset_id=a.id WHERE a.id=$1 AND a.owner_type='topic' AND a.owner_id=$2",
         [topic.cover_asset_id, id],
       );
       coverAsset = (coverResult.rows[0] as AssetRow | undefined) ?? null;
@@ -90,6 +92,7 @@ export async function GET(_request: Request, context: Context) {
       entries.push({
         name: topicFolder + "/Topic cover/" + filename,
         read: () => readVerifiedImageAsset({
+          encryptedBytes: coverAsset!.encrypted_bytes,
           storageKey: coverAsset!.storage_key,
           key: session.key,
           mimeType: coverAsset!.mime_type,
@@ -111,6 +114,7 @@ export async function GET(_request: Request, context: Context) {
       entries.push({
         name: topicFolder + "/Notes/" + noteTitle + "-" + asset.owner_id.slice(0, 8) + "/" + String(imageIndex).padStart(2, "0") + "-" + filename,
         read: () => readVerifiedImageAsset({
+          encryptedBytes: asset.encrypted_bytes,
           storageKey: asset.storage_key,
           key: session.key,
           mimeType: asset.mime_type,

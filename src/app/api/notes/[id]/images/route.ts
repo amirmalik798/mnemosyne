@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVaultSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { readVerifiedImageAsset } from "@/lib/storage";
 import { apiError } from "@/lib/http";
@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ id: string }> };
 type AssetRow = {
   id: string;
-  storage_key: string;
+  storage_key: string | null;
+  encrypted_bytes: Buffer | null;
   original_name_enc: Buffer;
   mime_type: string;
   byte_size: string | number;
@@ -52,7 +53,7 @@ export async function GET(_request: Request, context: Context) {
   try {
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const noteResult = await db.query(
+    const noteResult = await queryAsUser(session.userId, 
       "SELECT id, title_enc, content_enc FROM notes WHERE id=$1 AND deleted_at IS NULL",
       [id],
     );
@@ -72,8 +73,9 @@ export async function GET(_request: Request, context: Context) {
       throw new Error("VALIDATION:This note does not contain any downloadable images.");
     }
 
-    const assetResult = await db.query(
-      "SELECT id, storage_key, original_name_enc, mime_type, byte_size FROM assets " +
+    const assetResult = await queryAsUser(session.userId, 
+      "SELECT a.id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size, b.encrypted_bytes FROM assets a " +
+      "LEFT JOIN asset_blobs b ON b.asset_id=a.id " +
       "WHERE owner_type='note' AND owner_id=$1 AND id=ANY($2::uuid[]) ORDER BY created_at ASC",
       [id, Array.from(referencedAssetIds)],
     );
@@ -93,6 +95,7 @@ export async function GET(_request: Request, context: Context) {
       entries.push({
         name: noteFolder + "/" + String(index + 1).padStart(2, "0") + "-" + filename,
         read: () => readVerifiedImageAsset({
+          encryptedBytes: asset.encrypted_bytes,
           storageKey: asset.storage_key,
           key: session.key,
           mimeType: asset.mime_type,
