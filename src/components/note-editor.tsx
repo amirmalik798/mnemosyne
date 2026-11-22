@@ -274,6 +274,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   const [recoveryStatus, setRecoveryStatus] = useState("Preparing local recovery…");
   const [draftReady, setDraftReady] = useState(false);
   const [revisionSnapshots, setRevisionSnapshots] = useState<LocalNoteRevision[]>([]);
+  const [revisionHistoryError, setRevisionHistoryError] = useState("");
   const lastRevisionSavedAtRef = useRef(0);
   const [focusTarget, setFocusTarget] = useState<"title" | "subject" | "editor" | "tags" | null>(null);
   const pendingDraftRef = useRef<{ key: string; draft: LocalNoteDraft } | null>(null);
@@ -547,10 +548,12 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   useEffect(() => {
     if (!noteId) {
       setRevisionSnapshots([]);
+      setRevisionHistoryError("");
       lastRevisionSavedAtRef.current = 0;
       return;
     }
     let cancelled = false;
+    setRevisionHistoryError("");
     loadLocalNoteRevisions(noteId)
       .then((revisions) => {
         if (!cancelled) {
@@ -558,8 +561,15 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
           lastRevisionSavedAtRef.current = revisions[0]?.savedAt ?? 0;
         }
       })
-      .catch(() => {
-        if (!cancelled) setRevisionSnapshots([]);
+      .catch((cause) => {
+        if (!cancelled) {
+          setRevisionSnapshots([]);
+          setRevisionHistoryError(
+            cause instanceof Error
+              ? "Local version history could not be loaded: " + cause.message
+              : "Local version history could not be loaded. Your saved archive note is unchanged.",
+          );
+        }
       });
     return () => { cancelled = true; };
   }, [noteId]);
@@ -665,7 +675,9 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       void saveLocalNoteDraft(draftStorageKey, draft)
         .then(() => setRecoveryStatus("Recovery copy saved on this device"))
         .catch(() => setRecoveryStatus("Local recovery could not be saved"));
-      void flushPendingLocalDraftWrites();
+      void flushPendingLocalDraftWrites().catch(() => {
+        setRecoveryStatus("Local recovery could not be confirmed on this device");
+      });
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") flush();
@@ -756,7 +768,11 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         setDirty(false);
         setStatus("Encrypted & saved · Just now");
         setRecoveryStatus("Saved securely to your archive");
-        await removeLocalNoteDraft(savedDraftKey).catch(() => undefined);
+        try {
+          await removeLocalNoteDraft(savedDraftKey);
+        } catch {
+          setRecoveryStatus("Archive saved, but an older local recovery copy could not be cleared from this device");
+        }
       } else {
         setDirty(true);
         setStatus("Newer changes still need saving");
@@ -941,10 +957,18 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       });
 
       if (!inserted) {
-        await Promise.all(uploadedAssets.map(({ url }) =>
-          fetch(url, { method: "DELETE", credentials: "same-origin" }).catch(() => undefined),
-        ));
-        throw new Error("The uploaded images could not be inserted into the note.");
+        const cleanupResults = await Promise.allSettled(uploadedAssets.map(async ({ url }) => {
+          const response = await fetch(url, { method: "DELETE", credentials: "same-origin" });
+          if (!response.ok) {
+            throw new Error("Image cleanup failed with HTTP " + response.status + ".");
+          }
+        }));
+        const failedCleanups = cleanupResults.filter((result) => result.status === "rejected").length;
+        throw new Error(
+          failedCleanups > 0
+            ? "The uploaded images could not be inserted into the note. " + failedCleanups + " uploaded image(s) could not be removed from storage and may remain unattached."
+            : "The uploaded images could not be inserted into the note. The temporary uploads were removed.",
+        );
       }
 
       setImageUploadProgress({ percentage: 100, label: "Saving images to your note", detail: "All image files have been uploaded." });
@@ -981,21 +1005,34 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
 
       if (!saveResponse.ok) {
         // Commit a local encrypted recovery copy before reporting failure.
-        await saveLocalNoteDraft(`user:${userId}:note:${id}`, {
-          version: 1,
-          noteId: id,
-          topicId,
-          title,
-          subject,
-          tagsInput,
-          pinned,
-          content: updatedContent,
-          selection: selectionRef.current,
-          focusTarget,
-          savedAt: Date.now(),
-          serverUpdatedAt: initialNote?.updatedAt ? new Date(initialNote.updatedAt).getTime() : null,
-        }).catch(() => undefined);
-        throw new Error(saveData?.error || "Images uploaded, but the note could not be updated. Your recovery copy has been kept.");
+        let recoveryCopySaved = false;
+        try {
+          await saveLocalNoteDraft(`user:${userId}:note:${id}`, {
+            version: 1,
+            noteId: id,
+            topicId,
+            title,
+            subject,
+            tagsInput,
+            pinned,
+            content: updatedContent,
+            selection: selectionRef.current,
+            focusTarget,
+            savedAt: Date.now(),
+            serverUpdatedAt: initialNote?.updatedAt ? new Date(initialNote.updatedAt).getTime() : null,
+          });
+          recoveryCopySaved = true;
+        } catch {
+          setRecoveryStatus("Local recovery could not be saved");
+        }
+        const saveFailure = typeof saveData?.error === "string"
+          ? saveData.error
+          : "Images uploaded, but the note could not be updated.";
+        throw new Error(
+          recoveryCopySaved
+            ? saveFailure + " An encrypted recovery copy was saved on this device."
+            : saveFailure + " The app could not save a local recovery copy. Keep this page open and retry the save.",
+        );
       }
 
       if (recoveryTimerRef.current !== null) {
@@ -1006,10 +1043,13 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       setDirty(false);
       setStatus("All changes saved");
       setRecoveryStatus("Saved securely to your archive");
-      await Promise.all([
-        removeLocalNoteDraft(`user:${userId}:note:new`).catch(() => undefined),
-        removeLocalNoteDraft(`user:${userId}:note:${id}`).catch(() => undefined),
+      const draftCleanup = await Promise.allSettled([
+        removeLocalNoteDraft(`user:${userId}:note:new`),
+        removeLocalNoteDraft(`user:${userId}:note:${id}`),
       ]);
+      if (draftCleanup.some((result) => result.status === "rejected")) {
+        setRecoveryStatus("Archive saved, but an older local recovery copy could not be cleared from this device");
+      }
 
       if (shouldNavigateToEdit) {
         router.replace("/notes/" + id + "/edit");
@@ -1430,6 +1470,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         <details>
           <summary>Recent local versions · {revisionSnapshots.length}</summary>
           <p className="form-hint">Encrypted snapshots stay on this device. Up to five recent versions are retained.</p>
+          {revisionHistoryError && <OperationStatus kind="failure" message={revisionHistoryError} compact />}
           {revisionSnapshots.length ? revisionSnapshots.map((revision) => (
             <button
               type="button"
