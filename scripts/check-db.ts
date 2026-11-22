@@ -4,73 +4,66 @@ import { Pool } from "pg";
 import { createDatabasePoolConfig } from "../src/lib/db-config";
 
 const requiredColumns: Array<[string, string]> = [
-  ["vault_settings", "id"],
-  ["vault_settings", "password_salt"],
-  ["vault_settings", "wrapped_key"],
-  ["vault_settings", "failed_attempts"],
-  ["vault_settings", "locked_until"],
-  ["vault_sessions", "id"],
-  ["vault_sessions", "token_hash"],
-  ["vault_sessions", "encrypted_key"],
-  ["vault_sessions", "expires_at"],
-  ["vault_sessions", "last_active_at"],
-  ["topics", "id"],
-  ["topics", "title_enc"],
-  ["topics", "subject_enc"],
-  ["topics", "description_enc"],
-  ["topics", "category_enc"],
-  ["topics", "cover_asset_id"],
-  ["notes", "id"],
-  ["notes", "topic_id"],
-  ["notes", "title_enc"],
-  ["notes", "subject_enc"],
-  ["notes", "content_enc"],
-  ["notes", "tags_enc"],
-  ["notes", "pinned"],
-  ["notes", "deleted_at"],
-  ["assets", "id"],
-  ["assets", "owner_type"],
-  ["assets", "owner_id"],
-  ["assets", "storage_key"],
-  ["assets", "original_name_enc"],
-  ["assets", "mime_type"],
-  ["assets", "byte_size"],
-  ["asset_blobs", "asset_id"],
-  ["asset_blobs", "encrypted_bytes"],
+  ["users", "id"], ["users", "email"], ["users", "password_hash"],
+  ["users", "password_salt"], ["users", "wrapped_key"], ["users", "email_verified_at"],
+  ["user_sessions", "user_id"], ["user_sessions", "token_hash"],
+  ["user_sessions", "encrypted_key"], ["user_sessions", "last_active_at"],
+  ["email_verification_tokens", "token_hash"], ["auth_rate_limits", "attempts"],
+  ["topics", "user_id"], ["topics", "title_enc"], ["topics", "cover_asset_id"],
+  ["notes", "user_id"], ["notes", "topic_id"], ["notes", "content_enc"],
+  ["notes", "deleted_at"], ["assets", "user_id"], ["assets", "owner_type"],
+  ["assets", "owner_id"], ["assets", "storage_key"], ["assets", "original_name_enc"],
+  ["asset_blobs", "user_id"], ["asset_blobs", "asset_id"], ["asset_blobs", "encrypted_bytes"],
 ];
 
 async function main() {
-  const pool = new Pool(createDatabasePoolConfig(process.env, { max: 1 }));
+  const appUrl = process.env.APP_DATABASE_URL;
+  if (!appUrl) {
+    throw new Error(
+      "APP_DATABASE_URL is required. Configure a dedicated PostgreSQL runtime role with NOBYPASSRLS; keep DATABASE_URL for migrations only.",
+    );
+  }
+  const runtimeEnv = { ...process.env, DATABASE_URL: appUrl };
+  const pool = new Pool(createDatabasePoolConfig(runtimeEnv, { max: 1 }));
   try {
-    const connection = await pool.query(
-      "SELECT current_database() AS database, current_schema() AS schema, now() AS server_time",
-    );
-    const missing = await pool.query(
-      "WITH required(table_name, column_name) AS (" +
-        " SELECT * FROM unnest($1::text[], $2::text[])" +
-      ") " +
-      "SELECT required.table_name, required.column_name " +
-      "FROM required " +
-      "WHERE NOT EXISTS (" +
-      " SELECT 1 FROM information_schema.columns AS actual " +
-      " WHERE actual.table_schema = current_schema() " +
-      " AND actual.table_name = required.table_name " +
-      " AND actual.column_name = required.column_name" +
-      ") " +
-      "ORDER BY required.table_name, required.column_name",
-      [requiredColumns.map(([table]) => table), requiredColumns.map(([, column]) => column)],
-    );
+    const [connection, missing, role, rls] = await Promise.all([
+      pool.query("SELECT current_database() AS database, current_schema() AS schema"),
+      pool.query(
+        "WITH required(table_name, column_name) AS (SELECT * FROM unnest($1::text[], $2::text[])) " +
+        "SELECT r.table_name, r.column_name FROM required r WHERE NOT EXISTS (" +
+        "SELECT 1 FROM information_schema.columns c WHERE c.table_schema=current_schema() " +
+        "AND c.table_name=r.table_name AND c.column_name=r.column_name) ORDER BY 1,2",
+        [requiredColumns.map(([table]) => table), requiredColumns.map(([, column]) => column)],
+      ),
+      pool.query(
+        "SELECT r.rolsuper, r.rolbypassrls FROM pg_roles r WHERE r.rolname=current_user",
+      ),
+      pool.query(
+        "SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity " +
+        "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace " +
+        "WHERE n.nspname=current_schema() AND c.relname=ANY($1::text[])",
+        [["topics", "notes", "assets", "asset_blobs"]],
+      ),
+    ]);
 
-    if (missing.rows.length > 0) {
-      const names = missing.rows.map((row) => row.table_name + "." + row.column_name);
+    if (missing.rows.length) {
       throw new Error(
-        "Database connection succeeded, but the schema is incomplete. Run npm run db:migrate. Missing: " +
-        names.join(", "),
+        "Database schema is incomplete. Run npm run db:migrate. Missing: " +
+        missing.rows.map((row) => row.table_name + "." + row.column_name).join(", "),
       );
     }
+    const activeRole = role.rows[0];
+    if (!activeRole || activeRole.rolsuper || activeRole.rolbypassrls) {
+      throw new Error(
+        "APP_DATABASE_URL must use a non-superuser PostgreSQL role with NOBYPASSRLS. A superuser bypasses row-level security.",
+      );
+    }
+    const protectedTables = new Set(rls.rows.filter((row) => row.relrowsecurity && row.relforcerowsecurity).map((row) => row.relname));
+    const missingRls = ["topics", "notes", "assets", "asset_blobs"].filter((table) => !protectedTables.has(table));
+    if (missingRls.length) throw new Error("Row-level security is not enforced on: " + missingRls.join(", "));
 
     console.log(
-      "Database connection and schema verified: " +
+      "Database connection, account schema and enforced row-level security verified: " +
       connection.rows[0].database + " (" + connection.rows[0].schema + ").",
     );
   } finally {

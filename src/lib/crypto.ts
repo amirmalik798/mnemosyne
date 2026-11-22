@@ -18,6 +18,23 @@ export async function derivePasswordKey(password: string, salt: Buffer): Promise
   }));
 }
 
+export async function hashPassword(password: string): Promise<string> {
+  return argon2.hash(password, {
+    type: argon2.argon2id,
+    timeCost: 3,
+    memoryCost: 65_536,
+    parallelism: 1,
+  });
+}
+
+export async function verifyPassword(passwordHash: string, password: string): Promise<boolean> {
+  try {
+    return await argon2.verify(passwordHash, password, { type: argon2.argon2id });
+  } catch {
+    return false;
+  }
+}
+
 export function encryptBytes(plain: Buffer, key: Buffer): Buffer {
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
