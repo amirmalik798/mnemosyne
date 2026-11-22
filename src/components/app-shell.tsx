@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Bookmark, Boxes, Command, FileText, FolderOpen, LockKeyhole, Pin, Plus, Search, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import { TopicDialog } from "@/components/topic-dialog";
-import { ThemeToggle } from "@/components/theme-provider";
+import { FontSelector, ThemeToggle } from "@/components/theme-provider";
 
 const nav = [
   { label: "LIBRARY", items: [{ href: "/library", label: "Overview", icon: Boxes }, { href: "/topics", label: "All topics", icon: FolderOpen }, { href: "/notes", label: "All notes", icon: FileText }, { href: "/pinned", label: "Pinned notes", icon: Pin }, { href: "/search", label: "Search archive", icon: Search }] },
@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </aside>
     <div className="main-area">
       <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{current?.label ?? (pathname.includes("/edit") ? "Edit note" : pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ?? "Overview")}</span></div>
-        <div className="top-actions"><ThemeToggle /><button className="search-trigger" onClick={() => router.push("/search")}><Search size={15} /><span>Search your archive…</span><kbd>⌘ K</kbd></button><button className="secondary-btn" onClick={() => router.push("/notes/new")}><Plus size={15} /> New note</button><button className="primary-btn" onClick={() => setShowTopic(true)}><Plus size={15} /><span>New topic</span></button></div>
+        <div className="top-actions"><FontSelector /><ThemeToggle /><button className="search-trigger" onClick={() => router.push("/search")}><Search size={15} /><span>Search your archive…</span><kbd>⌘ K</kbd></button><button className="secondary-btn" onClick={() => router.push("/notes/new")}><Plus size={15} /> New note</button><button className="primary-btn" onClick={() => setShowTopic(true)}><Plus size={15} /><span>New topic</span></button></div>
       </header>
       {children}
     </div>
