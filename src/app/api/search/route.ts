@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     if (message === "UNAUTHORIZED") return NextResponse.json({ error: "Please unlock your vault." }, { status: 401 });
-    console.error(error);
+    console.error("Search API failure.", { name: error instanceof Error ? error.name : "UnknownError" });
     return NextResponse.json({ error: "Search is unavailable right now." }, { status: 500 });
   }
 }
