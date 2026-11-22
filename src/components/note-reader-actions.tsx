@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Download, LoaderCircle, Trash2 } from "lucide-react";
-import { NoteTopicTransfer, type NoteTopicOption } from "@/components/note-topic-transfer";
+import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
 
 type Node = { type?: string; text?: string; attrs?: Record<string, unknown>; content?: Node[]; marks?: Array<{type:string;attrs?:Record<string,unknown>}> };
@@ -34,13 +34,11 @@ export function NoteReaderActions({
   title,
   content,
   currentTopicId,
-  topics,
 }: {
   id: string;
   title: string;
   content: unknown;
   currentTopicId: string;
-  topics: NoteTopicOption[];
 }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
@@ -102,7 +100,7 @@ export function NoteReaderActions({
 
   return (
     <>
-      <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} topics={topics} />
+      <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} />
       <button type="button" className="secondary-btn" onClick={() => void copy()} disabled={busy}>
         <Copy size={14} /> Copy
       </button>
