@@ -42,14 +42,16 @@ export default async function TopicPage({ params, searchParams }: Props) {
   if (!result.rows[0]) notFound();
   const row = result.rows[0];
 
-  const [countResult, coverAssetResult, allNotesCountResult] = await Promise.all([
+  const [countResult, activeNotesCountResult, coverAssetResult, allNotesCountResult] = await Promise.all([
     queryAsUser(session.userId, `SELECT COUNT(*)::int AS total FROM notes WHERE topic_id=$1 AND deleted_at IS NULL${pinCondition}`, [id]),
+    queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM notes WHERE topic_id=$1 AND deleted_at IS NULL", [id]),
     row.cover_asset_id
       ? queryAsUser(session.userId, "SELECT id FROM assets WHERE id=$1 AND owner_type='topic' AND owner_id=$2", [row.cover_asset_id, id])
       : Promise.resolve({ rows: [] }),
     queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM notes WHERE topic_id=$1", [id]),
   ]);
   const totalNotes = Number(countResult.rows[0]?.total ?? 0);
+  const totalActiveNotes = Number(activeNotesCountResult.rows[0]?.total ?? 0);
   const totalNotesIncludingTrash = Number(allNotesCountResult.rows[0]?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(totalNotes / ARCHIVE_PAGE_SIZE));
   const currentPage = Math.min(requestedPageNumber, totalPages);
@@ -134,7 +136,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
         <div className="topic-detail-notes-heading">
           <div className="topic-detail-section-heading">
             <h2 id="topic-detail-notes-heading" className="eyebrow">Collection entries</h2>
-            <span className="topic-detail-note-count">{totalNotes} {totalNotes===1?"note":"notes"}</span>
+            <span className="topic-detail-note-count" aria-label={`${totalNotes} of ${totalActiveNotes} notes shown`}>{totalNotes} / {totalActiveNotes}</span>
           </div>
         </div>
         <div className="archive-toolbar-actions">
