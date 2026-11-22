@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       }
     }
     const password = stringField(body, "password", 256, true);
-    if (password.length < 12) throw new Error("VALIDATION:Use at least 12 characters for your master password.");
+    if (password.length < 16) throw new Error("VALIDATION:Use at least 16 characters for your master password.");
     const confirmation = stringField(body, "confirmation", 256, true);
     if (password !== confirmation) throw new Error("VALIDATION:Your passwords do not match.");
     const salt = randomBytes(16);
