@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, FolderOpen, FileText, ArrowUpRight } from "lucide-react";
+import { Search, FolderOpen, FileText, ArrowUpRight, X } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
 import { OperationStatus } from "@/components/operation-status";
 
@@ -75,22 +75,32 @@ export function SearchWorkspace() {
         </div>
       </div>
 
-      <div style={{ position: "relative", maxWidth: 800, marginBottom: 20 }}>
-        <Search size={19} style={{ position: "absolute", left: 16, top: 15, color: "var(--gold)" }} />
-        <input
-          autoFocus
-          dir="auto"
-          lang={detectTextLanguage(query)}
-          className="field"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Try a phrase, subject, quotation or keyword…"
-          style={{ height: 50, paddingLeft: 48, paddingRight: 118, fontSize: 13 }}
-          aria-label="Search your archive"
-        />
-        <span style={{ position: "absolute", right: 15, top: 17, fontSize: 9, color: "var(--dim)" }}>
-          {searching ? "Searching…" : query.trim() ? `${resultCount} results` : "Ctrl K"}
-        </span>
+      <div className="archive-search-field">
+        <label className="archive-search-label" htmlFor="archive-search-input">Search your archive</label>
+        <div className="archive-search-control">
+          <Search size={19} aria-hidden="true" />
+          <input
+            id="archive-search-input"
+            autoFocus
+            dir="auto"
+            lang={detectTextLanguage(query)}
+            className="field"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Try a phrase, subject, quotation or keyword…"
+            aria-label="Search your archive"
+            aria-describedby="archive-search-help"
+          />
+          <span className="archive-search-count" aria-live="polite">
+            {searching ? "Searching…" : query.trim() ? `${resultCount} results` : "Ctrl / ⌘ K"}
+          </span>
+          {query && (
+            <button type="button" className="archive-search-clear" onClick={() => setQuery("")} aria-label="Clear search" title="Clear search">
+              <X size={15} /> <span>Clear</span>
+            </button>
+          )}
+        </div>
+        <p className="archive-search-help" id="archive-search-help">Search topic names, note titles, tags and the words inside your notes. Press Ctrl or ⌘ + K to return here from anywhere.</p>
       </div>
 
       {waiting && <OperationStatus kind="waiting" message="Preparing your search…" />}
@@ -114,7 +124,7 @@ export function SearchWorkspace() {
           <div className="toolbar">
             <div className="eyebrow">Topics · {topics.length}</div>
           </div>
-          <div className="search-results">
+          {topics.length > 0 ? <div className="search-results">
             {topics.map((topic) => (
               <Link href={`/topics/${topic.id}`} className="result-card" key={topic.id}>
                 <div className="result-type"><FolderOpen size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} /> Topic · {topic.category}</div>
@@ -128,12 +138,12 @@ export function SearchWorkspace() {
                 </div>
               </Link>
             ))}
-          </div>
+          </div> : notes.length > 0 ? <p className="search-section-empty">No topics matched this search. Matching notes are shown below.</p> : null}
 
           <div className="toolbar" style={{ marginTop: 29 }}>
             <div className="eyebrow">Notes · {notes.length}</div>
           </div>
-          <div className="search-results">
+          {notes.length > 0 ? <div className="search-results">
             {notes.map((note) => (
               <Link href={`/notes/${note.id}`} className="result-card" key={note.id}>
                 <div className="result-type"><FileText size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} /> Note · {note.topicTitle}</div>
@@ -149,7 +159,7 @@ export function SearchWorkspace() {
                 )}
               </Link>
             ))}
-          </div>
+          </div> : topics.length > 0 ? <p className="search-section-empty">No notes matched this search. Matching topics are shown above.</p> : null}
 
           {resultCount === 0 && (
             <div className="empty-state" style={{ marginTop: 20 }}>

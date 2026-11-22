@@ -258,6 +258,13 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     }
   }
   const current = nav.flatMap((group) => group.items).find((item) => pathname === item.href || (item.href !== "/library" && pathname.startsWith(`${item.href}/`)));
+  const breadcrumbLabel = pathname === "/notes/new"
+    ? "New note"
+    : pathname.startsWith("/notes/")
+      ? pathname.endsWith("/edit") ? "Edit note" : "Note"
+      : pathname.startsWith("/topics/")
+        ? pathname.endsWith("/edit") ? "Edit topic" : "Topic"
+        : current?.label ?? "Overview";
   return <div className="app-shell">
     <aside className="sidebar">
       <Link href="/library" className="brand" aria-label="Mnemosyne library" title="Mnemosyne library"><span className="brand-mark">M</span><span><span className="brand-name">Mnemosyne</span><span className="brand-sub">Private knowledge archive</span></span></Link>
@@ -267,7 +274,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       <div className="sidebar-bottom"><div className="profile"><div className="avatar">{(user.displayName.trim().charAt(0) || user.email.charAt(0)).toUpperCase()}</div><div className="profile-copy"><div className="profile-name">{user.displayName}</div><div className="profile-sub">{user.email}</div></div></div></div>
     </aside>
     <div className="main-area">
-      <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{current?.label ?? (pathname.includes("/edit") ? "Edit note" : pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ?? "Overview")}</span></div>
+      <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{breadcrumbLabel}</span></div>
         <div className="top-actions" role="group" aria-label="Workspace actions"><FontSelector /><ThemeToggle /><button type="button" className="search-trigger" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive"><Search size={15} /><span>Search your archive…</span><kbd>⌘ K</kbd></button><button type="button" className="secondary-btn" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><Plus size={15} /><span>New note</span></button><button type="button" className="primary-btn" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><Plus size={15} /><span>New topic</span></button><button type="button" className="lock-vault-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault"} aria-label={locking ? "Locking vault" : "Lock vault"}>{locking ? <LoaderCircle className="operation-spinner" size={15} /> : <LockKeyhole size={15} />}<span>{locking ? "Locking…" : "Lock vault"}</span></button></div>
       </header>
       {children}
