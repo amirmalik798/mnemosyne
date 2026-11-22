@@ -13,10 +13,18 @@ export const dynamic = "force-dynamic";
 export default async function TopicPage({ params }: Props) {
   const { id } = await params;
   const session = await requireVaultSession();
-  const result = await db.query("SELECT id,title_enc,subject_enc,description_enc,category_enc,cover_asset_id,created_at,updated_at FROM topics WHERE id=$1", [id]);
+  const [result, notesResult] = await Promise.all([
+    db.query(
+      "SELECT id,title_enc,subject_enc,description_enc,category_enc,cover_asset_id,created_at,updated_at FROM topics WHERE id=$1",
+      [id],
+    ),
+    db.query(
+      "SELECT id,title_enc,subject_enc,pinned,updated_at,content_enc FROM notes WHERE topic_id=$1 AND deleted_at IS NULL ORDER BY pinned DESC,updated_at DESC,id DESC",
+      [id],
+    ),
+  ]);
   if (!result.rows[0]) notFound();
   const row = result.rows[0];
-  const notesResult = await db.query("SELECT id,title_enc,subject_enc,pinned,updated_at,content_enc FROM notes WHERE topic_id=$1 AND deleted_at IS NULL ORDER BY pinned DESC,updated_at DESC,id DESC", [id]);
   const notes: NoteItem[] = notesResult.rows.map((r) => ({ id:r.id,topicId:id,topicTitle:decryptText(row.title_enc,session.key),title:decryptText(r.title_enc,session.key),subject:decryptText(r.subject_enc,session.key),pinned:r.pinned,updatedAt:r.updated_at }));
   const imageIdsByNote = new Map<string, Set<string>>();
   const allImageIds = new Set<string>();
