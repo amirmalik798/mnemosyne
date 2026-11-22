@@ -35,6 +35,9 @@ export function createZipStream(entries: ZipStreamEntry[]): ReadableStream<Uint8
   const dosTime = 0;
   const dosDate = 0x0021;
   const utf8Flag = 0x0800;
+  // ZIP "Store" preserves each decrypted image byte-for-byte. Do not switch
+  // this to DEFLATE or transform image payloads before adding them to the ZIP.
+  const zipMethodStore = 0;
 
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
@@ -56,7 +59,7 @@ export function createZipStream(entries: ZipStreamEntry[]): ReadableStream<Uint8
           localHeader.writeUInt32LE(0x04034b50, 0);
           localHeader.writeUInt16LE(20, 4);
           localHeader.writeUInt16LE(utf8Flag, 6);
-          localHeader.writeUInt16LE(0, 8);
+          localHeader.writeUInt16LE(zipMethodStore, 8);
           localHeader.writeUInt16LE(dosTime, 10);
           localHeader.writeUInt16LE(dosDate, 12);
           localHeader.writeUInt32LE(checksum, 14);
@@ -70,7 +73,7 @@ export function createZipStream(entries: ZipStreamEntry[]): ReadableStream<Uint8
           centralHeader.writeUInt16LE(20, 4);
           centralHeader.writeUInt16LE(20, 6);
           centralHeader.writeUInt16LE(utf8Flag, 8);
-          centralHeader.writeUInt16LE(0, 10);
+          centralHeader.writeUInt16LE(zipMethodStore, 10);
           centralHeader.writeUInt16LE(dosTime, 12);
           centralHeader.writeUInt16LE(dosDate, 14);
           centralHeader.writeUInt32LE(checksum, 16);
