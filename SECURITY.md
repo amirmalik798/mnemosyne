@@ -39,7 +39,7 @@ Keep `SESSION_ENCRYPTION_SECRET` stable. Changing it invalidates active sessions
 
 - Serve the production app only over HTTPS. Do not expose `next dev` or a development server to the public internet.
 - Use a supported production Node.js runtime with a persistent, private storage volume for `STORAGE_DIR`.
-- Restrict direct network access to PostgreSQL. Use TLS for remote database connections and set `PGSSLMODE=require` when the database provider supports certificate verification.
+- Restrict direct network access to PostgreSQL. Use verified TLS for remote database connections and set `PGSSLMODE=verify-full`. Keep SSL query parameters (`ssl`, `sslmode`, `sslcert`, `sslkey`, `sslrootcert`) out of `DATABASE_URL`; the application configures and verifies TLS itself. The database certificate must chain to a CA trusted by the Node.js host.
 - Give the app's database role only the permissions needed for this database. Do not use a shared PostgreSQL superuser account in production.
 - Keep the storage directory outside the public web root. Do not configure a static file server to expose it.
 - Restrict access to the application host, PostgreSQL, storage volume, environment secrets, backup system and operational logs.
