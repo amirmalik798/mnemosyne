@@ -6,7 +6,6 @@ import Link from "next/link";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
-import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { detectTextLanguage, getBidiAttributes } from "@/lib/bidi";
 import StarterKit from "@tiptap/starter-kit";
@@ -73,6 +72,8 @@ const BidiDirection = Extension.create({
             const text = node.textContent;
             if (!text.trim()) return;
 
+            // Recalculate from the actual text, overriding incorrect dir/lang
+            // values that may have been carried in pasted HTML.
             const { dir, lang } = getBidiAttributes(text);
             if (node.attrs.dir === dir && node.attrs.lang === lang) return;
 
@@ -85,40 +86,12 @@ const BidiDirection = Extension.create({
             changed = true;
           });
 
-          return changed ? transaction : null;
-        },
+          if (!changed) return null;
 
-        props: {
-          decorations(state) {
-            const decorations: Decoration[] = [];
-
-            state.doc.descendants((node, position) => {
-              const directionAwareNode =
-                node.isTextblock ||
-                node.type.name === "blockquote" ||
-                node.type.name === "listItem" ||
-                node.type.name === "bulletList" ||
-                node.type.name === "orderedList";
-
-              if (!directionAwareNode) return;
-
-              const text = node.textContent;
-              if (!text.trim()) return;
-
-              const { dir, lang } = getBidiAttributes(text);
-              const alignment = dir === "rtl" ? "right" : "left";
-
-              decorations.push(
-                Decoration.node(position, position + node.nodeSize, {
-                  dir,
-                  lang,
-                  style: `direction: ${dir}; text-align: ${alignment}; unicode-bidi: plaintext;`,
-                }),
-              );
-            });
-
-            return DecorationSet.create(state.doc, decorations);
-          },
+          // Keep automatic direction metadata out of the user's undo history.
+          transaction.setMeta("bidi-normalization", true);
+          transaction.setMeta("addToHistory", false);
+          return transaction;
         },
       }),
     ];
@@ -148,7 +121,17 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     editorProps: {
       attributes: { class: "rich-editor", spellcheck: "true", "aria-label": "Note content", dir: "ltr" },
     },
-    onUpdate: ({ editor: current }) => { setContent(current.getJSON()); setDirty(true); setStatus("Unsaved changes"); },
+    onCreate: ({ editor: current }) => {
+      // Normalize older saved documents immediately, without requiring the
+      // user to edit or re-paste their existing Urdu content.
+      current.view.dispatch(current.state.tr.setMeta("bidi-initial-normalization", true));
+    },
+    onUpdate: ({ editor: current, transaction }) => {
+      setContent(current.getJSON());
+      if (transaction.getMeta("bidi-normalization")) return;
+      setDirty(true);
+      setStatus("Unsaved changes");
+    },
     onSelectionUpdate: ({ editor: current }) => setImageSelected(current.isActive("image")),
   });
 
