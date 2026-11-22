@@ -79,7 +79,7 @@ Mnemosyne is a single-user, password-protected knowledge archive for topics, ric
    npm run dev
    ~~~
 
-7. Open **http://localhost:3000**, create your vault and choose a strong master password.
+9. Open **http://localhost:3000**, create your vault and choose a strong master password.
 
 ## Useful commands
 
@@ -144,6 +144,8 @@ Before deploying an application update:
 git pull --ff-only origin main
 npm run db:migrate
 npm run db:check
+# Imports any remaining legacy image files; safe to rerun and does not delete source files.
+npm run assets:migrate-to-db
 npm run storage:check
 npm run test:unit
 npm run typecheck
