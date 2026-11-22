@@ -49,7 +49,7 @@ export function NoteReaderActions({
 
   function markdown() {
     const root = content && typeof content === "object" ? content as Node : { content: [] };
-    return `# ${title}\\n\\n${(root.content ?? []).map(toMarkdown).join("")}`.trim() + "\\n";
+    return `# ${title}\n\n${(root.content ?? []).map(toMarkdown).join("")}`.trim() + "\n";
   }
 
   async function copy() {
@@ -71,7 +71,7 @@ export function NoteReaderActions({
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `${title.replace(/[^a-z0-9-_ ]/gi, "").trim().replace(/\\s+/g, "-") || "note"}.md`;
+      anchor.download = `${title.replace(/[^a-z0-9-_ ]/gi, "").trim().replace(/\s+/g, "-") || "note"}.md`;
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessageKind("success");
