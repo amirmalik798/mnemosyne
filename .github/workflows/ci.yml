@@ -1,0 +1,86 @@
+name: Mnemosyne CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mnemosyne-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify application and database integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: mnemosyne
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mnemosyne"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mnemosyne
+      APP_DATABASE_URL: postgresql://mnemosyne_app:mnemosyne_ci_only_password@127.0.0.1:5432/mnemosyne
+      SESSION_ENCRYPTION_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      APP_BASE_URL: http://localhost:3000
+      MNEMOSYNE_LEGACY_OWNER_EMAIL: ""
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Migrate a clean PostgreSQL database
+        run: npm run db:migrate
+
+      - name: Create least-privileged application role
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE mnemosyne_app LOGIN PASSWORD 'mnemosyne_ci_only_password';
+          GRANT CONNECT ON DATABASE mnemosyne TO mnemosyne_app;
+          GRANT USAGE ON SCHEMA public TO mnemosyne_app;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO mnemosyne_app;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO mnemosyne_app;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO mnemosyne_app;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT USAGE, SELECT ON SEQUENCES TO mnemosyne_app;
+          SQL
+
+      - name: Verify schema, runtime role, and row-level security
+        run: npm run db:check
+
+      - name: Verify tenant isolation
+        run: npm run test:tenant-isolation
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Production build
+        run: npm run build
