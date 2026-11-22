@@ -4,6 +4,7 @@ import { decryptText } from "@/lib/crypto";
 import { type TopicItem, ArchiveIntegrityNotice } from "@/components/archive-ui";
 import { TopicArchive } from "@/components/topic-archive";
 import { ARCHIVE_PAGE_SIZE, ArchivePagination, parseArchivePage } from "@/components/archive-pagination";
+import { compareArchiveTitles, isAlphabeticalArchiveSort, parseArchiveSort } from "@/lib/archive-sort";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ type Props = {
   searchParams: Promise<{
     page?: string | string[];
     category?: string | string[];
+    sort?: string | string[];
   }>;
 };
 
@@ -32,11 +34,13 @@ function decryptTopicValue(value: unknown, key: Buffer, id: string, field: strin
 }
 
 export default async function TopicsPage({ searchParams }: Props) {
-  const [{ page: requestedPage, category: requestedCategoryValue }, session] = await Promise.all([
+  const [{ page: requestedPage, category: requestedCategoryValue, sort: requestedSort }, session] = await Promise.all([
     searchParams,
     requireVaultSession(),
   ]);
   const requestedPageNumber = parseArchivePage(requestedPage);
+  const sort = parseArchiveSort(requestedSort);
+  const alphabetical = isAlphabeticalArchiveSort(sort);
   const requestedCategory = Array.isArray(requestedCategoryValue)
     ? requestedCategoryValue[0] ?? ""
     : requestedCategoryValue ?? "";
@@ -82,32 +86,44 @@ export default async function TopicsPage({ searchParams }: Props) {
   const totalPages = Math.max(1, Math.ceil(totalTopics / ARCHIVE_PAGE_SIZE));
   const currentPage = Math.min(requestedPageNumber, totalPages);
 
-  const pageResult = selectedCategory
-    ? matchingTopicIds.length
-      ? await queryAsUser(session.userId, 
-          `SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc,
-                  t.cover_asset_id, t.updated_at,
-                  (SELECT COUNT(*)::int FROM notes n
-                   WHERE n.topic_id = t.id AND n.deleted_at IS NULL) AS note_count
-           FROM topics t
-           WHERE t.id = ANY($1::uuid[])
-           ORDER BY t.updated_at DESC, t.id DESC
-           LIMIT $2 OFFSET $3`,
-          [matchingTopicIds, ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
+  const orderColumn = sort === "modified-desc" ? "t.updated_at" : "t.created_at";
+  const topicSelect = `SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc,
+                              t.cover_asset_id, t.created_at, t.updated_at,
+                              (SELECT COUNT(*)::int FROM notes n
+                               WHERE n.topic_id = t.id AND n.deleted_at IS NULL) AS note_count
+                       FROM topics t`;
+  const pageResult = alphabetical
+    ? selectedCategory
+      ? matchingTopicIds.length
+        ? await queryAsUser(session.userId,
+            `${topicSelect}
+             WHERE t.id = ANY($1::uuid[])
+             ORDER BY t.created_at DESC, t.id DESC`,
+            [matchingTopicIds],
+          )
+        : { rows: [] }
+      : await queryAsUser(session.userId,
+          `${topicSelect}
+           ORDER BY t.created_at DESC, t.id DESC`,
         )
-      : { rows: [] }
-    : await queryAsUser(session.userId, 
-        `SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc,
-                t.cover_asset_id, t.updated_at,
-                (SELECT COUNT(*)::int FROM notes n
-                 WHERE n.topic_id = t.id AND n.deleted_at IS NULL) AS note_count
-         FROM topics t
-         ORDER BY t.updated_at DESC, t.id DESC
-         LIMIT $1 OFFSET $2`,
-        [ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
-      );
+    : selectedCategory
+      ? matchingTopicIds.length
+        ? await queryAsUser(session.userId,
+            `${topicSelect}
+             WHERE t.id = ANY($1::uuid[])
+             ORDER BY ${orderColumn} DESC, t.id DESC
+             LIMIT $2 OFFSET $3`,
+            [matchingTopicIds, ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
+          )
+        : { rows: [] }
+      : await queryAsUser(session.userId,
+          `${topicSelect}
+           ORDER BY ${orderColumn} DESC, t.id DESC
+           LIMIT $1 OFFSET $2`,
+          [ARCHIVE_PAGE_SIZE, (currentPage - 1) * ARCHIVE_PAGE_SIZE],
+        );
 
-  const topics: TopicItem[] = [];
+  const decryptedTopics: TopicItem[] = [];
   const unavailableTopicIds = new Set<string>();
   for (const row of pageResult.rows) {
     const id = String(row.id);
@@ -121,7 +137,7 @@ export default async function TopicsPage({ searchParams }: Props) {
       continue;
     }
 
-    topics.push({
+    decryptedTopics.push({
       id,
       title,
       subject,
@@ -132,6 +148,11 @@ export default async function TopicsPage({ searchParams }: Props) {
       updatedAt: row.updated_at,
     });
   }
+
+  if (alphabetical) decryptedTopics.sort((a, b) => compareArchiveTitles(a, b, sort));
+  const topics = alphabetical
+    ? decryptedTopics.slice((currentPage - 1) * ARCHIVE_PAGE_SIZE, currentPage * ARCHIVE_PAGE_SIZE)
+    : decryptedTopics;
 
   const unavailableCount = new Set([
     ...topicCategories.filter((topic) => !topic.available).map((topic) => topic.id),
@@ -160,12 +181,16 @@ export default async function TopicsPage({ searchParams }: Props) {
         totalTopics={totalTopics}
         allTopicsCount={allTopicsCount}
         selectedCategory={selectedCategory}
+        sort={sort}
       />
       <ArchivePagination
         currentPage={currentPage}
         totalItems={totalTopics}
         basePath="/topics"
-        query={selectedCategory ? `category=${encodeURIComponent(selectedCategory)}` : undefined}
+        query={[
+          selectedCategory ? `category=${encodeURIComponent(selectedCategory)}` : "",
+          sort !== "created-desc" ? `sort=${sort}` : "",
+        ].filter(Boolean).join("&") || undefined}
       />
     </main>
   );
