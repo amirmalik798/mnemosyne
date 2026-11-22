@@ -99,17 +99,17 @@ export default async function TopicPage({ params, searchParams }: Props) {
     : null;
 
   return (
-    <main className="page">
+    <main className="page topic-detail-page">
       <div style={{ marginBottom: 19 }}>
         <Link href="/topics" className="breadcrumb"><ArrowLeft size={14}/> All topics</Link>
       </div>
-      <section className="panel" style={{ padding: 0, overflow: "hidden", marginBottom: 30 }}>
-        <div style={{ height: 220, position: "relative", background: "radial-gradient(circle at 75% 15%,rgba(203,180,126,.22),transparent 35%),linear-gradient(120deg,#263B45,#17232D)" }}>
+      <section className="panel topic-detail-hero" aria-labelledby="topic-detail-title" style={{ padding: 0, overflow: "hidden", marginBottom: 30 }}>
+        <div className="topic-detail-cover" style={{ height: 220, position: "relative", background: "radial-gradient(circle at 75% 15%,rgba(203,180,126,.22),transparent 35%),linear-gradient(120deg,#263B45,#17232D)" }}>
           {cover ? <img src={cover} alt={`${title} cover`} decoding="async" fetchPriority="high" style={{ width:"100%",height:"100%",objectFit:"cover",opacity:.8 }} /> : <div className="cover-placeholder"><span className="cover-glyph" style={{ fontSize: 90 }}>{title.charAt(0)}</span></div>}
           <div style={{ position:"absolute",inset:"45% 0 0",background:"linear-gradient(transparent,rgba(11,16,22,.94))" }}/>
-          <div style={{ position:"absolute",left:28,bottom:24 }}>
+          <div className="topic-detail-cover-copy" style={{ position:"absolute",left:28,bottom:24 }}>
             <div className="eyebrow">{category || "Collection"}</div>
-            <h1 className="page-title" dir="auto" lang={detectTextLanguage(title)} style={{ margin:"7px 0 4px" }}>{title}</h1>
+            <h1 id="topic-detail-title" className="page-title" dir="auto" lang={detectTextLanguage(title)} style={{ margin:"7px 0 4px" }}>{title}</h1>
             <div dir="auto" lang={detectTextLanguage(subject)} style={{ fontSize:11,color:"#D0DAD5" }}>{subject}</div>
           </div>
         </div>
@@ -122,18 +122,18 @@ export default async function TopicPage({ params, searchParams }: Props) {
           </div>
         </div>
       </section>
-      <div className="toolbar">
+      <div className="toolbar topic-detail-toolbar">
         <div className="topic-detail-notes-heading">
           <div className="eyebrow">Collection entries</div>
-          <h2 className="panel-title" style={{ margin:"7px 0 0" }}>{totalNotes} {totalNotes===1?"note":"notes"}</h2>
-          <p className="topic-detail-note-guidance">Open a note to read or continue writing. Use the actions beside it to pin, move or send it to Recently deleted.</p>
+          <h2 id="topic-detail-notes-heading" className="panel-title" style={{ margin:"7px 0 0" }}>{totalNotes} {totalNotes===1?"note":"notes"}</h2>
+          <p className="topic-detail-note-guidance">Select a note to open it. Pin it, move or copy it to another topic, or send it to Recently deleted.</p>
         </div>
         <div className="archive-toolbar-actions">
           <ArchiveSortControl basePath={`/topics/${id}`} currentSort={sort} />
           <Link href="/notes" className="secondary-btn topic-detail-browse-all"><FileText size={15} aria-hidden="true"/><span>Browse all notes</span><ArrowUpRight size={13} aria-hidden="true"/></Link>
         </div>
       </div>
-      <section className="panel topic-detail-note-panel" aria-label="Notes in this topic">
+      <section className="panel topic-detail-note-panel" aria-labelledby="topic-detail-notes-heading">
         <div className="note-list">
           {notes.length ? notes.map((note)=><NoteRow key={note.id} note={note} showOpenCue />) : <EmptyState title="An open page" copy="This topic has no notes yet. Begin with a thought, a passage or a question you want to explore." action={<Link href={`/notes/new?topicId=${id}`} className="primary-btn topic-detail-first-note"><FilePlus size={16} aria-hidden="true"/><span>Write first note</span></Link>} />}
         </div>
