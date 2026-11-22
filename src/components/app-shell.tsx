@@ -482,7 +482,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">Skip to main content</a>
     <aside className="sidebar">
-      <Link href="/library" className="brand brand-mark-only" aria-label="Mnemosyne library" title="Mnemosyne library"><span className="brand-mark">M</span></Link>
+      <Link href="/library" className="brand brand-with-wordmark" aria-label="Mnemosyne library" title="Mnemosyne library"><span className="brand-mark">M</span><span className="brand-name">Mnemosyne</span></Link>
       <nav className="sidebar-navigation" aria-label="Archive navigation">
       {nav.map((group) => <div key={group.label}><div className="nav-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const active = current?.href === item.href; return <Link href={item.href} key={item.href} className={`nav-link ${active ? "active" : ""}`} aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label}><Icon /><span>{item.label}</span></Link>; })}</div>)}
       </nav>
