@@ -6843,7 +6843,20 @@ html[data-theme="light"] .typography-preview { background: #FFFFFF; border-color
 }
 
 
-/* Sidebar brand uses the archival monogram without a text wordmark. */
-.brand-mark-only {
-  justify-content: center;
+/* Sidebar brand keeps the Mnemosyne wordmark and omits the subtitle. */
+.brand-with-wordmark {
+  justify-content: flex-start;
+}
+.brand-with-wordmark .brand-name {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: calc(15px * var(--font-scale, 1));
+  line-height: 1.25;
+  letter-spacing: .10em;
+}
+@media (max-width: 960px) {
+  .brand-with-wordmark .brand-name {
+    display: none;
+  }
 }
