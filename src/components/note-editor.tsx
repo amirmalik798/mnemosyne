@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EditorContent, useEditor } from "@tiptap/react";
-import { Extension } from "@tiptap/core";
+import { Extension, type Editor as TiptapEditor } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
@@ -174,6 +174,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [tagsInput, setTagsInput] = useState(initialNote?.tags?.join(", ") ?? "");
   const [pinned, setPinned] = useState(initialNote?.pinned ?? false);
   const contentRef = useRef<any>(initialNote?.content ?? EMPTY_DOC);
+  const editorRef = useRef<TiptapEditor | null>(null);
   const selectionRef = useRef({ from: 1, to: 1 });
   const changeVersionRef = useRef(0);
   const autosaveRevisionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -237,7 +238,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         subject: latest.subject,
         tagsInput: latest.tagsInput,
         pinned: latest.pinned,
-        content: contentRef.current,
+        content: editorRef.current?.getJSON() ?? contentRef.current,
         selection: selectionRef.current,
         focusTarget: latest.focusTarget,
         savedAt: Date.now(),
@@ -269,10 +270,13 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       // Normalize older saved documents immediately, without requiring the
       // user to edit or re-paste their existing Urdu content.
       current.view.dispatch(current.state.tr.setMeta("bidi-initial-normalization", true));
+      editorRef.current = current;
       contentRef.current = current.getJSON();
     },
     onUpdate: ({ editor: current, transaction }) => {
-      contentRef.current = current.getJSON();
+      // Do not serialize the entire document on every keystroke. Create JSON
+      // snapshots only when a save or recovery checkpoint is due.
+      editorRef.current = current;
       if (transaction.getMeta("bidi-normalization")) return;
 
       markDirty();
@@ -388,7 +392,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         subject,
         tagsInput,
         pinned,
-        content: contentRef.current,
+        content: editorRef.current?.getJSON() ?? contentRef.current,
         selection: selectionRef.current,
         focusTarget,
         savedAt: Date.now(),
@@ -427,7 +431,9 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
     if (!quiet) setError("");
     setStatus(quiet ? "Saving in background…" : "Saving…");
     try {
-      const payload = { topicId, title, subject, content: contentRef.current, tags: tagsInput.split(",").map((t) => t.trim().replace(/^#/, "")).filter(Boolean).slice(0, 30), pinned };
+      const currentContent = editorRef.current?.getJSON() ?? contentRef.current;
+      contentRef.current = currentContent;
+      const payload = { topicId, title, subject, content: currentContent, tags: tagsInput.split(",").map((t) => t.trim().replace(/^#/, "")).filter(Boolean).slice(0, 30), pinned };
       const response = await fetch(noteId ? `/api/notes/${noteId}` : "/api/notes", {
         method: noteId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
