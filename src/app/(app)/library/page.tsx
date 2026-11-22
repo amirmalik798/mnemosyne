@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 export default async function LibraryPage() {
   const session = await requireVaultSession();
   const [topicsResult, notesResult, totalResult] = await Promise.all([
-    db.query(`SELECT t.*, (SELECT COUNT(*)::int FROM notes n WHERE n.topic_id=t.id AND n.deleted_at IS NULL) AS note_count FROM topics t ORDER BY t.updated_at DESC LIMIT 6`),
-    db.query(`SELECT n.*, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.deleted_at IS NULL ORDER BY n.pinned DESC,n.updated_at DESC LIMIT 6`),
+    db.query(`SELECT t.id, t.title_enc, t.subject_enc, t.description_enc, t.category_enc, t.cover_asset_id, t.updated_at, (SELECT COUNT(*)::int FROM notes n WHERE n.topic_id=t.id AND n.deleted_at IS NULL) AS note_count FROM topics t ORDER BY t.updated_at DESC, t.id DESC LIMIT 6`),
+    db.query(`SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.pinned, n.updated_at, t.title_enc AS topic_title_enc FROM notes n JOIN topics t ON t.id=n.topic_id WHERE n.deleted_at IS NULL ORDER BY n.pinned DESC,n.updated_at DESC,n.id DESC LIMIT 6`),
     db.query(`SELECT (SELECT COUNT(*)::int FROM topics) AS topics, (SELECT COUNT(*)::int FROM notes WHERE deleted_at IS NULL) AS notes, (SELECT COUNT(*)::int FROM assets) AS assets`),
   ]);
   const topics: TopicItem[] = topicsResult.rows.map((r) => ({ id:r.id,title:decryptText(r.title_enc,session.key),subject:decryptText(r.subject_enc,session.key),description:decryptText(r.description_enc,session.key),category:decryptText(r.category_enc,session.key),coverUrl:r.cover_asset_id?`/api/assets/${r.cover_asset_id}`:null,noteCount:r.note_count,updatedAt:r.updated_at }));
