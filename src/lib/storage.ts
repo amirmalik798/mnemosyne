@@ -1,11 +1,19 @@
 import "server-only";
-import { chmod, lstat, mkdir, open, readFile, unlink } from "node:fs/promises";
+import { lstat, readFile, unlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { decryptBytes, decryptText, encryptBytes, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { resolveStorageFilePath } from "@/lib/storage-path";
+
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const ENCRYPTION_OVERHEAD_BYTES = 12 + 16;
+
+type QueryExecutor = (
+  text: string,
+  values?: (string | number | Buffer | null)[],
+) => Promise<{ rows: unknown[] }>;
 
 function storageRoot(): string {
   return resolve(process.env.STORAGE_DIR || join(process.cwd(), "storage"));
@@ -15,42 +23,13 @@ function safeStoragePath(storageKey: string): string | null {
   return resolveStorageFilePath(storageRoot(), storageKey);
 }
 
-async function ensurePrivateStorageRoot(root: string): Promise<void> {
-  await mkdir(root, { recursive: true, mode: 0o700 });
-  // File mode 0600 and directory mode 0700 prevent other local OS users from
-  // reading encrypted assets or enumerating the vault's attachment metadata.
-  if (process.platform !== "win32") await chmod(root, 0o700);
-}
-
-/**
- * Create an encrypted file without overwriting an existing file. Sync the
- * file before its database row is written so a successful insert never points
- * at an intentionally buffered, unfinished write.
- */
-async function writeEncryptedFileExclusive(filePath: string, bytes: Buffer): Promise<void> {
-  let handle: Awaited<ReturnType<typeof open>> | undefined;
-  let created = false;
-  try {
-    handle = await open(filePath, "wx", 0o600);
-    created = true;
-    await handle.writeFile(bytes);
-    await handle.sync();
-    await handle.close();
-    handle = undefined;
-  } catch (error) {
-    await handle?.close().catch(() => undefined);
-    if (created) await unlink(filePath).catch(() => undefined);
-    throw error;
-  }
-}
-
-async function removeStorageFiles(storageKeys: string[]): Promise<void> {
-  await Promise.all(storageKeys.map(async (storageKey) => {
+/** Remove only legacy files left over from the one-time filesystem migration. */
+async function removeLegacyStorageFiles(storageKeys: Array<string | null | undefined>): Promise<void> {
+  const keys = storageKeys.filter((key): key is string => typeof key === "string" && key.length > 0);
+  await Promise.all(keys.map(async (storageKey) => {
     const filePath = safeStoragePath(storageKey);
     if (!filePath) {
-      console.error("[Mnemosyne] Refusing to remove an invalid encrypted storage key.", {
-        storageKey,
-      });
+      console.error("[Mnemosyne] Refusing to remove an invalid legacy storage key.", { storageKey });
       return;
     }
     try {
@@ -60,10 +39,7 @@ async function removeStorageFiles(storageKeys: string[]): Promise<void> {
         ? String(error.code)
         : "UNKNOWN";
       if (code !== "ENOENT") {
-        console.error("[Mnemosyne] Encrypted asset cleanup is pending.", {
-          storageKey,
-          code,
-        });
+        console.error("[Mnemosyne] Legacy image cleanup is pending.", { storageKey, code });
       }
     }
   }));
@@ -71,15 +47,13 @@ async function removeStorageFiles(storageKeys: string[]): Promise<void> {
 
 async function withTransaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await db.connect();
-  let committed = false;
   try {
     await client.query("BEGIN");
     const result = await work(client);
     await client.query("COMMIT");
-    committed = true;
     return result;
   } catch (error) {
-    if (!committed) await client.query("ROLLBACK").catch(() => undefined);
+    await client.query("ROLLBACK").catch(() => undefined);
     throw error;
   } finally {
     client.release();
@@ -94,6 +68,11 @@ export function detectImageMime(buffer: Buffer): string | null {
   return null;
 }
 
+/**
+ * Persist image metadata and ciphertext together. Callers that already own a
+ * transaction pass its query executor; standalone callers get an internal
+ * transaction so an asset can never be committed without its encrypted blob.
+ */
 export async function saveEncryptedAsset(input: {
   bytes: Buffer;
   name: string;
@@ -101,70 +80,86 @@ export async function saveEncryptedAsset(input: {
   ownerType: "topic" | "note";
   ownerId: string;
   key: Buffer;
-  query?: (text: string, values?: (string | number | Buffer | null)[]) => Promise<{ rows: unknown[] }>;
-}): Promise<{ id: string; mimeType: string; byteSize: number; storageKey: string }> {
-  // Store only the original supported image bytes. Never resize, transcode or
-  // recompress images in the persistence layer.
+  query?: QueryExecutor;
+}): Promise<{ id: string; mimeType: string; byteSize: number }> {
   const detectedMime = detectImageMime(input.bytes);
   if (!detectedMime || detectedMime !== input.mimeType) {
     throw new Error("VALIDATION:The image format does not match its file contents.");
   }
-  const id = randomUUID();
-  const storageKey = `${id}.enc`;
-  const root = storageRoot();
-  await ensurePrivateStorageRoot(root);
-  const filePath = join(root, storageKey);
-  await writeEncryptedFileExclusive(filePath, encryptBytes(input.bytes, input.key));
-  try {
-    const insert: NonNullable<typeof input.query> =
-      input.query ?? ((text, values) => db.query(text, values));
-    await insert(
-      `INSERT INTO assets (id, owner_type, owner_id, storage_key, original_name_enc, mime_type, byte_size)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, input.ownerType, input.ownerId, storageKey, encryptText(input.name, input.key), input.mimeType, input.bytes.byteLength],
-    );
-  } catch (error) {
-    if (input.query) {
-      await unlink(filePath).catch(() => undefined);
-    } else {
-      console.error("[Mnemosyne] Asset metadata insert failed; encrypted file retained for integrity review.", {
-        assetId: id,
-        storageKey,
-      });
-    }
-    throw error;
+  if (input.bytes.byteLength <= 0 || input.bytes.byteLength > MAX_IMAGE_BYTES) {
+    throw new Error("VALIDATION:Images must be 20 MB or smaller.");
   }
-  return { id, mimeType: input.mimeType, byteSize: input.bytes.byteLength, storageKey };
+
+  const id = randomUUID();
+  const encryptedBytes = encryptBytes(input.bytes, input.key);
+  const encryptedName = encryptText(input.name, input.key);
+
+  const persist = async (query: QueryExecutor) => {
+    await query(
+      `INSERT INTO assets (id, owner_type, owner_id, storage_key, original_name_enc, mime_type, byte_size)
+       VALUES ($1, $2, $3, NULL, $4, $5, $6)`,
+      [id, input.ownerType, input.ownerId, encryptedName, input.mimeType, input.bytes.byteLength],
+    );
+    await query(
+      "INSERT INTO asset_blobs (asset_id, encrypted_bytes) VALUES ($1, $2)",
+      [id, encryptedBytes],
+    );
+  };
+
+  if (input.query) {
+    await persist(input.query);
+  } else {
+    await withTransaction((client) => persist((text, values) => client.query(text, values)));
+  }
+
+  return { id, mimeType: input.mimeType, byteSize: input.bytes.byteLength };
 }
 
-export async function readEncryptedAsset(storageKey: string, key: Buffer): Promise<Buffer> {
+/** Read a legacy file only while an installation is being migrated to PostgreSQL blobs. */
+async function readLegacyEncryptedAsset(storageKey: string, key: Buffer): Promise<Buffer> {
   const filePath = safeStoragePath(storageKey);
-  if (!filePath) throw new Error("Invalid storage key or path.");
-  await ensurePrivateStorageRoot(storageRoot());
+  if (!filePath) throw new Error("Invalid legacy storage key or path.");
 
   const fileInfo = await lstat(filePath);
-  if (fileInfo.isSymbolicLink() || !fileInfo.isFile() || fileInfo.size > 20 * 1024 * 1024 + 28) {
-    throw new Error("Stored image file is invalid or exceeds the upload limit.");
+  if (
+    fileInfo.isSymbolicLink() ||
+    !fileInfo.isFile() ||
+    fileInfo.size < ENCRYPTION_OVERHEAD_BYTES + 1 ||
+    fileInfo.size > MAX_IMAGE_BYTES + ENCRYPTION_OVERHEAD_BYTES
+  ) {
+    throw new Error("Stored legacy image file is invalid or exceeds the upload limit.");
   }
   return decryptBytes(await readFile(filePath), key);
 }
 
 /**
- * Read an image only when its decrypted bytes still match the original upload
- * metadata. AES-GCM authenticates the encrypted file; these checks additionally
- * detect truncation or mismatched MIME/size metadata before serving or exporting.
+ * Authenticate and verify an encrypted database blob. The legacy file fallback
+ * exists only so older assets remain readable between deployment and import.
  */
 export async function readVerifiedImageAsset(input: {
-  storageKey: string;
+  encryptedBytes?: Buffer | null;
+  storageKey?: string | null;
   key: Buffer;
   mimeType: string;
   byteSize: string | number;
 }): Promise<Buffer> {
   const expectedSize = Number(input.byteSize);
-  if (!Number.isSafeInteger(expectedSize) || expectedSize <= 0 || expectedSize > 20 * 1024 * 1024) {
+  if (!Number.isSafeInteger(expectedSize) || expectedSize <= 0 || expectedSize > MAX_IMAGE_BYTES) {
     throw new Error("IMAGE_INTEGRITY:Stored image size is invalid or exceeds the upload limit.");
   }
-  const bytes = await readEncryptedAsset(input.storageKey, input.key);
+
+  let bytes: Buffer;
+  if (input.encryptedBytes) {
+    if (input.encryptedBytes.byteLength !== expectedSize + ENCRYPTION_OVERHEAD_BYTES) {
+      throw new Error("IMAGE_INTEGRITY:Encrypted database blob size does not match the original upload.");
+    }
+    bytes = decryptBytes(input.encryptedBytes, input.key);
+  } else if (input.storageKey) {
+    bytes = await readLegacyEncryptedAsset(input.storageKey, input.key);
+  } else {
+    throw new Error("IMAGE_INTEGRITY:Encrypted image blob is missing from the database.");
+  }
+
   if (bytes.byteLength !== expectedSize) {
     throw new Error("IMAGE_INTEGRITY:Stored image size does not match the original upload.");
   }
@@ -199,14 +194,12 @@ function noteContentReferencesAsset(content: unknown, assetId: string): boolean 
 }
 
 export async function deleteAssetById(id: string, key: Buffer): Promise<void> {
-  const storageKeys = await withTransaction(async (client) => {
-    // Read the owner without taking the asset lock, then lock the parent first.
-    // Upload, note deletion and topic-cover operations use this same lock order.
+  const legacyStorageKeys = await withTransaction(async (client) => {
     const owner = await client.query(
       "SELECT owner_type, owner_id FROM assets WHERE id = $1",
       [id],
     );
-    if (!owner.rows[0]) return [] as string[];
+    if (!owner.rows[0]) return [] as Array<string | null>;
 
     if (owner.rows[0].owner_type === "topic") {
       await client.query(
@@ -220,9 +213,7 @@ export async function deleteAssetById(id: string, key: Buffer): Promise<void> {
       );
       if (note.rows[0]) {
         const content = JSON.parse(decryptText(note.rows[0].content_enc, key));
-        if (noteContentReferencesAsset(content, id)) {
-          throw new Error("ASSET_IN_USE");
-        }
+        if (noteContentReferencesAsset(content, id)) throw new Error("ASSET_IN_USE");
       }
     }
 
@@ -230,7 +221,7 @@ export async function deleteAssetById(id: string, key: Buffer): Promise<void> {
       "SELECT owner_type, owner_id FROM assets WHERE id = $1 FOR UPDATE",
       [id],
     );
-    if (!existing.rows[0]) return [] as string[];
+    if (!existing.rows[0]) return [] as Array<string | null>;
 
     if (existing.rows[0].owner_type === "topic") {
       await client.query(
@@ -243,13 +234,13 @@ export async function deleteAssetById(id: string, key: Buffer): Promise<void> {
       "DELETE FROM assets WHERE id = $1 RETURNING storage_key",
       [id],
     );
-    return result.rows.map((row) => String(row.storage_key));
+    return result.rows.map((row) => row.storage_key as string | null);
   });
-  await removeStorageFiles(storageKeys);
+  await removeLegacyStorageFiles(legacyStorageKeys);
 }
 
 export async function deleteTrashedNoteWithAssets(noteId: string): Promise<void> {
-  const storageKeys = await withTransaction(async (client) => {
+  const legacyStorageKeys = await withTransaction(async (client) => {
     const note = await client.query(
       "SELECT id FROM notes WHERE id = $1 AND deleted_at IS NOT NULL FOR UPDATE",
       [noteId],
@@ -265,13 +256,13 @@ export async function deleteTrashedNoteWithAssets(noteId: string): Promise<void>
       [noteId],
     );
     if (!deleted.rows[0]) throw new Error("NOT_FOUND");
-    return assets.rows.map((row) => String(row.storage_key));
+    return assets.rows.map((row) => row.storage_key as string | null);
   });
-  await removeStorageFiles(storageKeys);
+  await removeLegacyStorageFiles(legacyStorageKeys);
 }
 
 export async function deleteEmptyTopicWithAssets(topicId: string): Promise<void> {
-  const storageKeys = await withTransaction(async (client) => {
+  const legacyStorageKeys = await withTransaction(async (client) => {
     const topic = await client.query(
       "SELECT id FROM topics WHERE id = $1 FOR UPDATE",
       [topicId],
@@ -293,9 +284,9 @@ export async function deleteEmptyTopicWithAssets(topicId: string): Promise<void>
       [topicId],
     );
     if (!deleted.rows[0]) throw new Error("NOT_FOUND");
-    return assets.rows.map((row) => String(row.storage_key));
+    return assets.rows.map((row) => row.storage_key as string | null);
   });
-  await removeStorageFiles(storageKeys);
+  await removeLegacyStorageFiles(legacyStorageKeys);
 }
 
 export async function deleteUnreferencedNoteAssets(noteId: string, content: unknown): Promise<void> {
@@ -314,6 +305,7 @@ export async function deleteUnreferencedNoteAssets(noteId: string, content: unkn
     Object.values(record).forEach(visit);
   };
   visit(content);
+
   const result = await db.query(
     `DELETE FROM assets
      WHERE owner_type = 'note'
@@ -322,52 +314,53 @@ export async function deleteUnreferencedNoteAssets(noteId: string, content: unkn
      RETURNING storage_key`,
     [noteId, Array.from(referenced)],
   );
-  await removeStorageFiles(result.rows.map((row: { storage_key: string }) => String(row.storage_key)));
+  await removeLegacyStorageFiles(
+    result.rows.map((row: { storage_key: string | null }) => row.storage_key),
+  );
 }
 
-/** Clone an already encrypted asset without exposing its plaintext to the filesystem layer. */
+/** Duplicate an image using a fresh nonce and store its ciphertext in PostgreSQL. */
 export async function cloneEncryptedNoteAsset(input: {
   asset: {
-    storage_key: string;
+    storage_key: string | null;
+    encrypted_bytes: Buffer | null;
     original_name_enc: Buffer;
     mime_type: string;
     byte_size: string | number;
   };
   ownerId: string;
   key: Buffer;
-  query: (text: string, values?: (string | number | Buffer | null)[]) => Promise<{ rows: unknown[] }>;
-}): Promise<{ id: string; storageKey: string }> {
-  if (!safeStoragePath(input.asset.storage_key)) throw new Error("Invalid storage key.");
-
-  const id = randomUUID();
-  const storageKey = `${id}.enc`;
-  const root = storageRoot();
-  const sourcePath = safeStoragePath(input.asset.storage_key);
-  const targetPath = safeStoragePath(storageKey);
-  if (!sourcePath || !targetPath) throw new Error("Invalid storage path.");
-
-  await ensurePrivateStorageRoot(root);
+  query: QueryExecutor;
+}): Promise<{ id: string }> {
   const plainBytes = await readVerifiedImageAsset({
+    encryptedBytes: input.asset.encrypted_bytes,
     storageKey: input.asset.storage_key,
     key: input.key,
     mimeType: input.asset.mime_type,
     byteSize: input.asset.byte_size,
   });
-  const freshEncryptedBytes = encryptBytes(plainBytes, input.key);
-  await writeEncryptedFileExclusive(targetPath, freshEncryptedBytes);
-  try {
-    await input.query(
-      `INSERT INTO assets (id, owner_type, owner_id, storage_key, original_name_enc, mime_type, byte_size)
-       VALUES ($1, 'note', $2, $3, $4, $5, $6)`,
-      [id, input.ownerId, storageKey, encryptText(decryptText(input.asset.original_name_enc, input.key), input.key), input.asset.mime_type, input.asset.byte_size],
-    );
-  } catch (error) {
-    await unlink(targetPath).catch(() => undefined);
-    throw error;
-  }
-  return { id, storageKey };
+
+  const id = randomUUID();
+  const encryptedBytes = encryptBytes(plainBytes, input.key);
+  const encryptedName = encryptText(
+    decryptText(input.asset.original_name_enc, input.key),
+    input.key,
+  );
+
+  await input.query(
+    `INSERT INTO assets (id, owner_type, owner_id, storage_key, original_name_enc, mime_type, byte_size)
+     VALUES ($1, 'note', $2, NULL, $3, $4, $5)`,
+    [id, input.ownerId, encryptedName, input.asset.mime_type, plainBytes.byteLength],
+  );
+  await input.query(
+    "INSERT INTO asset_blobs (asset_id, encrypted_bytes) VALUES ($1, $2)",
+    [id, encryptedBytes],
+  );
+
+  return { id };
 }
 
+/** Remove a legacy filesystem copy after its database row has been safely committed. */
 export async function removeEncryptedStorageFile(storageKey: string): Promise<void> {
-  await removeStorageFiles([storageKey]);
+  await removeLegacyStorageFiles([storageKey]);
 }

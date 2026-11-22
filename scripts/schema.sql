@@ -70,13 +70,24 @@ CREATE TABLE IF NOT EXISTS assets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_type TEXT NOT NULL CHECK (owner_type IN ('topic', 'note')),
   owner_id UUID NOT NULL,
-  storage_key TEXT NOT NULL UNIQUE,
+  -- Retained only as a temporary pointer for importing older filesystem assets.
+  storage_key TEXT UNIQUE,
   original_name_enc BYTEA NOT NULL,
   mime_type TEXT NOT NULL,
   byte_size BIGINT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Existing installations used NOT NULL storage_key values for file-backed images.
+ALTER TABLE assets ALTER COLUMN storage_key DROP NOT NULL;
 CREATE INDEX IF NOT EXISTS assets_owner_idx ON assets(owner_type, owner_id);
+
+-- Keep large encrypted image payloads separate from frequently queried metadata.
+-- AES-256-GCM ciphertext is stored here as BYTEA; deleting an asset cascades to its blob.
+CREATE TABLE IF NOT EXISTS asset_blobs (
+  asset_id UUID PRIMARY KEY REFERENCES assets(id) ON DELETE CASCADE,
+  encrypted_bytes BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 DO $$ BEGIN
   ALTER TABLE topics ADD CONSTRAINT topics_cover_asset_fk

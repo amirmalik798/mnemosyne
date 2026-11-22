@@ -10,6 +10,7 @@
     "test:unit": "tsx --test scripts/db-config.test.ts scripts/storage-path.test.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:check": "tsx scripts/check-db.ts",
+    "assets:migrate-to-db": "tsx scripts/migrate-assets-to-db.ts",
     "storage:check": "tsx scripts/check-storage.ts"
   },
   "dependencies": {
