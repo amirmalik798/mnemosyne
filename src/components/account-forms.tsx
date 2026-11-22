@@ -61,11 +61,7 @@ export function AccountRegister() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Account registration failed.");
-      setMessage(
-        data.emailDelivery === "unavailable"
-          ? "Your account has been created, but the confirmation email could not be sent. Configure the Google Apps Script email gateway, then sign in to request another link."
-          : data.message || "Check your inbox for the email confirmation link.",
-      );
+      setMessage(data.message || "If this address can be registered, a confirmation email will be sent. If you do not receive one, sign in to request another.");
       setPassword("");
       setConfirmation("");
     } catch (cause) {

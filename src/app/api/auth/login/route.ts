@@ -47,11 +47,10 @@ export async function POST(request: Request) {
 
     const lockedUntil = user.locked_until ? new Date(user.locked_until) : null;
     if (lockedUntil && lockedUntil.getTime() > Date.now()) {
+      const dummy = await derivePasswordKey(password, Buffer.alloc(16, 0x5a));
+      dummy.fill(0);
       await client.query("ROLLBACK");
-      return NextResponse.json(
-        { error: "Too many sign-in attempts. Try again later." },
-        { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((lockedUntil.getTime() - Date.now()) / 1000))) } },
-      );
+      return NextResponse.json({ error: "Email or password is incorrect." }, { status: 401 });
     }
 
     vaultKey = await verifyAccountPassword(
@@ -74,7 +73,7 @@ export async function POST(request: Request) {
       await client.query("COMMIT");
       return NextResponse.json(
         { error: "Email or password is incorrect." },
-        { status: shouldLock ? 429 : 401 },
+        { status: 401 },
       );
     }
 

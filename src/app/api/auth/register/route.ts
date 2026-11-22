@@ -64,13 +64,13 @@ export async function POST(request: Request) {
       await sendVerificationEmail(email, token);
     } catch {
       return NextResponse.json(
-        { success: true, emailDelivery: "unavailable", message: "Your account was created. Email delivery is not configured or is temporarily unavailable; use the resend-verification option after deployment is configured." },
+        { success: true, message: "If this address can be registered, a confirmation email will be sent. If you do not receive one, sign in to request another." },
         { status: 202 },
       );
     }
 
     return NextResponse.json(
-      { success: true, message: "Your account was created. Check your email for the verification link." },
+      { success: true, message: "If this address can be registered, a confirmation email will be sent. If you do not receive one, sign in to request another." },
       { status: 202 },
     );
   } catch (error) {
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     if (databaseCode(error) === "23505") {
       // Do not reveal whether an email address is already registered.
       return NextResponse.json(
-        { success: true, message: "If this address can be registered, a verification message will be sent." },
+        { success: true, message: "If this address can be registered, a confirmation email will be sent. If you do not receive one, sign in to request another." },
         { status: 202 },
       );
     }
