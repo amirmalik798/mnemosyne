@@ -7,6 +7,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
+import { ImageLightbox } from "@/components/image-lightbox";
 import { detectTextLanguage, getBidiAttributes } from "@/lib/bidi";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -130,6 +131,8 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
   const [imageSelected, setImageSelected] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [isImageDragActive, setIsImageDragActive] = useState(false);
+  const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
+  const closeImagePreview = useCallback(() => setImagePreview(null), []);
   const draftStorageKey = noteId ? `note:${noteId}` : "note:new";
   const editor = useEditor({
     immediatelyRender: false,
@@ -648,7 +651,19 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         onDragLeaveCapture={handleEditorDragLeave}
         onDropCapture={handleEditorDrop}
       >
-        <EditorContent editor={editor} onFocusCapture={() => setFocusTarget("editor")}/>
+        <EditorContent
+          editor={editor}
+          onFocusCapture={() => setFocusTarget("editor")}
+          onClickCapture={(event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLImageElement)) return;
+            const src = target.getAttribute("src") ?? "";
+            if (!/^\/api\/assets\/[0-9a-f-]{36}$/i.test(src)) return;
+            // Keep ProseMirror's normal click handling so the image remains
+            // selectable for editing, while opening its full-size preview here.
+            setImagePreview({ src, alt: target.alt || "Note image" });
+          }}
+        />
         {isImageDragActive && <div className="note-image-drop-overlay" aria-hidden="true">
           <div className="note-image-drop-message">
             <ImagePlus size={25}/>
@@ -656,6 +671,12 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
             <span>Single or multiple images · PNG, JPG, WebP or GIF</span>
           </div>
         </div>}
-      </div><div className="editor-footer"><span>{words} words</span><span>{recoveryStatus}</span><span>Private encrypted note</span></div>
+      </div>
+      <ImageLightbox
+        src={imagePreview?.src ?? null}
+        alt={imagePreview?.alt ?? "Note image"}
+        onClose={closeImagePreview}
+      />
+      <div className="editor-footer"><span>{words} words</span><span>{recoveryStatus}</span><span>Private encrypted note</span></div>
     </section><aside className="editor-side"><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><div className="property-label">Belongs to</div><select dir="auto" lang={detectTextLanguage(topics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy} onChange={(e)=>{setTopicId(e.target.value);setDirty(true);setStatus("Unsaved changes");}}>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></div><div className="property-block"><div className="property-label">Tags</div><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy} onChange={(e)=>{setTagsInput(e.target.value);setDirty(true);setStatus("Unsaved changes");}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button className={`secondary-btn`} disabled={busy} style={{ width:"100%", justifyContent:"flex-start" }} onClick={()=>{setPinned(!pinned);setDirty(true);setStatus("Unsaved changes");}}><Pin size={14}/>{pinned?"Remove from pinned":"Pin this note"}</button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={topics} beforeTransfer={async()=>{if(busy)return false;return dirty?Boolean(await save(false)):true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p></section>{noteId&&<button className="danger-btn" onClick={removeNote} disabled={busy}><Trash2 size={14}/> Move to Trash</button>}</aside></div>{error&&<p className="error-text">{error}</p>}</main>;
 }
