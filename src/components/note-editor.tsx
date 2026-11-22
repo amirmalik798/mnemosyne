@@ -12,6 +12,8 @@ import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { NoteImageNodeView } from "@/components/note-image-node-view";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
+import { UploadProgress } from "@/components/upload-progress";
+import { uploadFormDataWithProgress } from "@/lib/upload-form-data";
 import { useConfirmation } from "@/components/confirmation-dialog";
 import { TextHighlightMark, TextStyleMark } from "@/lib/note-formatting";
 import { FontSelector } from "@/components/theme-provider";
@@ -289,6 +291,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   const highlightColorInputRef = useRef<HTMLInputElement>(null);
   const fontFamilySelectRef = useRef<HTMLSelectElement>(null);
   const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadProgress, setImageUploadProgress] = useState<{ percentage: number; label: string; detail?: string } | null>(null);
   const [isImageDragActive, setIsImageDragActive] = useState(false);
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
   const closeImagePreview = useCallback(() => setImagePreview(null), []);
@@ -850,6 +853,13 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     const uploadedAssets: Array<{ file: File; url: string }> = [];
     let insertedCount = 0;
     let updatedContent: any = null;
+    const totalUploadBytes = validFiles.reduce((total, file) => total + file.size, 0);
+    let completedUploadBytes = 0;
+    setImageUploadProgress({
+      percentage: 0,
+      label: "Preparing image uploads…",
+      detail: validFiles.length + (validFiles.length === 1 ? " image selected" : " images selected"),
+    });
 
     try {
       // Create a new note in place first. Do not navigate away while the
@@ -862,20 +872,35 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       for (let index = 0; index < validFiles.length; index += 1) {
         const file = validFiles[index];
         setStatus("Uploading image " + (index + 1) + " of " + validFiles.length + "…");
+        setImageUploadProgress({
+          percentage: totalUploadBytes > 0 ? (completedUploadBytes / totalUploadBytes) * 100 : 0,
+          label: "Uploading image " + (index + 1) + " of " + validFiles.length,
+          detail: file.name,
+        });
 
         try {
           const form = new FormData();
           form.append("file", file, file.name);
-          const response = await fetch("/api/notes/" + id + "/assets", {
-            method: "POST",
-            body: form,
-            credentials: "same-origin",
+          const response = await uploadFormDataWithProgress<{
+            error?: string;
+            asset?: { url?: string };
+          }>("/api/notes/" + id + "/assets", form, (progress) => {
+            const uploadedInCurrentFile = file.size * (progress.percentage / 100);
+            const percentage = totalUploadBytes > 0
+              ? ((completedUploadBytes + uploadedInCurrentFile) / totalUploadBytes) * 100
+              : 0;
+            setImageUploadProgress({
+              percentage,
+              label: "Uploading image " + (index + 1) + " of " + validFiles.length,
+              detail: file.name,
+            });
           });
+
           if (response.status === 401) {
             setStatus("Your session ended. Returning to sign in…");
             return;
           }
-          const data = await response.json().catch(() => null);
+          const data = response.data;
           if (!response.ok) {
             throw new Error(data?.error || "Upload failed (HTTP " + response.status + ").");
           }
@@ -886,6 +911,15 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
           uploadedAssets.push({ file, url: data.asset.url });
         } catch (error) {
           failures.push(file.name + ": " + (error instanceof Error ? error.message : "upload failed"));
+        } finally {
+          completedUploadBytes += file.size;
+          setImageUploadProgress({
+            percentage: totalUploadBytes > 0 ? (completedUploadBytes / totalUploadBytes) * 100 : 100,
+            label: index + 1 === validFiles.length
+              ? "Finishing image uploads"
+              : "Uploaded " + (index + 1) + " of " + validFiles.length,
+            detail: failures.length ? failures.length + " file(s) need attention" : file.name,
+          });
         }
       }
 
@@ -913,6 +947,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         throw new Error("The uploaded images could not be inserted into the note.");
       }
 
+      setImageUploadProgress({ percentage: 100, label: "Saving images to your note", detail: "All image files have been uploaded." });
       insertedCount = uploadedAssets.length;
       updatedContent = editor.getJSON();
       contentRef.current = updatedContent;
@@ -998,6 +1033,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     } finally {
       setBusy(false);
       setImageUploading(false);
+      setImageUploadProgress(null);
     }
   }
 
@@ -1183,6 +1219,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         <button type="button" aria-label="Undo" disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().undo().run()} title="Undo"><Undo2 aria-hidden="true" /><span className="tool-label">Undo</span></button>
         <button type="button" aria-label="Redo" disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().redo().run()} title="Redo"><Redo2 aria-hidden="true" /><span className="tool-label">Redo</span></button>
       </div>
+      {imageUploadProgress && <UploadProgress label={imageUploadProgress.label} percentage={imageUploadProgress.percentage} detail={imageUploadProgress.detail} />}
       <details className="editor-advanced-formatting">
         <summary>More formatting</summary>
         <div className="editor-formatting-controls" role="group" aria-label="Text appearance">
