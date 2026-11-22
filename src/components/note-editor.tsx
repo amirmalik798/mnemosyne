@@ -40,7 +40,14 @@ const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
 
 function getEditorStatusKind(message: string): OperationStatusKind {
   const value = message.toLocaleLowerCase();
-  if (value.includes("fail") || value.includes("could not") || value.includes("error") || value.includes("unavailable")) return "error";
+  if (
+    value.includes("fail") ||
+    value.includes("could not") ||
+    value.includes("error") ||
+    value.includes("unavailable") ||
+    value.includes("attention") ||
+    value.includes("session ended")
+  ) return "error";
   if (value.includes("saving") || value.includes("uploading")) return "loading";
   if (value.includes("unsaved") || value.includes("recovered") || value.includes("draft") || value.includes("need saving") || value.includes("preparing")) return "waiting";
   return "success";
