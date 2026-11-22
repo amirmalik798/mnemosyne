@@ -1840,3 +1840,55 @@ html[data-theme="light"] .category-combobox-empty {
 @media (max-width: 760px) {
   .operation-toast { right: 12px; bottom: 12px; width: calc(100vw - 24px); }
 }
+
+
+/* Always-visible vault lock action in the top-right application header */
+.lock-vault-btn {
+  min-width: 106px;
+  height: 38px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(203,180,126,.38);
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba(203,180,126,.17), rgba(203,180,126,.07));
+  color: var(--gold-bright);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+  transition: background .18s ease, border-color .18s ease, transform .18s ease, opacity .18s ease;
+}
+.lock-vault-btn:hover:not(:disabled) {
+  background: rgba(203,180,126,.23);
+  border-color: rgba(203,180,126,.62);
+  transform: translateY(-1px);
+}
+.lock-vault-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.lock-vault-btn:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 3px;
+}
+.lock-vault-btn:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+.lock-vault-btn svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+@media (max-width: 760px) {
+  .lock-vault-btn {
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+  }
+  .lock-vault-btn span {
+    display: none;
+  }
+}
