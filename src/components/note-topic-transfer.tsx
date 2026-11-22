@@ -2,8 +2,9 @@
 
 import { useMemo, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRightLeft, Copy, FolderInput, X } from "lucide-react";
+import { ArrowRightLeft, Copy, FolderInput, LoaderCircle, X } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
+import { OperationStatus, notifyOperation } from "@/components/operation-status";
 
 export type NoteTopicOption = { id: string; title: string };
 
@@ -21,6 +22,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
   const [destinationTopicId, setDestinationTopicId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [processingMessage, setProcessingMessage] = useState("");
 
   const destinations = useMemo(
     () => topics.filter((topic) => topic.id !== currentTopicId),
@@ -38,11 +40,15 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
     if (!destinationTopicId || busy) return;
     setBusy(true);
     setError("");
+
     try {
       if (beforeTransfer) {
+        setProcessingMessage("Saving your latest note changes…");
         const ready = await beforeTransfer();
-        if (!ready) throw new Error("Save your current changes before moving or copying this note.");
+        if (!ready) throw new Error("Your latest changes could not be saved. Resolve the save issue before moving or copying this note.");
       }
+
+      setProcessingMessage(action === "move" ? "Moving note to the selected topic…" : "Creating an independent copy…");
       const response = await fetch(`/api/notes/${noteId}/transfer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,13 +56,18 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `Could not ${action} this note.`);
+
+      notifyOperation("success", action === "move" ? "Note moved successfully." : "A separate copy of the note was created.");
       setOpen(false);
       router.push(`/notes/${data.noteId}`);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : `Could not ${action} this note.`);
+      const message = cause instanceof Error ? cause.message : `Could not ${action} this note.`;
+      setError(message);
+      notifyOperation("failure", message);
     } finally {
       setBusy(false);
+      setProcessingMessage("");
     }
   }
 
@@ -96,11 +107,11 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
           <p className="form-hint">{action === "move" ? "The note keeps its images, tags and pinned status. Only its topic changes." : "A new note is created with its text, formatting, tags, pinned status and independent copies of its images."}</p>
         </div>
 
-        {error && <p className="error-text" role="alert">{error}</p>}
+        {busy && <OperationStatus kind="loading" message={processingMessage || "Working…"} />}\n        {error && <OperationStatus kind="failure" message={error} />}
         <footer className="transfer-dialog-actions">
           <button type="button" className="secondary-btn" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
           <button type="button" className="primary-btn" onClick={() => void submit()} disabled={busy || !destinationTopicId}>
-            {busy ? (action === "move" ? "Moving…" : "Copying…") : action === "move" ? "Move note" : "Create copy"}
+            {busy ? <><LoaderCircle className="operation-spinner" size={14} /> {processingMessage.includes("Saving") ? "Saving…" : action === "move" ? "Moving…" : "Copying…"}</> : action === "move" ? "Move note" : "Create copy"}
           </button>
         </footer>
       </section>
