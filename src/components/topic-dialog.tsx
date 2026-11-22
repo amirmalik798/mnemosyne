@@ -30,6 +30,12 @@ export function TopicDialog({ onClose, mode = "create", topic }: TopicDialogProp
   const isEdit = mode === "edit";
   if (isEdit && !topic) throw new Error("TopicDialog requires topic data in edit mode.");
   const initialCategory = topic?.category || "Personal";
+  const [savedDetails, setSavedDetails] = useState({
+    title: topic?.title ?? "",
+    subject: topic?.subject ?? "",
+    category: initialCategory,
+    description: topic?.description ?? "",
+  });
   const fileRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLElement>(null);
@@ -54,10 +60,10 @@ export function TopicDialog({ onClose, mode = "create", topic }: TopicDialogProp
   const [confirmation, setConfirmation] = useState<"discard" | "delete" | "remove-cover" | null>(null);
   const hasUnsavedChanges = isEdit
     ? Boolean(topic && (
-        title !== topic.title ||
-        subject !== topic.subject ||
-        category !== initialCategory ||
-        description !== topic.description ||
+        title !== savedDetails.title ||
+        subject !== savedDetails.subject ||
+        category !== savedDetails.category ||
+        description !== savedDetails.description ||
         file !== null
       ))
     : title.trim() !== "" || subject !== "" || category !== "Personal" || description !== "" || file !== null;
@@ -273,6 +279,20 @@ export function TopicDialog({ onClose, mode = "create", topic }: TopicDialogProp
         throw new Error(data.error || (isEdit ? "Could not save topic details." : "Could not create topic."));
       }
 
+      if (isEdit) {
+        const nextDetails = {
+          title: title.trim(),
+          subject: subject.trim(),
+          category: category.trim() || "Personal",
+          description: description.trim(),
+        };
+        setTitle(nextDetails.title);
+        setSubject(nextDetails.subject);
+        setCategory(nextDetails.category);
+        setDescription(nextDetails.description);
+        setSavedDetails(nextDetails);
+      }
+
       topicId = isEdit && topic
         ? topic.id
         : typeof data.topic?.id === "string" ? data.topic.id : null;
@@ -395,12 +415,12 @@ export function TopicDialog({ onClose, mode = "create", topic }: TopicDialogProp
       <div className="form-grid" aria-busy={busy}>
       <div className="form-field full">
         <div className="topic-field-label-row"><label className="form-label" htmlFor={`${fieldPrefix}-title`}>Topic title</label><span className="topic-field-required">Required</span></div>
-        <input ref={titleInputRef} id={`${fieldPrefix}-title`} dir="auto" lang={detectTextLanguage(title)} className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. The Architecture of Thought" maxLength={120} required aria-required="true" aria-describedby="new-topic-title-help" autoFocus disabled={busy} />
+        <input ref={titleInputRef} id={`${fieldPrefix}-title`} dir="auto" lang={detectTextLanguage(title)} className="field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. The Architecture of Thought" maxLength={120} required aria-required="true" aria-describedby={`${fieldPrefix}-title-help`} autoFocus disabled={busy} />
         <div className="topic-field-meta"><span id={`${fieldPrefix}-title-help`}>A clear name makes this collection easy to recognize.</span><span className="topic-field-counter">{title.length} / 120</span></div>
       </div>
       <div className="form-field">
         <div className="topic-field-label-row"><label className="form-label" htmlFor={`${fieldPrefix}-subject`}>Subject</label><span className="topic-field-optional">Optional</span></div>
-        <input id={`${fieldPrefix}-subject`} dir="auto" lang={detectTextLanguage(subject)} className="field" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="A short subtitle" maxLength={120} aria-describedby="new-topic-subject-help" disabled={busy} />
+        <input id={`${fieldPrefix}-subject`} dir="auto" lang={detectTextLanguage(subject)} className="field" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="A short subtitle" maxLength={120} aria-describedby={`${fieldPrefix}-subject-help`} disabled={busy} />
         <span className="topic-field-help" id={`${fieldPrefix}-subject-help`}>A short phrase to add context to the title.</span>
       </div>
       <div className="form-field"><div className="topic-field-label-row"><label className="form-label" htmlFor={`${fieldPrefix}-category`}>Category</label><span className="topic-field-optional">Optional</span></div><div className="category-combobox" ref={categoryRef}><div className="category-combobox-input-wrap"><input id={`${fieldPrefix}-category`} disabled={busy} className="field category-combobox-input" role="combobox" aria-haspopup="listbox" aria-describedby={`${fieldPrefix}-category-help`} aria-autocomplete="list" aria-expanded={categoryMenuOpen} aria-controls={`${fieldPrefix}-category-options`} aria-activedescendant={categoryMenuOpen && categoryOptionCount > 0 ? `${fieldPrefix}-category-option-${activeCategoryIndex}` : undefined} autoComplete="off" value={category} onFocus={() => { setCategoryMenuOpen(true); setFilterCategories(false); setActiveCategoryIndex(0); }} onClick={() => { setCategoryMenuOpen(true); setFilterCategories(false); setActiveCategoryIndex(0); }} onChange={(e) => { setCategory(e.target.value); setCategoryMenuOpen(true); setFilterCategories(true); setActiveCategoryIndex(0); }} onKeyDown={(e) => {
@@ -434,16 +454,16 @@ export function TopicDialog({ onClose, mode = "create", topic }: TopicDialogProp
                   chooseCategory(category.trim());
                 }
               }
-            }} placeholder="Choose or create a category" maxLength={60}/><button type="button" disabled={busy} className="category-combobox-toggle" aria-label={categoryMenuOpen ? "Close categories" : "Open categories"} title={categoryMenuOpen ? "Close categories" : "Open categories"} aria-expanded={categoryMenuOpen} onClick={() => { setCategoryMenuOpen((open) => !open); setFilterCategories(false); setActiveCategoryIndex(0); }}><ChevronDown size={17}/></button></div>{categoryMenuOpen && <div className="category-combobox-menu" id={`${fieldPrefix}-category-options`} role="listbox" aria-label="Available categories">{visibleCategories.map((item, index) => <button type="button" role="option" id={`${fieldPrefix}-category-option-${index}`} aria-selected={category.toLocaleLowerCase() === item.toLocaleLowerCase()} className={`category-combobox-option ${activeCategoryIndex === index ? "active" : ""}`} key={item} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setActiveCategoryIndex(index)} onClick={() => chooseCategory(item)}><span>{item}</span>{category.toLocaleLowerCase() === item.toLocaleLowerCase() && <Check size={15}/>}</button>)}{canCreateCategory && <button type="button" role="option" id={`${fieldPrefix}-category-option-${visibleCategories.length}`} aria-selected="false" className={`category-combobox-option category-combobox-create ${activeCategoryIndex === visibleCategories.length ? "active" : ""}`} aria-label={`Create category ${category.trim()}`} title={`Create category ${category.trim()}`} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setActiveCategoryIndex(visibleCategories.length)} onClick={() => chooseCategory(category.trim())}><Plus size={15} aria-hidden="true"/><span>Create category</span></button>}{visibleCategories.length === 0 && hasExactCategory === false && !category.trim() && <div className="category-combobox-empty">No categories yet. Type a name to create one.</div>}</div>}</div><span className="topic-field-help" id={`${fieldPrefix}-category-help`}>Personal is selected by default. Type to filter or create a category; use ↑ / ↓ and Enter to choose a suggestion.</span>{categorySuggestionsError && <OperationStatus kind="failure" message={categorySuggestionsError} compact />}</div>
+            }} placeholder="Choose or create a category" maxLength={60}/><button type="button" disabled={busy} className="category-combobox-toggle" aria-label={categoryMenuOpen ? "Close categories" : "Open categories"} title={categoryMenuOpen ? "Close categories" : "Open categories"} aria-expanded={categoryMenuOpen} onClick={() => { setCategoryMenuOpen((open) => !open); setFilterCategories(false); setActiveCategoryIndex(0); }}><ChevronDown size={17}/></button></div>{categoryMenuOpen && <div className="category-combobox-menu" id={`${fieldPrefix}-category-options`} role="listbox" aria-label="Available categories">{visibleCategories.map((item, index) => <button type="button" role="option" id={`${fieldPrefix}-category-option-${index}`} aria-selected={category.toLocaleLowerCase() === item.toLocaleLowerCase()} className={`category-combobox-option ${activeCategoryIndex === index ? "active" : ""}`} key={item} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setActiveCategoryIndex(index)} onClick={() => chooseCategory(item)}><span>{item}</span>{category.toLocaleLowerCase() === item.toLocaleLowerCase() && <Check size={15}/>}</button>)}{canCreateCategory && <button type="button" role="option" id={`${fieldPrefix}-category-option-${visibleCategories.length}`} aria-selected="false" className={`category-combobox-option category-combobox-create ${activeCategoryIndex === visibleCategories.length ? "active" : ""}`} aria-label={`Create category ${category.trim()}`} title={`Create category ${category.trim()}`} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setActiveCategoryIndex(visibleCategories.length)} onClick={() => chooseCategory(category.trim())}><Plus size={15} aria-hidden="true"/><span>Create category</span></button>}{visibleCategories.length === 0 && hasExactCategory === false && !category.trim() && <div className="category-combobox-empty">No categories yet. Type a name to create one.</div>}</div>}</div><span className="topic-field-help" id={`${fieldPrefix}-category-help`}>{isEdit ? "Choose an existing category or type a new one; use ↑ / ↓ and Enter to choose a suggestion." : "Personal is selected by default. Type to filter or create a category; use ↑ / ↓ and Enter to choose a suggestion."}</span>{categorySuggestionsError && <OperationStatus kind="failure" message={categorySuggestionsError} compact />}</div>
       <div className="form-field full">
         <div className="topic-field-label-row"><label className="form-label" htmlFor={`${fieldPrefix}-description`}>Description</label><span className="topic-field-optional">Optional</span></div>
-        <textarea id={`${fieldPrefix}-description`} dir="auto" lang={detectTextLanguage(description)} className="textarea-field" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What belongs in this collection?" maxLength={1000} aria-describedby="new-topic-description-help" disabled={busy} />
+        <textarea id={`${fieldPrefix}-description`} dir="auto" lang={detectTextLanguage(description)} className="textarea-field" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What belongs in this collection?" maxLength={1000} aria-describedby={`${fieldPrefix}-description-help`} disabled={busy} />
         <div className="topic-field-meta"><span id={`${fieldPrefix}-description-help`}>A sentence about what you plan to collect here.</span><span className="topic-field-counter">{description.length} / 1,000</span></div>
       </div>
       <div className="form-field full topic-cover-field">
-        <div className="topic-field-label-row"><label className="form-label" htmlFor={`${fieldPrefix}-cover`}>Custom thumbnail</label><span className="topic-field-optional">Optional</span></div>
+        <div className="topic-field-label-row"><label className="form-label" htmlFor={`${fieldPrefix}-cover`}>{isEdit ? "Topic thumbnail" : "Custom thumbnail"}</label><span className="topic-field-optional">Optional</span></div>
         <input id={`${fieldPrefix}-cover`} ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => { chooseFile(e.target.files?.[0] ?? null); e.currentTarget.value = ""; }} />
-        <button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy} aria-describedby="new-topic-cover-help" aria-label={preview ? "Replace topic cover image" : "Choose topic cover image"} title={preview ? "Replace topic cover image" : "Choose topic cover image"}>{preview ? <><img src={preview} alt={file ? `Selected cover preview: ${file.name}` : "Current topic cover preview"} /><ImagePlus size={19} aria-hidden="true" /></> : <ImagePlus size={22} aria-hidden="true" />}<span>{preview ? "Replace cover image" : "Choose cover image"}</span></button>
+        <button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy} aria-describedby={`${fieldPrefix}-cover-help`} aria-label={preview ? "Replace topic cover image" : "Choose topic cover image"} title={preview ? "Replace topic cover image" : "Choose topic cover image"}>{preview ? <><img src={preview} alt={file ? `Selected cover preview: ${file.name}` : "Current topic cover preview"} /><ImagePlus size={19} aria-hidden="true" /></> : <ImagePlus size={22} aria-hidden="true" />}<span>{preview ? "Replace cover image" : "Choose cover image"}</span></button>
         <span className="topic-field-help" id={`${fieldPrefix}-cover-help`}>PNG, JPEG, WebP or GIF. Maximum file size: 8 MB.</span>
         {file && (
           <div className="topic-cover-selection" aria-live="polite">
@@ -496,7 +516,7 @@ export function TopicDialog({ onClose, mode = "create", topic }: TopicDialogProp
             eyebrow: isEdit ? "Unsaved topic changes" : "Unsaved changes",
             title: isEdit ? "Discard your edits?" : "Discard this topic?",
             description: isEdit
-              ? "Your unsaved topic details and selected replacement cover will be discarded. The saved topic will remain unchanged."
+              ? "Your unsaved edits and any selected replacement cover will be discarded. Changes already saved will remain in the archive."
               : "Your topic details and selected cover image have not been saved. Close this dialog and discard your changes?",
             cancelLabel: "Keep editing",
             confirmLabel: "Discard changes",
