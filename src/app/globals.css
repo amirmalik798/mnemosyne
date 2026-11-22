@@ -1644,3 +1644,75 @@ html[data-theme="light"] .category-combobox-empty {
   font-size: 11px;
   line-height: 1.6;
 }
+
+
+/* Image node actions in the editor */
+.rich-editor .note-image-node {
+  position: relative;
+  display: table;
+  max-width: 100%;
+  margin: 15px 0 23px;
+  line-height: 0;
+  vertical-align: top;
+}
+.rich-editor .note-image-node .note-editor-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  cursor: zoom-in;
+}
+.note-image-delete {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 5;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 9px;
+  background: rgba(16,20,27,.92);
+  color: #FFFFFF;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  opacity: .94;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, opacity .16s ease, transform .16s ease;
+}
+.note-image-delete svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.note-image-delete:hover,
+.note-image-delete:focus-visible {
+  background: #9F3538;
+  border-color: rgba(255,255,255,.48);
+  color: #FFFFFF;
+  opacity: 1;
+}
+.note-image-delete:active {
+  transform: translateY(1px);
+}
+@media (max-width: 760px) {
+  .rich-editor .note-image-node {
+    max-width: 100%;
+    margin: 13px 0 20px;
+  }
+  .note-image-delete {
+    top: 7px;
+    right: 7px;
+    min-height: 36px;
+    padding: 0 10px;
+  }
+}
