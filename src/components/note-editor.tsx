@@ -335,7 +335,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       setDirty(false);
       setStatus("All changes saved");
       setRecoveryStatus("Saved securely to your archive");
-      void removeLocalNoteDraft(savedDraftKey).catch(() => undefined);
+      await removeLocalNoteDraft(savedDraftKey).catch(() => undefined);
       router.refresh();
       return savedId;
     } catch (e) {
