@@ -22,15 +22,15 @@ function isSafeInternalHref(value: string): boolean {
   }
 }
 
-export function saveResumeLocation(): void {
+export function saveResumeLocation(options: { resetScroll?: boolean } = {}): void {
   if (typeof window === "undefined") return;
   const href = window.location.pathname + window.location.search + window.location.hash;
   if (!isSafeInternalHref(href)) return;
 
   const state: ResumeLocation = {
     href,
-    scrollX: window.scrollX,
-    scrollY: window.scrollY,
+    scrollX: options.resetScroll ? 0 : window.scrollX,
+    scrollY: options.resetScroll ? 0 : window.scrollY,
     savedAt: Date.now(),
   };
   try {
