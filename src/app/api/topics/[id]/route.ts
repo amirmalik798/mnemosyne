@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireVaultSession, assertSameOrigin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
-import { deleteAssetsFor } from "@/lib/storage";
+import { deleteEmptyTopicWithAssets } from "@/lib/storage";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
@@ -74,12 +74,7 @@ export async function DELETE(request: Request, context: Context) {
     assertSameOrigin(request);
     await requireVaultSession();
     const { id } = await context.params;
-    const count = await db.query("SELECT COUNT(*)::int AS count FROM notes WHERE topic_id = $1", [id]);
-    if (Number(count.rows[0]?.count ?? 0) > 0) throw new Error("CONFLICT");
-    const exists = await db.query("SELECT id FROM topics WHERE id = $1", [id]);
-    if (!exists.rows[0]) throw new Error("NOT_FOUND");
-    await deleteAssetsFor("topic", id);
-    await db.query("DELETE FROM topics WHERE id = $1", [id]);
+    await deleteEmptyTopicWithAssets(id);
     return NextResponse.json({ success: true });
   } catch (error) { return apiError(error); }
 }

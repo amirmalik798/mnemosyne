@@ -83,7 +83,7 @@ npm run start
 
 - **db:migrate** applies the idempotent schema. It uses the same PostgreSQL connection and TLS validation rules as the application.
 - **db:check** verifies database connectivity and required tables/columns, including the **vault_sessions.last_active_at** session-hardening migration.
-- **storage:check** is read-only. It checks that database-referenced encrypted image files exist and have the expected encrypted size, and reports orphaned files. It never deletes or repairs files automatically.
+- **storage:check** is read-only. It checks that database-referenced encrypted image files exist and have the expected encrypted size, and reports orphaned files. It never deletes or repairs files automatically. Asset paths accept only generated UUID filenames, and symlinked storage files are rejected.
 - **test:unit** runs fast, database-independent tests for PostgreSQL connection and TLS validation.
 
 ## Note organization

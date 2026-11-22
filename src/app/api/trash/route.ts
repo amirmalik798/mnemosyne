@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
-import { deleteAssetsFor } from "@/lib/storage";
+import { deleteTrashedNoteWithAssets } from "@/lib/storage";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 export async function GET(request: Request) {
@@ -68,14 +68,17 @@ export async function POST(request: Request) {
     const body = await readJsonObject(request, 16 * 1024);
     const id = stringField(body, "id", 64, true);
     const action = stringField(body, "action", 20, true);
-    const exists = await db.query("SELECT id FROM notes WHERE id=$1 AND deleted_at IS NOT NULL", [id]);
-    if (!exists.rows[0]) throw new Error("NOT_FOUND");
     if (action === "restore") {
-      await db.query("UPDATE notes SET deleted_at=NULL, updated_at=NOW() WHERE id=$1", [id]);
+      const restored = await db.query(
+        "UPDATE notes SET deleted_at = NULL, updated_at = NOW() WHERE id = $1 AND deleted_at IS NOT NULL RETURNING id",
+        [id],
+      );
+      if (!restored.rows[0]) throw new Error("NOT_FOUND");
     } else if (action === "delete") {
-      await deleteAssetsFor("note", id);
-      await db.query("DELETE FROM notes WHERE id=$1", [id]);
-    } else throw new Error("VALIDATION:Choose a valid trash action.");
+      await deleteTrashedNoteWithAssets(id);
+    } else {
+      throw new Error("VALIDATION:Choose a valid trash action.");
+    }
     return NextResponse.json({ success: true });
   } catch (error) { return apiError(error); }
 }

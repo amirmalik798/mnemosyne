@@ -2,21 +2,13 @@ import { loadEnvConfig } from "@next/env";
 loadEnvConfig(process.cwd());
 import { lstat, readdir } from "node:fs/promises";
 import type { Dirent } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { join, resolve } from "node:path";
 import { Pool } from "pg";
 import { createDatabasePoolConfig } from "../src/lib/db-config";
+import { resolveStorageFilePath } from "../src/lib/storage-path";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const ENCRYPTION_OVERHEAD_BYTES = 12 + 16;
-const STORAGE_KEY_PATTERN = /^[a-f0-9-]+\.enc$/i;
-
-function storagePath(root: string, storageKey: string): string | null {
-  if (!STORAGE_KEY_PATTERN.test(storageKey)) return null;
-  const path = resolve(root, storageKey);
-  const prefix = root.endsWith(sep) ? root : root + sep;
-  return path.startsWith(prefix) ? path : null;
-}
-
 async function main() {
   const root = resolve(process.env.STORAGE_DIR || join(process.cwd(), "storage"));
   const pool = new Pool(createDatabasePoolConfig(process.env, { max: 1 }));
@@ -33,7 +25,7 @@ async function main() {
 
     for (const row of result.rows) {
       const storageKey = String(row.storage_key);
-      const filePath = storagePath(root, storageKey);
+      const filePath = resolveStorageFilePath(root, storageKey);
       if (!filePath) {
         invalidFiles += 1;
         issues.push("Invalid storage key for asset " + row.id);

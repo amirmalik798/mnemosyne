@@ -9,6 +9,7 @@ export function apiError(error: unknown) {
   if (message === "UNSUPPORTED_MEDIA_TYPE") return NextResponse.json({ error: "Send this request using the expected content type." }, { status: 415 });
   if (message === "NOT_FOUND") return NextResponse.json({ error: "The requested item was not found." }, { status: 404 });
   if (message === "CONFLICT") return NextResponse.json({ error: "This item cannot be deleted while it contains notes." }, { status: 409 });
+  if (message === "ASSET_IN_USE") return NextResponse.json({ error: "This image is still used by a note. Remove it from the note and save before deleting the image." }, { status: 409 });
   if (message.startsWith("VALIDATION:")) return NextResponse.json({ error: message.slice(11) }, { status: 400 });
   const errorName = error instanceof Error ? error.name : "UnknownError";
   const errorCode = error && typeof error === "object" && "code" in error

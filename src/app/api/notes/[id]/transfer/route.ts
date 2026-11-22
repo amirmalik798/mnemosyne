@@ -58,6 +58,7 @@ function replaceImageAssetIds(value: unknown, replacements: Map<string, string>)
 export async function POST(request: Request, context: Context) {
   let client: PoolClient | undefined;
   const createdStorageKeys: string[] = [];
+  let commitAttempted = false;
   try {
     assertSameOrigin(request);
     const session = await requireVaultSession();
@@ -89,6 +90,7 @@ export async function POST(request: Request, context: Context) {
         [destinationTopicId, id],
       );
       await client.query("UPDATE topics SET updated_at=NOW() WHERE id=ANY($1::uuid[])", [[source.topic_id, destinationTopicId]]);
+      commitAttempted = true;
       await client.query("COMMIT");
       return NextResponse.json({ success: true, action, noteId: id, topicId: destinationTopicId });
     }
@@ -138,13 +140,22 @@ export async function POST(request: Request, context: Context) {
       ],
     );
     await client.query("UPDATE topics SET updated_at=NOW() WHERE id=$1", [destinationTopicId]);
+    commitAttempted = true;
     await client.query("COMMIT");
     return NextResponse.json({ success: true, action, noteId: newNoteId, topicId: destinationTopicId }, { status: 201 });
   } catch (error) {
     if (client) {
       await client.query("ROLLBACK").catch(() => undefined);
     }
-    await Promise.all(createdStorageKeys.map(removeEncryptedStorageFile));
+    if (!commitAttempted) {
+      await Promise.all(createdStorageKeys.map(removeEncryptedStorageFile));
+    } else if (createdStorageKeys.length > 0) {
+      // COMMIT may have reached PostgreSQL even if its response was lost.
+      // Keep the encrypted copies to avoid committed rows pointing at missing files.
+      console.error("[Mnemosyne] Note-copy transaction outcome is uncertain; cloned encrypted files were retained.", {
+        fileCount: createdStorageKeys.length,
+      });
+    }
     return apiError(error);
   } finally {
     client?.release();
