@@ -8,7 +8,7 @@ export type NoteItem = { id: string; topicId: string; topicTitle: string; title:
 export function TopicCard({ topic }: { topic: TopicItem }) {
   const glyph = topic.title.trim().charAt(0).toUpperCase() || "M";
   return <Link className="topic-card" href={`/topics/${topic.id}`}>
-    <div className="topic-cover">{topic.coverUrl ? <img src={topic.coverUrl} alt={`${topic.title} cover`} /> : <div className="cover-placeholder"><span className="cover-glyph">{glyph}</span></div>}<span className="cover-category">{topic.category || "Collection"}</span></div>
+    <div className="topic-cover">{topic.coverUrl ? <img src={topic.coverUrl} alt={`${topic.title} cover`} loading="lazy" decoding="async" /> : <div className="cover-placeholder"><span className="cover-glyph">{glyph}</span></div>}<span className="cover-category">{topic.category || "Collection"}</span></div>
     <div className="topic-body"><h2 className="topic-title" dir="auto" lang={detectTextLanguage(topic.title)}>{topic.title}</h2><div className="topic-subject" dir="auto" lang={detectTextLanguage(topic.subject)}>{topic.subject || "A personal collection"}</div><p className="topic-description" dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description || "A place to gather notes, references and ideas worth keeping."}</p><div className="topic-meta"><span className="meta-count"><BookOpen /> {topic.noteCount} {topic.noteCount === 1 ? "note" : "notes"}</span><span>{new Date(topic.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span></div></div>
   </Link>;
 }
