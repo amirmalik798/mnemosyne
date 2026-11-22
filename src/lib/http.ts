@@ -57,9 +57,12 @@ export async function readJsonObject(
     reader.releaseLock();
   }
 
+  const payload = Buffer.concat(chunks, totalBytes);
+  chunks.length = 0;
+
   let parsed: unknown;
   try {
-    parsed = JSON.parse(Buffer.concat(chunks, totalBytes).toString("utf8"));
+    parsed = JSON.parse(payload.toString("utf8"));
   } catch {
     throw new Error("VALIDATION:Request body must contain valid JSON.");
   }
@@ -102,7 +105,11 @@ export async function readBoundedFormData(
   }
 
   try {
-    return await new Response(Buffer.concat(chunks, totalBytes), {
+    // Drop references to the streamed chunks before parsing the single
+    // contiguous multipart payload to avoid retaining two full upload copies.
+    const payload = Buffer.concat(chunks, totalBytes);
+    chunks.length = 0;
+    return await new Response(payload, {
       headers: { "Content-Type": contentType },
     }).formData();
   } catch {
