@@ -1,16 +1,13 @@
 /**
- * Lightweight Arabic-script direction and language helpers.
+ * Arabic-script language and paragraph-direction helpers.
  *
- * Direction is deliberately detected per text block (not for the entire app),
- * so English and RTL paragraphs can coexist inside one note without forcing
- * the surrounding application chrome to reverse.
+ * Direction is computed independently for every text block so Urdu, Arabic
+ * and English can be mixed in one note without inheriting the wrong direction.
  */
-
 export type TextLanguage = "ur" | "ar" | "en";
 export type TextDirection = "rtl" | "ltr";
 
 // Characters commonly used in Urdu but not in standard Arabic orthography.
-// This is a practical script heuristic rather than full language identification.
 const URDU_SPECIFIC_CHARACTERS = /[پٹڈڑںھہےگچژک]/u;
 const ARABIC_SCRIPT_CHARACTERS = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
 const RTL_STRONG_CHARACTER = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/u;
@@ -22,6 +19,7 @@ export function detectTextLanguage(value: string): TextLanguage {
   return "en";
 }
 
+/** Return the direction of the first strong (non-neutral) character. */
 export function detectTextDirection(value: string): TextDirection {
   for (const character of value) {
     if (RTL_STRONG_CHARACTER.test(character)) return "rtl";
@@ -30,22 +28,36 @@ export function detectTextDirection(value: string): TextDirection {
   return "ltr";
 }
 
-export function getBidiAttributes(value: string): { dir: "auto"; lang: TextLanguage } {
-  return { dir: "auto", lang: detectTextLanguage(value) };
+/** Explicit direction avoids browser-dependent dir=auto behaviour in editors. */
+export function getBidiAttributes(value: string): { dir: TextDirection; lang: TextLanguage } {
+  return { dir: detectTextDirection(value), lang: detectTextLanguage(value) };
 }
 
-/** Set auto direction and an appropriate font-language hint on rich-editor blocks. */
+/**
+ * Apply explicit direction to ProseMirror blocks after create/update/paste.
+ * Do not leave paragraphs at dir=auto: Chromium can calculate editable
+ * paragraph direction inconsistently when pasted markup contains mixed runs.
+ */
 export function applyBidiAttributes(root: HTMLElement): void {
-  root.setAttribute("dir", "auto");
+  root.setAttribute("dir", "ltr");
+  root.style.textAlign = "start";
 
   const blocks = root.querySelectorAll<HTMLElement>("p,h1,h2,h3,h4,h5,h6,blockquote,li");
   blocks.forEach((block) => {
     const text = block.innerText || block.textContent || "";
-    block.setAttribute("dir", "auto");
+    const direction = detectTextDirection(text);
+    block.setAttribute("dir", direction);
     block.setAttribute("lang", detectTextLanguage(text));
+    block.style.direction = direction;
+    block.style.textAlign = direction === "rtl" ? "right" : "left";
+    block.style.unicodeBidi = "plaintext";
   });
 
   root.querySelectorAll<HTMLElement>("ul,ol").forEach((list) => {
-    list.setAttribute("dir", "auto");
+    const text = list.innerText || list.textContent || "";
+    const direction = detectTextDirection(text);
+    list.setAttribute("dir", direction);
+    list.style.direction = direction;
+    list.style.textAlign = direction === "rtl" ? "right" : "left";
   });
 }
