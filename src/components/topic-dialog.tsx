@@ -162,7 +162,6 @@ export function TopicDialog({ onClose }: { onClose: () => void }) {
         onClose();
       } else {
         setError(message);
-        notifyOperation("failure", message);
       }
     } finally {
       setBusy(false);
