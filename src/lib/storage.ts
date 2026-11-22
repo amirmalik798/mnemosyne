@@ -291,11 +291,18 @@ export async function deleteEmptyTopicWithAssets(topicId: string, userId: string
   await removeLegacyStorageFiles(legacyStorageKeys);
 }
 
-export async function deleteUnreferencedNoteAssets(noteId: string, content: unknown, userId: string): Promise<void> {
+function collectReferencedNoteAssetIds(content: unknown): Set<string> {
   const referenced = new Set<string>();
-  const visit = (value: unknown) => {
-    if (!value || typeof value !== "object") return;
-    if (Array.isArray(value)) { value.forEach(visit); return; }
+  const pending: unknown[] = [content];
+
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (!value || typeof value !== "object") continue;
+    if (Array.isArray(value)) {
+      pending.push(...value);
+      continue;
+    }
+
     const record = value as Record<string, unknown>;
     if (record.type === "image" && record.attrs && typeof record.attrs === "object") {
       const src = (record.attrs as Record<string, unknown>).src;
@@ -304,21 +311,73 @@ export async function deleteUnreferencedNoteAssets(noteId: string, content: unkn
         if (match) referenced.add(match[1]);
       }
     }
-    Object.values(record).forEach(visit);
-  };
-  visit(content);
+    pending.push(...Object.values(record));
+  }
+  return referenced;
+}
 
-  const result = await queryAsUser(userId,
-    `DELETE FROM assets
-     WHERE owner_type = 'note'
-       AND owner_id = $1
-       AND id::text <> ALL($2::text[])
-     RETURNING storage_key`,
-    [noteId, Array.from(referenced)],
-  );
-  await removeLegacyStorageFiles(
-    result.rows.map((row: { storage_key: string | null }) => row.storage_key),
-  );
+/**
+ * Update a note and remove no-longer-referenced images under the same row lock
+ * and transaction. This serializes edits with uploads, moves, and asset deletes,
+ * preventing one concurrent save from deleting another save's newly referenced
+ * image.
+ */
+export async function updateNoteAndCleanupAssets(input: {
+  userId: string;
+  noteId: string;
+  topicId: string;
+  titleEnc: Buffer;
+  subjectEnc: Buffer;
+  contentEnc: Buffer;
+  tagsEnc: Buffer;
+  pinned: boolean;
+  content: unknown;
+}): Promise<void> {
+  const referenced = Array.from(collectReferencedNoteAssetIds(input.content));
+
+  const legacyStorageKeys = await withTransaction(input.userId, async (client) => {
+    const note = await client.query(
+      "SELECT id FROM notes WHERE id = $1 AND deleted_at IS NULL FOR UPDATE",
+      [input.noteId],
+    );
+    if (!note.rows[0]) throw new Error("NOT_FOUND");
+
+    const topic = await client.query(
+      "SELECT id FROM topics WHERE id = $1",
+      [input.topicId],
+    );
+    if (!topic.rows[0]) throw new Error("VALIDATION:Choose a valid topic.");
+
+    await client.query(
+      `UPDATE notes
+       SET topic_id=$1, title_enc=$2, subject_enc=$3, content_enc=$4,
+           tags_enc=$5, pinned=$6, updated_at=NOW()
+       WHERE id=$7 AND deleted_at IS NULL`,
+      [
+        input.topicId,
+        input.titleEnc,
+        input.subjectEnc,
+        input.contentEnc,
+        input.tagsEnc,
+        input.pinned,
+        input.noteId,
+      ],
+    );
+
+    const removed = await client.query(
+      `DELETE FROM assets
+       WHERE owner_type = 'note'
+         AND owner_id = $1
+         AND id::text <> ALL($2::text[])
+       RETURNING storage_key`,
+      [input.noteId, referenced],
+    );
+    return removed.rows.map((row) => row.storage_key as string | null);
+  });
+
+  // Legacy files are outside PostgreSQL and can only be removed after commit.
+  // Their cleanup helper logs non-ENOENT failures without undoing the saved note.
+  await removeLegacyStorageFiles(legacyStorageKeys);
 }
 
 /** Duplicate an image using a fresh nonce and store its ciphertext in PostgreSQL. */
