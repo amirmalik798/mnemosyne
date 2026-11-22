@@ -251,6 +251,22 @@ export function AccountLogin() {
   const [needsVerification, setNeedsVerification] = useState(false);
   const [resending, setResending] = useState(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("recovery") !== "warning") return;
+
+    params.delete("recovery");
+    const query = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + (query ? "?" + query : "") + window.location.hash,
+    );
+    setError(
+      "Your session expired, and this device could not confirm that every unsaved change was stored. After signing in, check the note's local versions before continuing.",
+    );
+  }, []);
+
   function validate(values = { email, password }): FieldErrors {
     const next: FieldErrors = {};
     const emailError = validateEmail(values.email);
