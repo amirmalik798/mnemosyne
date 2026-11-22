@@ -85,12 +85,8 @@ export async function GET(_request: Request, context: Context) {
 
     const noteAssetsResult = referencedAssetIds.size > 0 && notes.length > 0
       ? await db.query(
-          \`SELECT id, owner_id, storage_key, original_name_enc, byte_size
-           FROM assets
-           WHERE owner_type='note'
-             AND id = ANY($1::uuid[])
-             AND owner_id = ANY($2::uuid[])
-           ORDER BY created_at ASC\`,
+          "SELECT id, owner_id, storage_key, original_name_enc, byte_size FROM assets " +
+          "WHERE owner_type='note' AND id = ANY($1::uuid[]) AND owner_id = ANY($2::uuid[]) ORDER BY created_at ASC",
           [Array.from(referencedAssetIds), notes.map((note) => note.id)],
         )
       : { rows: [] };
@@ -98,8 +94,7 @@ export async function GET(_request: Request, context: Context) {
     let coverAsset: AssetRow | null = null;
     if (topic.cover_asset_id) {
       const coverResult = await db.query(
-        \`SELECT id, owner_id, storage_key, original_name_enc, byte_size
-         FROM assets WHERE id=$1 AND owner_type='topic' AND owner_id=$2\`,
+        "SELECT id, owner_id, storage_key, original_name_enc, byte_size FROM assets WHERE id=$1 AND owner_type='topic' AND owner_id=$2",
         [topic.cover_asset_id, id],
       );
       coverAsset = (coverResult.rows[0] as AssetRow | undefined) ?? null;
@@ -140,7 +135,7 @@ export async function GET(_request: Request, context: Context) {
       imageIndexByNote.set(asset.owner_id, imageIndex);
       totalBytes += Number(asset.byte_size);
       entries.push({
-        name: topicFolder + "/Notes/" + noteTitle + "/" + String(imageIndex).padStart(2, "0") + "-" + filename,
+        name: topicFolder + "/Notes/" + noteTitle + "-" + asset.owner_id.slice(0, 8) + "/" + String(imageIndex).padStart(2, "0") + "-" + filename,
         read: () => readEncryptedAsset(asset.storage_key, session.key),
       });
     }
@@ -148,7 +143,7 @@ export async function GET(_request: Request, context: Context) {
     if (entries.length === 0) {
       throw new Error("VALIDATION:This topic does not contain any downloadable images.");
     }
-    if (!Number.isSafeInteger(totalBytes) || totalBytes > 0xffffffff - 1024 * 1024) {
+    if (!Number.isSafeInteger(totalBytes) || totalBytes > 0xffffffff - 32 * 1024 * 1024) {
       throw new Error("VALIDATION:This topic's images are too large for a single ZIP download.");
     }
 
