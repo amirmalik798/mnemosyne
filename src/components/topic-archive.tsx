@@ -131,19 +131,6 @@ export function TopicArchive({
         )}
       </div>
 
-      {selectedCategory && (
-        <div className="topic-filter-status" role="status" aria-live="polite">
-          <div className="topic-filter-status-copy">
-            <span className="topic-filter-status-dot" aria-hidden="true" />
-            <span>Showing <strong>{selectedCategoryLabel}</strong> topics</span>
-            <span className="topic-filter-status-count">{totalTopics} of {allTopicsCount}</span>
-          </div>
-          <button type="button" className="topic-filter-clear" onClick={() => chooseCategory("")}>
-            <X size={14} aria-hidden="true" /><span>Clear filter</span>
-          </button>
-        </div>
-      )}
-
       {topics.length > 0 ? (
         <div className={`topic-grid topic-archive-grid topic-archive-grid--${gridLayout}`} data-layout={gridLayout} aria-label={`Showing ${topics.length} collections`}>
           {topics.map((topic) => <TopicCard key={topic.id} topic={topic} variant={gridLayout === "single" ? "archive-featured" : "archive"} />)}
