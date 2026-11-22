@@ -532,7 +532,6 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
         setDirty(false);
         setStatus("All changes saved");
         setRecoveryStatus("Saved securely to your archive");
-        if (!quiet) notifyOperation("success", "Your note has been saved securely.");
         await removeLocalNoteDraft(savedDraftKey).catch(() => undefined);
       } else {
         setDirty(true);
@@ -549,7 +548,6 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       } else {
         if (!quiet) {
           setError(message);
-          notifyOperation("failure", "Your note could not be saved. Your local recovery copy has been retained.");
         }
         setStatus(quiet ? "Autosave failed; local recovery is retained" : "Save failed");
       }
@@ -752,7 +750,6 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       setDirty(false);
       setStatus("All changes saved");
       setRecoveryStatus("Saved securely to your archive");
-      notifyOperation("success", insertedCount + " image(s) added and the note was saved securely.");
       await Promise.all([
         removeLocalNoteDraft("note:new").catch(() => undefined),
         removeLocalNoteDraft("note:" + id).catch(() => undefined),
@@ -775,7 +772,6 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       } else {
         setError(message);
         setStatus(insertedCount > 0 ? "Images added; save needs attention" : "Upload failed");
-        notifyOperation("failure", message);
       }
       if (insertedCount > 0) setDirty(true);
     } finally {
@@ -811,7 +807,6 @@ export function NoteEditor({ topics, initialNote, defaultTopicId }: { topics: To
       const message = cause instanceof Error ? cause.message : "Could not move this note to Recently deleted.";
       setError(message);
       setStatus("Move to Trash failed");
-      notifyOperation("failure", message);
     } finally {
       setBusy(false);
     }
