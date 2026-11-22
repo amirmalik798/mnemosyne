@@ -89,23 +89,32 @@ export default async function LibraryPage() {
   const decryptNotes = (rows: typeof recentNotesResult.rows): NoteItem[] => {
     const decrypted: NoteItem[] = [];
     for (const row of rows) {
+      const id = String(row.id);
+      let preview = "";
       try {
-        const id = String(row.id);
         const contentValue = JSON.parse(
           decryptLibraryField(row.content_enc, session.key, { type: "note", id, field: "content_enc" }),
         ) as unknown;
+        preview = extractNotePreview(contentValue);
+      } catch {
+        // A damaged body should be reported, but must not hide otherwise
+        // readable note metadata from the archive overview.
+        recordDecryptionIssue("note", id);
+      }
+
+      try {
         decrypted.push({
           id,
           topicId: row.topic_id,
           topicTitle: decryptLibraryField(row.topic_title_enc, session.key, { type: "note", id, field: "topic_title_enc" }),
           title: decryptLibraryField(row.title_enc, session.key, { type: "note", id, field: "title_enc" }),
           subject: decryptLibraryField(row.subject_enc, session.key, { type: "note", id, field: "subject_enc" }),
-          preview: extractNotePreview(contentValue),
+          preview,
           pinned: row.pinned,
           updatedAt: row.updated_at,
         });
       } catch {
-        recordDecryptionIssue("note", String(row.id));
+        recordDecryptionIssue("note", id);
       }
     }
     return decrypted;
