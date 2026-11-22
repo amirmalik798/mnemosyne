@@ -29,6 +29,7 @@ function searchableText(value: unknown): string {
 }
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
@@ -55,30 +56,54 @@ export async function GET(request: Request) {
       ),
     ]);
 
-    const topics = topicRows.rows.map((row) => ({
-      id: row.id,
-      title: decryptText(row.title_enc, session.key),
-      subject: decryptText(row.subject_enc, session.key),
-      description: decryptText(row.description_enc, session.key),
-      category: decryptText(row.category_enc, session.key),
-      coverUrl: row.cover_asset_id ? `/api/assets/${row.cover_asset_id}` : null,
-      updatedAt: row.updated_at,
-    })).filter((item) =>
-      [item.title, item.subject, item.description, item.category].join(" ").toLocaleLowerCase().includes(needle),
-    ).slice(0, 25);
+    const topics = [];
+    for (let index = 0; index < topicRows.rows.length; index += 1) {
+      if (index > 0 && index % 100 === 0) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        if (request.signal.aborted) return new Response(null, { status: 204 });
+      }
 
-    const notes = noteRows.rows.map((row) => {
+      const row = topicRows.rows[index];
       const title = decryptText(row.title_enc, session.key);
       const subject = decryptText(row.subject_enc, session.key);
+      const description = decryptText(row.description_enc, session.key);
+      const category = decryptText(row.category_enc, session.key);
+      if (![title, subject, description, category].join(" ").toLocaleLowerCase().includes(needle)) continue;
+
+      topics.push({
+        id: row.id,
+        title,
+        subject,
+        description,
+        category,
+        coverUrl: row.cover_asset_id ? `/api/assets/${row.cover_asset_id}` : null,
+        updatedAt: row.updated_at,
+      });
+      // The rows are newest-first, so later matches cannot enter the first
+      // 25 results. Stop instead of decrypting the rest of the topic archive.
+      if (topics.length === 25) break;
+    }
+
+    const notes = [];
+    for (let index = 0; index < noteRows.rows.length; index += 1) {
+      if (index > 0 && index % 100 === 0) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        if (request.signal.aborted) return new Response(null, { status: 204 });
+      }
+
+      const row = noteRows.rows[index];
+      const title = decryptText(row.title_enc, session.key);
+      const subject = decryptText(row.subject_enc, session.key);
+      const topicTitle = decryptText(row.topic_title_enc, session.key);
+      const tags = JSON.parse(decryptText(row.tags_enc, session.key)) as string[];
       const content = JSON.parse(decryptText(row.content_enc, session.key));
       const contentText = searchableText(content);
-      const tags = JSON.parse(decryptText(row.tags_enc, session.key)) as string[];
-      const topicTitle = decryptText(row.topic_title_enc, session.key);
       const searchable = [title, subject, contentText, tags.join(" "), topicTitle]
         .join(" ")
         .toLocaleLowerCase();
 
-      return {
+      if (!searchable.includes(needle)) continue;
+      notes.push({
         id: row.id,
         topicId: row.topic_id,
         title,
@@ -87,10 +112,11 @@ export async function GET(request: Request) {
         tags,
         preview: contentText.slice(0, 220),
         updatedAt: row.updated_at,
-        matches: searchable.includes(needle),
-      };
-    }).filter((item) => item.matches).slice(0, 40)
-      .map(({ matches: _matches, ...item }) => item);
+      });
+      // Preserve the previous newest-first 40-result limit without scanning
+      // older encrypted notes once all visible matches have been collected.
+      if (notes.length === 40) break;
+    }
 
     return NextResponse.json({ topics, notes });
   } catch (error) {
