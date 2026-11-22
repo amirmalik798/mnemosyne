@@ -5,10 +5,10 @@ Mnemosyne is a single-user, password-protected knowledge archive for topics, ric
 ## Features
 
 - First-run vault setup and master-password unlock.
-- Argon2id password-based key derivation and AES-256-GCM encryption for topic fields, note fields, tags, image files and original image names.
+- Argon2id password-based key derivation and AES-256-GCM encryption for topic fields, note fields, tags, image bytes and original image names.
 - A random vault key wrapped by the master-password-derived key.
 - HttpOnly, SameSite=Strict session cookies; server-side session records; 12-hour absolute session expiry; 20-minute inactivity expiry; failed-password lockout.
-- PostgreSQL storage for encrypted content and metadata.
+- PostgreSQL storage for encrypted content, metadata and image blobs. Large image payloads live in a separate table so ordinary note and topic queries do not load them.
 - Encrypted topic covers and note image attachments.
 - Rich-text editing with headings, lists, quotations, formatting, inline images, tags and pinning.
 - Topic management, note reading and editing, trash, restore and permanent deletion.
@@ -53,14 +53,27 @@ Mnemosyne is a single-user, password-protected knowledge archive for topics, ric
    npm run db:migrate
    ~~~
 
-5. Verify the database and encrypted-file storage:
+5. Verify the database schema:
 
    ~~~bash
    npm run db:check
+   ~~~
+
+6. For an existing installation that has image files in **STORAGE_DIR**, stop application writes and import them into PostgreSQL:
+
+   ~~~bash
+   npm run assets:migrate-to-db
+   ~~~
+
+   New installations have no legacy files to import, so this step is not needed.
+
+7. Verify that every image has a valid encrypted database blob:
+
+   ~~~bash
    npm run storage:check
    ~~~
 
-6. Start Next.js:
+8. Start Next.js:
 
    ~~~bash
    npm run dev
@@ -74,6 +87,7 @@ Mnemosyne is a single-user, password-protected knowledge archive for topics, ric
 npm run dev
 npm run db:migrate
 npm run db:check
+npm run assets:migrate-to-db
 npm run storage:check
 npm run test:unit
 npm run typecheck
@@ -83,27 +97,29 @@ npm run start
 
 - **db:migrate** applies the idempotent schema. It uses the same PostgreSQL connection and TLS validation rules as the application.
 - **db:check** verifies database connectivity and required tables/columns, including the **vault_sessions.last_active_at** session-hardening migration.
-- **storage:check** is read-only. It checks that database-referenced encrypted image files exist and have the expected encrypted size, and reports orphaned files. It never deletes or repairs files automatically. Asset paths accept only generated UUID filenames, and symlinked storage files are rejected.
+- **assets:migrate-to-db** imports legacy **.enc** files into **asset_blobs** one asset at a time. It verifies path safety and encrypted size, commits the blob and clears its legacy file key in the same transaction, can be safely rerun, and never deletes the source files. Use **--dry-run** to validate legacy files without changing the database.
+- **storage:check** is read-only. It verifies that every asset has an encrypted database blob of the expected size and reports assets still relying on legacy files. It never modifies or deletes files.
 - **test:unit** runs fast, database-independent tests for PostgreSQL connection and TLS validation.
 
 ## Note organization
 
-On a note reader or editor screen, use **Move / copy**. Choose **Move note** or **Copy note**, then select a destination topic. Moving preserves the note ID and existing attachment records. Copying creates a separate note and duplicates embedded image attachments into new encrypted storage files and asset records. Either copy can then be edited or deleted independently.
+On a note reader or editor screen, use **Move / copy**. Choose **Move note** or **Copy note**, then select a destination topic. Moving preserves the note ID and existing attachment records. Copying creates a separate note and duplicates embedded images as independent encrypted PostgreSQL blob and asset records. Either copy can then be edited or deleted independently.
 
 ## Data and backups
 
-- PostgreSQL stores encrypted topic titles, subjects, descriptions, categories, note titles, note subjects, note bodies and tags.
-- Image bytes are encrypted with AES-256-GCM before being written under **STORAGE_DIR** (defaults to **./storage**).
-- Original upload filenames are encrypted. Storage filenames are random identifiers.
-- Back up the PostgreSQL database, the complete encrypted storage directory and **SESSION_ENCRYPTION_SECRET** together.
-- Take coordinated database and storage backups from the same point in time. For a simple deployment, pause writes while taking the two backups or use a backup/snapshot process that guarantees point-in-time consistency.
+- PostgreSQL stores encrypted topic and note content, metadata, encrypted original image bytes and encrypted original upload filenames.
+- The **asset_blobs** table stores image ciphertext as PostgreSQL **BYTEA**. The separate **assets** table stores ownership and image metadata; normal note and topic queries do not fetch the large blob payloads.
+- For older installations, stop application writes, take a database backup and preserve the complete **STORAGE_DIR** before running **npm run assets:migrate-to-db**. The importer copies each legacy encrypted file byte-for-byte into PostgreSQL and clears its legacy path pointer in the same transaction.
+- The importer is safe to rerun after interruption. It does not decrypt, recompress or resize images, and it never deletes the original files.
+- Run **npm run storage:check** after the import. Keep the old **STORAGE_DIR** until the database backup has been verified and image reads have been tested. You can then remove the old directory manually; the application no longer needs it for normal image uploads, reads or deletion.
+- Back up PostgreSQL and **SESSION_ENCRYPTION_SECRET** together. The database backup now contains the encrypted images as well as the encrypted notes and topics.
 - Test restoration periodically in an isolated environment. A backup that has never been restored is not a verified recovery plan.
 - Do not delete or casually rotate **SESSION_ENCRYPTION_SECRET**. Changing it invalidates active server sessions; it does not re-encrypt vault content.
 - Do not manually delete or recreate the **vault_settings** row to reset the password. That row contains the salt and wrapped vault key. Reinitializing setup creates a new vault key and does not make older records decryptable with the new vault.
 
 ## Production deployment
 
-Mnemosyne uses Node.js APIs (Argon2 and filesystem storage), so deploy it to a persistent Node.js runtime. Do not use an ephemeral serverless filesystem for **STORAGE_DIR**. Configure it to a persistent encrypted volume, use a managed PostgreSQL database and serve the application over HTTPS.
+Mnemosyne uses Node.js APIs (including Argon2), so deploy it to a Node.js runtime. Image uploads, image reads and asset deletion use PostgreSQL; the application no longer requires a persistent filesystem volume for normal image storage. **STORAGE_DIR** is used only by the one-time importer for legacy file-backed images. Use a managed PostgreSQL database and serve the application over HTTPS.
 
 Configure these environment variables:
 
