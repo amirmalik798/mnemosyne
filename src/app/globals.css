@@ -1087,9 +1087,10 @@ a, button { -webkit-tap-highlight-color: transparent; }
 }
 .small-field { font-size: 12px; }
 .reader { max-width: 900px; }
+/* Keep the long-form reading measure, but align the body with the note title. */
 .reader-content {
   width: min(100%, 74ch);
-  margin-inline: auto;
+  margin-inline: 0;
 }
 .reader-content h1,
 .reader-content h2,
@@ -3536,9 +3537,10 @@ html[data-theme="light"] .note-editor-page .focus-mode .rich-editor .focus-activ
 
 
 /* Long-form reading: a quiet, optional section map and clearly labelled actions. */
+/* The optional section map follows the same left edge as the title and body. */
 .reader-toc {
   width: min(100%, 74ch);
-  margin: 0 auto 27px;
+  margin: 0 0 27px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
