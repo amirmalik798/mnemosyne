@@ -39,3 +39,19 @@ export function safeFontFamily(value: unknown): string | null {
   if (typeof value !== "string") return null;
   return ALLOWED_FONT_FAMILIES.get(normalizeFontFamily(value)) ?? null;
 }
+
+export function colorPickerValue(value: unknown, fallback: string): string {
+  const color = safeTextColor(value);
+  if (!color) return fallback;
+
+  if (/^#[0-9a-f]{6}$/i.test(color)) return color.toLowerCase();
+  if (/^#[0-9a-f]{3}$/i.test(color)) {
+    return "#" + color.slice(1).split("").map((channel) => channel + channel).join("").toLowerCase();
+  }
+
+  const rgb = color.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+  if (!rgb) return fallback;
+  const channels = rgb.slice(1, 4).map(Number);
+  if (channels.some((channel) => !Number.isInteger(channel) || channel < 0 || channel > 255)) return fallback;
+  return "#" + channels.map((channel) => channel.toString(16).padStart(2, "0")).join("");
+}
