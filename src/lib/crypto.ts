@@ -29,7 +29,7 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(passwordHash: string, password: string): Promise<boolean> {
   try {
-    return await argon2.verify(passwordHash, password, { type: argon2.argon2id });
+    return await argon2.verify(passwordHash, password);
   } catch {
     return false;
   }
