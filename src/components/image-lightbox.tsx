@@ -27,6 +27,14 @@ export function ImageLightbox({
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
+        return;
+      }
+
+      // The close control is the only focusable item in this dialog.
+      // Keep Tab navigation inside the viewer instead of moving behind it.
+      if (event.key === "Tab") {
+        event.preventDefault();
+        closeButtonRef.current?.focus({ preventScroll: true });
       }
     }
 
