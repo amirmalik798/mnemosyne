@@ -67,11 +67,13 @@ export function TopicArchive({
             Choose a category to see every topic filed under it.
           </p>
         </div>
-        <div className="topic-browser-count" aria-live="polite">
-          <strong>{totalTopics}</strong>
-          <span>{totalTopics === 1 ? "topic" : "topics"}</span>
-          {selectedCategory && <span>of {allTopicsCount}</span>}
-        </div>
+        {selectedCategory && (
+          <div className="topic-browser-count" aria-live="polite">
+            <strong>{totalTopics}</strong>
+            <span>{totalTopics === 1 ? "collection" : "collections"}</span>
+            <span>of {allTopicsCount}</span>
+          </div>
+        )}
         <ArchiveSortControl
           basePath="/topics"
           currentSort={sort}
