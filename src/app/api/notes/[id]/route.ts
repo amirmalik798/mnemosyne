@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { queryAsUser } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
-import { deleteUnreferencedNoteAssets } from "@/lib/storage";
+import { updateNoteAndCleanupAssets } from "@/lib/storage";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
@@ -31,8 +31,6 @@ export async function PATCH(request: Request, context: Context) {
     const session = await requireVaultSession();
     const { id } = await context.params;
     const body = await readJsonObject(request, 8_500_000);
-    const current = await queryAsUser(session.userId, "SELECT id FROM notes WHERE id=$1 AND deleted_at IS NULL", [id]);
-    if (!current.rows[0]) throw new Error("NOT_FOUND");
     const title = stringField(body, "title", 180, true);
     const subject = stringField(body, "subject", 180);
     const topicId = stringField(body, "topicId", 64, true);
@@ -42,13 +40,18 @@ export async function PATCH(request: Request, context: Context) {
     if (content.length > 2_000_000) throw new Error("VALIDATION:This note is too large.");
     const tags = Array.isArray(body.tags) ? body.tags.filter((tag): tag is string => typeof tag === "string").slice(0, 30) : [];
     const pinned = typeof body.pinned === "boolean" ? body.pinned : false;
-    const topic = await queryAsUser(session.userId, "SELECT id FROM topics WHERE id=$1", [topicId]);
-    if (!topic.rows[0]) throw new Error("VALIDATION:Choose a valid topic.");
-    await queryAsUser(session.userId, 
-      `UPDATE notes SET topic_id=$1, title_enc=$2, subject_enc=$3, content_enc=$4, tags_enc=$5, pinned=$6, updated_at=NOW() WHERE id=$7`,
-      [topicId, encryptText(title, session.key), encryptText(subject, session.key), encryptText(content, session.key), encryptText(JSON.stringify(tags), session.key), pinned, id],
-    );
-    await deleteUnreferencedNoteAssets(id, contentValue, session.userId);
+
+    await updateNoteAndCleanupAssets({
+      userId: session.userId,
+      noteId: id,
+      topicId,
+      titleEnc: encryptText(title, session.key),
+      subjectEnc: encryptText(subject, session.key),
+      contentEnc: encryptText(content, session.key),
+      tagsEnc: encryptText(JSON.stringify(tags), session.key),
+      pinned,
+      content: contentValue,
+    });
     return NextResponse.json({ success: true });
   } catch (error) { return apiError(error); }
 }
