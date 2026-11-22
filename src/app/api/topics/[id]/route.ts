@@ -11,10 +11,16 @@ export async function GET(_request: Request, context: Context) {
   try {
     const session = await requireVaultSession();
     const { id } = await context.params;
-    const result = await db.query("SELECT * FROM topics WHERE id = $1", [id]);
+    const [result, notesResult] = await Promise.all([
+      db.query("SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, created_at, updated_at FROM topics WHERE id = $1", [id]),
+      db.query(
+        "SELECT id, title_enc, subject_enc, content_enc, tags_enc, pinned, created_at, updated_at FROM notes WHERE topic_id = $1 AND deleted_at IS NULL ORDER BY pinned DESC, updated_at DESC, id DESC",
+        [id],
+      ),
+    ]);
     if (!result.rows[0]) throw new Error("NOT_FOUND");
+
     const row = result.rows[0];
-    const notesResult = await db.query("SELECT * FROM notes WHERE topic_id = $1 AND deleted_at IS NULL ORDER BY pinned DESC, updated_at DESC", [id]);
     const notes = notesResult.rows.map((note) => ({
       id: note.id,
       title: decryptText(note.title_enc, session.key),
@@ -26,10 +32,21 @@ export async function GET(_request: Request, context: Context) {
       updatedAt: note.updated_at,
     }));
     return NextResponse.json({
-      topic: { id: row.id, title: decryptText(row.title_enc, session.key), subject: decryptText(row.subject_enc, session.key), description: decryptText(row.description_enc, session.key), category: decryptText(row.category_enc, session.key), coverUrl: row.cover_asset_id ? `/api/assets/${row.cover_asset_id}` : null, createdAt: row.created_at, updatedAt: row.updated_at },
+      topic: {
+        id: row.id,
+        title: decryptText(row.title_enc, session.key),
+        subject: decryptText(row.subject_enc, session.key),
+        description: decryptText(row.description_enc, session.key),
+        category: decryptText(row.category_enc, session.key),
+        coverUrl: row.cover_asset_id ? `/api/assets/${row.cover_asset_id}` : null,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      },
       notes,
     });
-  } catch (error) { return apiError(error); }
+  } catch (error) {
+    return apiError(error);
+  }
 }
 
 export async function PATCH(request: Request, context: Context) {
