@@ -132,10 +132,18 @@ export async function deleteUnreferencedNoteAssets(noteId: string, content: unkn
     Object.values(record).forEach(visit);
   };
   visit(content);
-  const result = await db.query("SELECT id FROM assets WHERE owner_type='note' AND owner_id=$1", [noteId]);
-  for (const row of result.rows) {
-    if (!referenced.has(row.id as string)) await deleteAssetById(row.id as string);
-  }
+  const result = await db.query(
+    `DELETE FROM assets
+     WHERE owner_type = 'note'
+       AND owner_id = $1
+       AND id::text <> ALL($2::text[])
+     RETURNING storage_key`,
+    [noteId, Array.from(referenced)],
+  );
+  const filePaths = result.rows
+    .map((row: { storage_key: string }) => safeStoragePath(row.storage_key))
+    .filter((filePath): filePath is string => filePath !== null);
+  await Promise.all(filePaths.map((filePath) => unlink(filePath).catch(() => undefined)));
 }
 
 /** Clone an already encrypted asset without exposing its plaintext to the filesystem layer. */
