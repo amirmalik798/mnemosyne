@@ -14,11 +14,30 @@ type AssetRow = {
   id: string;
   owner_id: string;
   storage_key: string | null;
-  encrypted_bytes: Buffer | null;
   original_name_enc: Buffer;
   mime_type: string;
   byte_size: string | number;
 };
+
+async function readAssetImage(
+  userId: string,
+  asset: AssetRow,
+  key: Buffer,
+): Promise<Buffer> {
+  // Fetch just this image's ciphertext when the ZIP stream requests it.
+  const blobResult = await queryAsUser(
+    userId,
+    "SELECT encrypted_bytes FROM asset_blobs WHERE asset_id=$1",
+    [asset.id],
+  );
+  return readVerifiedImageAsset({
+    encryptedBytes: (blobResult.rows[0]?.encrypted_bytes as Buffer | undefined) ?? null,
+    storageKey: asset.storage_key,
+    key,
+    mimeType: asset.mime_type,
+    byteSize: asset.byte_size,
+  });
+}
 
 function safeZipSegment(value: string, fallback: string): string {
   const safe = value
@@ -51,9 +70,8 @@ export async function GET(_request: Request, context: Context) {
     // to rediscover assets that the database already associates with notes.
     const [noteAssetsResult, noteTitleRows] = await Promise.all([
       queryAsUser(session.userId, 
-        `SELECT a.id, a.owner_id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size, b.encrypted_bytes
+        `SELECT a.id, a.owner_id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size
          FROM assets a
-         LEFT JOIN asset_blobs b ON b.asset_id = a.id
          JOIN notes n ON n.id = a.owner_id
          WHERE a.owner_type='note' AND n.topic_id=$1 AND n.deleted_at IS NULL
          ORDER BY a.created_at ASC`,
@@ -73,7 +91,7 @@ export async function GET(_request: Request, context: Context) {
     let coverAsset: AssetRow | null = null;
     if (topic.cover_asset_id) {
       const coverResult = await queryAsUser(session.userId, 
-        "SELECT a.id, a.owner_id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size, b.encrypted_bytes FROM assets a LEFT JOIN asset_blobs b ON b.asset_id=a.id WHERE a.id=$1 AND a.owner_type='topic' AND a.owner_id=$2",
+        "SELECT a.id, a.owner_id, a.storage_key, a.original_name_enc, a.mime_type, a.byte_size FROM assets a WHERE a.id=$1 AND a.owner_type='topic' AND a.owner_id=$2",
         [topic.cover_asset_id, id],
       );
       coverAsset = (coverResult.rows[0] as AssetRow | undefined) ?? null;
@@ -91,13 +109,7 @@ export async function GET(_request: Request, context: Context) {
       totalBytes += Number(coverAsset.byte_size);
       entries.push({
         name: topicFolder + "/Topic cover/" + filename,
-        read: () => readVerifiedImageAsset({
-          encryptedBytes: coverAsset!.encrypted_bytes,
-          storageKey: coverAsset!.storage_key,
-          key: session.key,
-          mimeType: coverAsset!.mime_type,
-          byteSize: coverAsset!.byte_size,
-        }),
+        read: () => readAssetImage(session.userId, coverAsset!, session.key),
       });
     }
 
@@ -113,13 +125,7 @@ export async function GET(_request: Request, context: Context) {
       totalBytes += Number(asset.byte_size);
       entries.push({
         name: topicFolder + "/Notes/" + noteTitle + "-" + asset.owner_id.slice(0, 8) + "/" + String(imageIndex).padStart(2, "0") + "-" + filename,
-        read: () => readVerifiedImageAsset({
-          encryptedBytes: asset.encrypted_bytes,
-          storageKey: asset.storage_key,
-          key: session.key,
-          mimeType: asset.mime_type,
-          byteSize: asset.byte_size,
-        }),
+        read: () => readAssetImage(session.userId, asset, session.key),
       });
     }
 
