@@ -29,6 +29,7 @@ async function main() {
     const topicB = randomUUID();
     const noteA = randomUUID();
     const assetA = randomUUID();
+    const assetAWithoutBlob = randomUUID();
 
     for (const [id, suffix] of [[userA, "a"], [userB, "b"]] as const) {
       await client.query(
@@ -53,6 +54,13 @@ async function main() {
     await client.query(
       "INSERT INTO asset_blobs (asset_id,encrypted_bytes) VALUES ($1,$2)",
       [assetA, randomBytes(29)],
+    );
+    // Keep a second account-A asset without a blob so the cross-account blob
+    // test reaches the composite ownership foreign key rather than the blob
+    // table's primary-key constraint.
+    await client.query(
+      "INSERT INTO assets (id,owner_type,owner_id,original_name_enc,mime_type,byte_size) VALUES ($1,'topic',$2,$3,'image/png',1)",
+      [assetAWithoutBlob, topicA, randomBytes(48)],
     );
 
     await setAccount(client, userB);
@@ -97,7 +105,7 @@ async function main() {
     try {
       await client.query(
         "INSERT INTO asset_blobs (asset_id,user_id,encrypted_bytes) VALUES ($1,$2,$3)",
-        [assetA, userB, randomBytes(29)],
+        [assetAWithoutBlob, userB, randomBytes(29)],
       );
     } catch (error) {
       blobOwnershipCode = sqlState(error);
