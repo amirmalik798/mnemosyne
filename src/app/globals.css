@@ -18915,3 +18915,129 @@ html[data-theme="light"] .action-overflow-menu .note-row-more-menu .reader-trash
     flex: 0 0 44px !important;
   }
 }
+
+
+/* ==========================================================================
+   Final phone interaction and touch pass
+   These refinements apply only to phone widths; desktop geometry is untouched.
+   ========================================================================== */
+@media (max-width: 560px) {
+  /* The reader now has one overflow trigger, not the former two-column action
+     set. Keep its toolbar compact and align the trigger to the trailing edge. */
+  .note-reader-page .reader-action-groups {
+    display: flex !important;
+    grid-template-columns: none !important;
+    align-items: center;
+    justify-content: flex-end !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .note-reader-page .reader-action-groups > .reader-more-actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .note-reader-page .reader-action-groups > .operation-status {
+    width: 100%;
+    flex: 1 1 100%;
+    margin-left: 0;
+    text-align: left;
+  }
+
+  /* Scrollable action strips clipped their absolutely positioned menus.
+     Non-compact rows can wrap instead; compact rows keep their two controls. */
+  .note-row-actions:not(.note-row-actions--compact) {
+    flex-wrap: wrap !important;
+    justify-content: flex-start;
+    overflow: visible !important;
+  }
+
+  .note-row-actions--compact {
+    overflow: visible !important;
+  }
+
+  .note-row-actions:has(.action-overflow-menu[open]),
+  .note-reader-page .reader-action-groups:has(.action-overflow-menu[open]),
+  .note-editor-page .note-editor-save-actions:has(.action-overflow-menu[open]),
+  .topic-detail-page .topic-detail-actions:has(.action-overflow-menu[open]),
+  .trash-page .trash-item-actions:has(.action-overflow-menu[open]) {
+    position: relative;
+    z-index: 96;
+    overflow: visible !important;
+  }
+
+  .note-row:has(.action-overflow-menu[open]) {
+    position: relative;
+    z-index: 95;
+    isolation: isolate;
+    overflow: visible;
+  }
+
+  /* Keep popovers readable, scrollable and inside the visible phone viewport. */
+  .action-overflow-menu .note-row-more-menu {
+    box-sizing: border-box;
+    width: min(260px, calc(100vw - 28px));
+    max-width: calc(100vw - 28px);
+    max-height: min(65dvh, calc(100dvh - 112px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .note-reader-page .reader-more-actions .note-row-more-menu {
+    min-width: min(238px, calc(100vw - 32px));
+    width: min(260px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+  }
+
+  .note-editor-page .editor-overflow-actions .note-row-more-menu {
+    min-width: min(184px, calc(100vw - 32px));
+    width: min(240px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+  }
+
+  /* Menus opened from the bottom navigation must sit above the sticky header
+     and remain scrollable on short landscape phones. */
+  .mobile-nav-more-backdrop { z-index: 98; }
+  .mobile-nav-more {
+    top: max(12px, env(safe-area-inset-top));
+    z-index: 99;
+  }
+
+  /* Bring frequently used touch controls up to a consistent 44px target. */
+  .mobile-nav-link,
+  .mobile-utility-actions-grid > *,
+  .topic-filter-chip,
+  .archive-search-filters .filter-chip,
+  .settings-nav a,
+  .note-row-actions button,
+  .note-row-actions a,
+  .note-reader-page .reader-more-actions > summary,
+  .note-editor-page .editor-overflow-actions > summary {
+    min-height: 44px;
+  }
+
+  .note-row-actions--compact .action-overflow-menu > summary,
+  .topic-detail-page .topic-detail-overflow > summary,
+  .trash-page .trash-item-overflow > summary {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .note-editor-page .editor-toolbar-controls .tool-btn {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    flex-basis: 44px;
+  }
+
+  /* More-sheet links use the full text track rather than reserving space for a
+     decorative chevron that is hidden in the compact phone treatment. */
+  .mobile-nav-more-link {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+}
