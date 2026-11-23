@@ -18326,3 +18326,393 @@ body p:not(.rich-editor p):not(.reader-content p) {
     grid-template-columns: minmax(0,1fr) !important;
   }
 }
+
+
+/* ==========================================================================
+   Consistent action hierarchy — one primary action plus a shared overflow
+   menu for secondary or destructive actions across the application.
+   ========================================================================== */
+.action-overflow-menu {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.action-overflow-menu > summary {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  display: grid;
+  place-items: center;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease;
+}
+
+.action-overflow-menu > summary::-webkit-details-marker { display: none; }
+.action-overflow-menu > summary::marker { content: ""; }
+
+.action-overflow-menu > summary:hover,
+.action-overflow-menu[open] > summary {
+  border-color: var(--gold-border);
+  background: var(--gold-soft);
+  color: var(--gold-bright);
+}
+
+.action-overflow-menu > summary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.action-overflow-menu .note-row-more-menu {
+  z-index: 90;
+  min-width: 192px;
+  max-width: min(280px,calc(100vw - 28px));
+  padding: 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+}
+
+.action-overflow-menu .note-row-more-menu > button,
+.action-overflow-menu .note-row-more-menu > a,
+.action-overflow-menu .note-row-more-menu > .reader-action-button,
+.action-overflow-menu .note-row-more-menu > .topic-action-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+}
+
+.action-overflow-menu .note-row-more-menu > button:hover:not(:disabled),
+.action-overflow-menu .note-row-more-menu > a:hover,
+.action-overflow-menu .note-row-more-menu > .reader-action-button:hover,
+.action-overflow-menu .note-row-more-menu > .topic-action-button:hover {
+  border-color: transparent;
+  background: var(--surface-3);
+}
+
+.action-overflow-menu .note-row-more-menu > button:focus-visible,
+.action-overflow-menu .note-row-more-menu > a:focus-visible,
+.action-overflow-menu .note-row-more-menu > summary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+.action-overflow-menu .note-row-more-menu > button > svg,
+.action-overflow-menu .note-row-more-menu > a > svg,
+.action-overflow-menu .note-row-more-menu > .reader-action-button > svg,
+.action-overflow-menu .note-row-more-menu > .topic-action-button > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.action-overflow-menu .note-row-more-menu .note-row-action--trash,
+.action-overflow-menu .note-row-more-menu .trash-delete-button,
+.action-overflow-menu .note-row-more-menu .reader-trash-action {
+  color: var(--red);
+}
+
+.action-overflow-menu .note-row-more-menu .note-row-action--trash:hover,
+.action-overflow-menu .note-row-more-menu .trash-delete-button:hover:not(:disabled),
+.action-overflow-menu .note-row-more-menu .reader-trash-action:hover:not(:disabled) {
+  background: color-mix(in srgb,var(--red) 10%,var(--surface-3));
+}
+
+html[data-theme="light"] .action-overflow-menu .note-row-more-menu {
+  background: #FFFEFB;
+  border-color: #D9D1C1;
+  box-shadow: 0 15px 42px rgba(59,47,26,.16);
+}
+
+html[data-theme="light"] .action-overflow-menu .note-row-more-menu > button,
+html[data-theme="light"] .action-overflow-menu .note-row-more-menu > a {
+  color: #292B30;
+}
+
+html[data-theme="light"] .action-overflow-menu .note-row-more-menu .note-row-action--trash,
+html[data-theme="light"] .action-overflow-menu .note-row-more-menu .trash-delete-button,
+html[data-theme="light"] .action-overflow-menu .note-row-more-menu .reader-trash-action {
+  color: #BE123C;
+}
+
+/* All note lists now use the compact row action hierarchy, not only Overview. */
+.note-row-actions--compact {
+  gap: 7px;
+}
+
+.note-row-actions--compact .note-row-action {
+  min-height: 38px;
+  padding-inline: 11px;
+  font-size: 12px;
+}
+
+.note-row-actions--compact .note-row-action > span {
+  display: inline;
+}
+
+/* Note reader: Edit note stays primary in the header. Organization, export and
+   trash operations share one secondary overflow menu. */
+.note-reader-page .reader-action-groups {
+  justify-content: flex-end;
+}
+
+.note-reader-page .reader-more-actions .note-row-more-menu {
+  min-width: 238px;
+}
+
+.note-reader-page .reader-more-actions .reader-action-organize-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.note-reader-page .reader-more-actions .reader-action-organize-group > * {
+  width: 100%;
+  min-width: 0;
+}
+
+.note-reader-page .reader-more-actions .reader-action-organize-group .reader-action-button {
+  width: 100%;
+  min-height: 40px;
+  justify-content: flex-start;
+  padding-inline: 10px;
+}
+
+.note-reader-page .reader-more-actions .reader-action-disclosure {
+  width: 100%;
+}
+
+.note-reader-page .reader-more-actions .reader-action-disclosure > summary {
+  width: 100%;
+  min-height: 40px;
+  justify-content: flex-start;
+  padding-inline: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.note-reader-page .reader-more-actions .reader-action-disclosure > summary:hover,
+.note-reader-page .reader-more-actions .reader-action-disclosure[open] > summary {
+  background: var(--surface-3);
+  color: var(--gold-bright);
+}
+
+.note-reader-page .reader-more-actions .reader-action-disclosure-panel {
+  position: static;
+  width: 100%;
+  margin-top: 5px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: none;
+  animation: none;
+}
+
+.note-reader-page .reader-more-actions .reader-action-disclosure-panel > button {
+  min-height: 38px;
+  font-size: 11px;
+}
+
+.note-reader-page .reader-more-actions .reader-trash-action {
+  width: 100%;
+  min-height: 40px;
+  justify-content: flex-start;
+  padding-inline: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 12px;
+}
+
+.note-reader-page .reader-more-actions .reader-trash-action:hover:not(:disabled) {
+  background: color-mix(in srgb,var(--red) 10%,var(--surface-3));
+}
+
+/* Collection detail: creating a note remains visible; editing and image export
+   are available from the adjacent ellipsis instead of competing buttons. */
+.topic-detail-page .topic-detail-actions {
+  align-items: center;
+  gap: 8px !important;
+}
+
+.topic-detail-page .topic-detail-overflow .note-row-more-menu {
+  min-width: 198px;
+}
+
+.topic-detail-page .topic-detail-overflow .topic-image-empty {
+  width: 100%;
+  justify-content: flex-start;
+  border: 0;
+  background: transparent;
+  padding-inline: 10px;
+}
+
+.topic-detail-page .topic-detail-overflow .topic-action-button {
+  width: 100%;
+  min-height: 40px;
+  justify-content: flex-start;
+}
+
+/* Trash: recovery is the primary action; permanent deletion is deliberately
+   tucked away but still clearly labelled and confirmation protected. */
+.trash-page .trash-item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.trash-page .trash-item-actions .trash-restore-button {
+  min-width: 124px;
+}
+
+.trash-page .trash-item-overflow > summary {
+  width: 40px;
+  height: 40px;
+}
+
+.trash-page .trash-item-overflow .note-row-more-menu {
+  min-width: 190px;
+}
+
+.trash-page .trash-item-overflow .trash-delete-button {
+  width: 100%;
+  min-height: 40px;
+  justify-content: flex-start;
+}
+
+/* Menus must stay reachable at phone widths without forcing the row to scroll. */
+@media (max-width: 760px) {
+  .note-row-actions--compact {
+    width: auto;
+    min-width: 0;
+    padding-top: 0;
+    border-top: 0;
+    overflow: visible;
+    flex-wrap: nowrap;
+  }
+
+  .note-row-actions--compact .note-row-action {
+    width: auto;
+    min-width: 0;
+    min-height: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    padding-inline: 10px !important;
+    font-size: 12px;
+  }
+
+  .note-row-actions--compact .note-row-action > span {
+    display: inline !important;
+    font-size: 12px;
+  }
+
+  .note-row-actions--compact .action-overflow-menu > summary {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+  }
+
+  .note-row-actions--compact .note-row-more-menu {
+    right: 0;
+    left: auto;
+    min-width: 205px;
+  }
+
+  .note-reader-page .reader-action-groups {
+    justify-content: flex-end;
+  }
+
+  .note-reader-page .reader-more-actions > summary {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .topic-detail-page .topic-detail-actions {
+    display: flex !important;
+    flex-direction: row;
+    align-items: center !important;
+    justify-content: flex-start;
+  }
+
+  .topic-detail-page .topic-detail-actions > .topic-action-button {
+    flex: 1 1 auto;
+  }
+
+  .topic-detail-page .topic-detail-overflow > summary {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .topic-detail-page .topic-detail-overflow .note-row-more-menu {
+    right: 0;
+    left: auto;
+  }
+
+  .trash-page .trash-item-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) 44px !important;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .trash-page .trash-item-actions .trash-restore-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .trash-page .trash-item-overflow {
+    justify-self: end;
+  }
+
+  .trash-page .trash-item-overflow > summary {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .trash-page .trash-item-overflow .note-row-more-menu {
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .trash-page .trash-item-actions {
+    grid-template-columns: minmax(0,1fr) 44px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-overflow-menu > summary { transition: none; }
+}
