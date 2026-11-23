@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Edit3 } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Edit3 } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
 import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
 import { RichContent } from "@/components/rich-content";
 import { NoteReaderActions } from "@/components/note-reader-actions";
 import { detectTextLanguage } from "@/lib/bidi";
-import { NoteImageDownload } from "@/components/note-image-download";
+import { ReaderProgress } from "@/components/reader-progress";
 import { formatArchiveDate, formatArchiveDateTime } from "@/lib/date-format";
 type RichTextNode = {
   type?: unknown;
@@ -42,7 +42,7 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
   const {id}=await params;
   const session=await requireVaultSession();
   const result = await queryAsUser(session.userId, 
-    `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.updated_at,
+    `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.created_at, n.updated_at,
             t.title_enc AS topic_title_enc
      FROM notes n
      JOIN topics t ON t.id = n.topic_id
@@ -51,6 +51,36 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
   );
   if(!result.rows[0])notFound();
   const r=result.rows[0];
+
+  // Neighbour navigation follows this topic's creation order and only includes
+  // active notes owned by the signed-in account.
+  const [newerNoteResult, olderNoteResult] = await Promise.all([
+    queryAsUser(session.userId,
+      `SELECT id, title_enc
+       FROM notes
+       WHERE topic_id=$1 AND deleted_at IS NULL
+         AND (created_at > $2 OR (created_at = $2 AND id > $3))
+       ORDER BY created_at ASC, id ASC
+       LIMIT 1`,
+      [r.topic_id, r.created_at, id],
+    ),
+    queryAsUser(session.userId,
+      `SELECT id, title_enc
+       FROM notes
+       WHERE topic_id=$1 AND deleted_at IS NULL
+         AND (created_at < $2 OR (created_at = $2 AND id < $3))
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1`,
+      [r.topic_id, r.created_at, id],
+    ),
+  ]);
+  const newerNote = newerNoteResult.rows[0]
+    ? { id: String(newerNoteResult.rows[0].id), title: decryptText(newerNoteResult.rows[0].title_enc, session.key) }
+    : null;
+  const olderNote = olderNoteResult.rows[0]
+    ? { id: String(olderNoteResult.rows[0].id), title: decryptText(olderNoteResult.rows[0].title_enc, session.key) }
+    : null;
+
   const title=decryptText(r.title_enc,session.key);
   const subject=decryptText(r.subject_enc,session.key);
   const tags=JSON.parse(decryptText(r.tags_enc,session.key)) as string[];
@@ -174,44 +204,161 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
   const imageCount = imageAssetsResult.rows.length;
 
   const words = countNoteWords(content);
+  const readingMinutes = Math.max(1, Math.ceil(words / 220));
   const updatedAt = new Date(r.updated_at).toISOString();
-  return <main className="page note-reader-page"><div className="reader"><div className="note-reader-topbar" style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:33,gap:12,flexWrap:"wrap"}}><Link href={`/topics/${r.topic_id}`} className="breadcrumb"><ArrowLeft size={14}/><span dir="auto" lang={detectTextLanguage(topicTitle)}>{topicTitle}</span></Link><div className="reader-actions" style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><NoteImageDownload noteId={id} imageCount={imageCount} showLabel/><NoteReaderActions id={id} title={title} content={content} currentTopicId={r.topic_id} showLabels/><Link className="primary-btn reader-action-button" href={`/notes/${id}/edit`} aria-label="Edit note" title="Edit note"><Edit3 size={17}/><span>Edit note</span></Link></div></div><header className="reader-header"><div className="eyebrow" dir="auto" lang={detectTextLanguage(topicTitle)}>{topicTitle}</div><h1 className="reader-title" dir="auto" lang={detectTextLanguage(title)}>{title}</h1>{subject&&<p className="page-subtitle" dir="auto" lang={detectTextLanguage(subject)} style={{fontSize:14}}>{subject}</p>}<div className="reader-meta"><time dateTime={updatedAt}>Updated {formatArchiveDateTime(r.updated_at)}</time><span>·</span><span>{words} words approx.</span></div></header><div style={{height:1,background:"linear-gradient(90deg,var(--gold),transparent)",width:65,marginBottom:30}}/><RichContent content={content} wikiLinks={wikiLinks}/>{tags.length>0&&<div style={{marginTop:32,paddingTop:18,borderTop:"1px solid var(--line)"}}><div className="property-label">Tags</div>{tags.map(tag=><span className="tag-pill" dir="auto" lang={detectTextLanguage(tag)} key={tag}>#{tag}</span>)}</div>}{(backlinks.length > 0 || linkedNotes.length > 0 || relatedNotes.length > 0) && (
-        <section className="note-connections" aria-label="Connected notes">
-          <p className="note-connections-caption">Connections are resolved from your most recent 1,000 active notes.</p>
-          {backlinks.length > 0 && (
-            <div className="note-connection-group">
-              <div className="property-label">Backlinks · {backlinks.length}</div>
-              {backlinks.slice(0, 8).map((note) => (
-                <Link href={`/notes/${note.id}`} className="note-connection-link" key={note.id}>
-                  {note.title}
-                  <small>Links to this note</small>
-                </Link>
-              ))}
+
+  return (
+    <main className="page note-reader-page">
+      <div className="reader">
+        <ReaderProgress />
+
+        <header className="note-reader-topbar">
+          <Link href={`/topics/${r.topic_id}`} className="reader-back-link">
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>Back to topic</span>
+            <span className="reader-back-divider" aria-hidden="true">/</span>
+            <span className="reader-back-topic" dir="auto" lang={detectTextLanguage(topicTitle)}>{topicTitle}</span>
+          </Link>
+          <div className="reader-topbar-end">
+            <span className="reader-mode-pill"><BookOpen size={14} aria-hidden="true" /> Reading</span>
+            <Link
+              className="primary-btn reader-edit-button"
+              href={`/notes/${id}/edit`}
+              aria-label="Edit note"
+              title="Edit note"
+            >
+              <Edit3 size={16} aria-hidden="true" />
+              <span>Edit note</span>
+            </Link>
+          </div>
+        </header>
+
+        <div className="note-reader-actionbar">
+          <NoteReaderActions
+            id={id}
+            title={title}
+            content={content}
+            currentTopicId={r.topic_id}
+            imageCount={imageCount}
+            showLabels
+          />
+        </div>
+
+        <article className="reader-document" aria-labelledby="reader-note-title">
+          <header className="reader-header">
+            <div className="reader-topic-kicker">
+              <span className="eyebrow">NOTE IN</span>
+              <span className="reader-topic-name" dir="auto" lang={detectTextLanguage(topicTitle)}>{topicTitle}</span>
             </div>
-          )}
-          {linkedNotes.length > 0 && (
-            <div className="note-connection-group">
-              <div className="property-label">Linked notes · {linkedNotes.length}</div>
-              {linkedNotes.map((note) => (
-                <Link href={`/notes/${note.id}`} className="note-connection-link" key={note.id}>
-                  {note.title}
-                  <small>Linked from this note</small>
-                </Link>
-              ))}
+            <h1 id="reader-note-title" className="reader-title" dir="auto" lang={detectTextLanguage(title)}>
+              {title || "Untitled note"}
+            </h1>
+            {subject && (
+              <p className="page-subtitle reader-subject" dir="auto" lang={detectTextLanguage(subject)}>
+                {subject}
+              </p>
+            )}
+            <div className="reader-meta" aria-label="Note details">
+              <time dateTime={updatedAt}>Updated {formatArchiveDateTime(r.updated_at)}</time>
+              <span aria-hidden="true">·</span>
+              <span>{words} {words === 1 ? "word" : "words"}</span>
+              <span aria-hidden="true">·</span>
+              <span>{readingMinutes} min read</span>
+              {imageCount > 0 && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{imageCount} {imageCount === 1 ? "image" : "images"}</span>
+                </>
+              )}
             </div>
+          </header>
+
+          <div className="reader-section-divider" aria-hidden="true" />
+          <RichContent content={content} wikiLinks={wikiLinks} />
+
+          {tags.length > 0 && (
+            <section className="reader-tags" aria-label="Note tags">
+              <div className="property-label">Filed under</div>
+              <div className="reader-tag-list">
+                {tags.map((tag) => (
+                  <span className="tag-pill" dir="auto" lang={detectTextLanguage(tag)} key={tag}>#{tag}</span>
+                ))}
+              </div>
+            </section>
           )}
-          {relatedNotes.length > 0 && (
-            <div className="note-connection-group">
-              <div className="property-label">Related by topic or tag</div>
-              {relatedNotes.map((note) => (
-                <Link href={`/notes/${note.id}`} className="note-connection-link" key={note.id}>
-                  {note.title}
-                  <small>{note.topicId === String(r.topic_id) ? "Same topic" : `${note.sharedTags} shared tag(s)`}</small>
-                </Link>
-              ))}
+        </article>
+
+        {(olderNote || newerNote) && (
+          <nav className="reader-note-navigation" aria-label="Navigate between notes in this topic">
+            {olderNote ? (
+              <Link href={`/notes/${olderNote.id}`} className="reader-neighbor-link reader-neighbor-link--older">
+                <span className="reader-neighbor-direction"><ArrowLeft size={14} aria-hidden="true" /> Older note</span>
+                <strong dir="auto" lang={detectTextLanguage(olderNote.title)}>{olderNote.title || "Untitled note"}</strong>
+              </Link>
+            ) : (
+              <span className="reader-neighbor-empty">First note in this topic</span>
+            )}
+            {newerNote ? (
+              <Link href={`/notes/${newerNote.id}`} className="reader-neighbor-link reader-neighbor-link--newer">
+                <span className="reader-neighbor-direction">Newer note <ArrowRight size={14} aria-hidden="true" /></span>
+                <strong dir="auto" lang={detectTextLanguage(newerNote.title)}>{newerNote.title || "Untitled note"}</strong>
+              </Link>
+            ) : (
+              <span className="reader-neighbor-empty reader-neighbor-empty--end">Latest note in this topic</span>
+            )}
+          </nav>
+        )}
+
+        {(backlinks.length > 0 || linkedNotes.length > 0 || relatedNotes.length > 0) && (
+          <section className="note-connections" aria-label="Connected notes">
+            <div className="note-connections-heading">
+              <div>
+                <span className="eyebrow">YOUR KNOWLEDGE GRAPH</span>
+                <h2>Connected notes</h2>
+              </div>
+              <p className="note-connections-caption">Connections found in your recent active archive.</p>
             </div>
-          )}
-        </section>
-      )}
-      <div className="editor-footer"><span>Mnemosyne · Private archive</span><time dateTime={updatedAt}>Saved {formatArchiveDate(r.updated_at, true)}</time></div></div></main>;
+            {backlinks.length > 0 && (
+              <div className="note-connection-group">
+                <div className="property-label">Backlinks · {backlinks.length}</div>
+                {backlinks.slice(0, 8).map((note) => (
+                  <Link href={`/notes/${note.id}`} className="note-connection-link" key={note.id}>
+                    {note.title}
+                    <small>Links to this note</small>
+                  </Link>
+                ))}
+              </div>
+            )}
+            {linkedNotes.length > 0 && (
+              <div className="note-connection-group">
+                <div className="property-label">Linked notes · {linkedNotes.length}</div>
+                {linkedNotes.map((note) => (
+                  <Link href={`/notes/${note.id}`} className="note-connection-link" key={note.id}>
+                    {note.title}
+                    <small>Linked from this note</small>
+                  </Link>
+                ))}
+              </div>
+            )}
+            {relatedNotes.length > 0 && (
+              <div className="note-connection-group">
+                <div className="property-label">Related by topic or tag</div>
+                {relatedNotes.map((note) => (
+                  <Link href={`/notes/${note.id}`} className="note-connection-link" key={note.id}>
+                    {note.title}
+                    <small>{note.topicId === String(r.topic_id) ? "Same topic" : `${note.sharedTags} shared tag(s)`}</small>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        <footer className="editor-footer reader-footer">
+          <span>Mnemosyne · Private archive</span>
+          <time dateTime={updatedAt}>Saved {formatArchiveDate(r.updated_at, true)}</time>
+        </footer>
+      </div>
+    </main>
+  );
 }
