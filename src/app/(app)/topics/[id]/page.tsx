@@ -131,7 +131,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
             <ActionOverflowMenu label="More collection actions" className="topic-detail-overflow">
               <TopicImageDownload topicId={id} imageCount={imageCount}/>
               <TopicEditDialog topic={{ id, title, subject, description, category, coverUrl: cover, noteCount: totalNotesIncludingTrash }} />
-            </ActionOverflowMenu>
+                </ActionOverflowMenu>
           </div>
         </div>
       </section>
