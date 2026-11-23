@@ -18328,6 +18328,77 @@ body p:not(.rich-editor p):not(.reader-content p) {
 }
 
 
+
+/* Shared overflow-menu placement: align to the trigger, flip when there is
+   insufficient room below, and keep the panel inside the viewport. */
+.action-overflow-menu .note-row-more-menu {
+  top: calc(100% + 7px);
+  right: 0;
+  left: auto;
+  max-height: min(70vh, calc(100dvh - 24px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transform-origin: top right;
+}
+
+.action-overflow-menu[data-menu-side="above"] .note-row-more-menu {
+  top: auto;
+  bottom: calc(100% + 7px);
+  transform-origin: bottom right;
+}
+
+.action-overflow-menu[data-menu-align="left"] .note-row-more-menu {
+  right: auto;
+  left: 0;
+  transform-origin: top left;
+}
+
+.action-overflow-menu[data-menu-side="above"][data-menu-align="left"] .note-row-more-menu {
+  transform-origin: bottom left;
+}
+
+/* An open menu must paint above neighboring note rows and their actions. */
+.note-row,
+.note-row-actions,
+.topic-detail-actions,
+.trash-item-actions {
+  position: relative;
+}
+
+.note-row:has(.action-overflow-menu[open]),
+.topic-detail-actions:has(.action-overflow-menu[open]),
+.trash-item-actions:has(.action-overflow-menu[open]) {
+  z-index: 30;
+}
+
+.note-row-actions:has(.action-overflow-menu[open]) {
+  z-index: 31;
+}
+
+/* The note-reader menu uses the same anchor and edge-aware placement. */
+.note-reader-page .reader-more-actions .note-row-more-menu {
+  top: calc(100% + 7px);
+  right: 0;
+  left: auto;
+  transform-origin: top right;
+}
+
+.note-reader-page .reader-more-actions[data-menu-side="above"] .note-row-more-menu {
+  top: auto;
+  bottom: calc(100% + 7px);
+  transform-origin: bottom right;
+}
+
+.note-reader-page .reader-more-actions[data-menu-align="left"] .note-row-more-menu {
+  right: auto;
+  left: 0;
+  transform-origin: top left;
+}
+
+.note-reader-page .reader-more-actions[data-menu-side="above"][data-menu-align="left"] .note-row-more-menu {
+  transform-origin: bottom left;
+}
+
 /* ==========================================================================
    Consistent action hierarchy — one primary action plus a shared overflow
    menu for secondary or destructive actions across the application.
