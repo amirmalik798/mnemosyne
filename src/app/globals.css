@@ -17833,3 +17833,496 @@ body p:not(.rich-editor p):not(.reader-content p) {
     font-size: max(14px, calc(14px * var(--font-scale, 1)));
   }
 }
+
+
+/* ==========================================================================
+   Phone experience correction — simplify global chrome and repair narrow
+   content layouts. All rules are phone-only; desktop geometry is untouched.
+   ========================================================================== */
+@media (max-width: 560px) {
+  /* The fixed bottom navigation already exposes Overview, Topics, Notes and
+     Search. Keep the top bar to one compact breadcrumb row instead of repeating
+     five global actions on every screen. Those actions live in More. */
+  .topbar {
+    min-height: 48px !important;
+    height: auto !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 7px 14px !important;
+  }
+
+  .topbar .breadcrumb {
+    width: auto !important;
+    max-width: 100% !important;
+    min-width: 0;
+    flex: 1 1 auto !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px !important;
+    line-height: 1.35;
+  }
+
+  .topbar .top-actions {
+    display: none !important;
+  }
+
+  .main-area {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .mobile-nav {
+    min-height: calc(70px + env(safe-area-inset-bottom)) !important;
+    gap: 4px !important;
+    padding: 6px max(8px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)) !important;
+  }
+
+  .mobile-nav-link {
+    min-height: 56px !important;
+    height: 56px !important;
+    gap: 4px !important;
+    font-size: 11px !important;
+  }
+
+  .mobile-nav-link svg {
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+  .mobile-nav-more {
+    max-height: min(72dvh,620px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px !important;
+  }
+
+  .mobile-nav-more-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .mobile-nav-more-link {
+    min-height: 66px !important;
+    display: grid !important;
+    grid-template-columns: 34px minmax(0,1fr) 12px;
+    align-items: center !important;
+    justify-items: stretch !important;
+    gap: 8px !important;
+    padding: 9px !important;
+    text-align: left !important;
+  }
+
+  .mobile-nav-more-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+
+  .mobile-nav-more-copy {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .mobile-nav-more-copy strong {
+    display: block;
+    font-size: 12px !important;
+    line-height: 1.35;
+  }
+
+  .mobile-nav-more-copy small {
+    display: none;
+  }
+
+  .mobile-nav-more-chevron {
+    display: none;
+  }
+
+  .mobile-utility-actions {
+    margin-top: 14px;
+    padding-top: 13px;
+    border-top: 1px solid var(--line);
+  }
+
+  .mobile-utility-actions-heading {
+    margin: 0 0 9px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+
+  .mobile-utility-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 8px;
+  }
+
+  .mobile-utility-actions-grid > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 46px !important;
+    height: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 9px 8px !important;
+    border: 1px solid var(--line-strong) !important;
+    border-radius: 11px !important;
+    background: var(--surface-2) !important;
+    color: var(--text) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.3;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .mobile-utility-actions-grid > * svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    color: var(--gold-bright);
+  }
+
+  .mobile-utility-actions-grid .theme-toggle {
+    border-color: var(--gold-border) !important;
+    background: var(--gold-soft) !important;
+    color: var(--gold-bright) !important;
+  }
+
+  .mobile-utility-actions-grid .theme-toggle svg {
+    color: var(--gold-bright) !important;
+  }
+
+  .mobile-utility-actions-grid .mobile-utility-lock {
+    border-color: color-mix(in srgb,var(--red) 26%,var(--line)) !important;
+  }
+
+  .mobile-utility-actions-grid .mobile-utility-lock svg {
+    color: var(--red);
+  }
+
+  .mobile-nav-more-close {
+    flex: 0 0 40px;
+  }
+
+  /* Dashboard: the empty image-reference row must not share its text width
+     with the CTA. Put the action on its own full-width row. */
+  .overview-image-empty {
+    display: grid !important;
+    grid-template-columns: 44px minmax(0,1fr) !important;
+    align-items: start !important;
+    gap: 10px 12px !important;
+    padding: 14px !important;
+  }
+
+  .overview-image-empty-icon {
+    grid-column: 1;
+    grid-row: 1;
+    width: 44px;
+    height: 44px;
+  }
+
+  .overview-image-empty-copy {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0 !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .overview-image-empty-copy strong {
+    display: block;
+    font-size: 15px !important;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .overview-image-empty-copy p {
+    margin-top: 5px;
+    font-size: 13px !important;
+    line-height: 1.55 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .overview-image-empty .overview-quick-action {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100% !important;
+    min-height: 44px;
+    margin: 0 !important;
+    justify-content: center;
+  }
+
+  /* A create-collection tile is an action, not a full-height placeholder card. */
+  .overview-create-topic-card {
+    min-height: 152px !important;
+    height: auto !important;
+    gap: 9px !important;
+    padding: 20px 16px !important;
+  }
+
+  .overview-create-topic-card > svg {
+    width: 38px;
+    height: 38px;
+  }
+
+  .overview-create-topic-card > span {
+    font-size: 17px !important;
+    line-height: 1.35;
+  }
+
+  /* Pinned: one browse route is enough on a phone. The empty-state CTA stays. */
+  .pinned-page .pinned-browse-button {
+    display: none !important;
+  }
+
+  .pinned-page .pinned-page-promise {
+    width: 100%;
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    padding: 10px 11px !important;
+    margin-top: 15px !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 11px !important;
+    background: var(--surface) !important;
+  }
+
+  .pinned-page .pinned-page-promise-icon {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+  }
+
+  .pinned-page .pinned-page-promise > span:last-child {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    line-height: 1.45;
+  }
+
+  .pinned-page .pinned-page-promise strong {
+    display: block;
+    color: var(--text);
+    font-size: 12px !important;
+    line-height: 1.4;
+  }
+
+  .pinned-page .pinned-page-promise small {
+    display: block;
+    color: var(--muted);
+    font-size: 12px !important;
+    line-height: 1.5;
+  }
+
+  .pinned-page .pinned-workspace-actions {
+    gap: 0 !important;
+  }
+
+  .pinned-page .pinned-workspace-actions .archive-sort-control {
+    flex: 1 1 100% !important;
+  }
+
+  .pinned-page .pinned-collection-card {
+    min-height: 112px !important;
+  }
+
+  .pinned-page .pinned-empty-state {
+    gap: 15px !important;
+    padding: 18px 14px !important;
+  }
+
+  .pinned-page .pinned-empty-copy h3 {
+    font-size: 25px !important;
+    line-height: 1.15 !important;
+  }
+
+  .pinned-page .pinned-empty-copy p {
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+  }
+
+  /* Trash: the page intro already explains recovery; remove the repeated
+     three-part instruction panel on the narrow screen. */
+  .trash-page .trash-guidance {
+    display: none !important;
+  }
+
+  .trash-page .trash-page-hero {
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .trash-page .trash-page-heading .page-subtitle {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+  }
+
+  .trash-page .trash-count-card {
+    min-height: 100px !important;
+  }
+
+  .trash-page .trash-workspace-heading {
+    margin-top: 0;
+  }
+
+  /* Reader: prevent a flex child or long subject from collapsing into a
+     one-character-wide column. Both navigation and note content span the card. */
+  .note-reader-page .note-reader-topbar {
+    width: 100% !important;
+    display: flex !important;
+    align-items: stretch !important;
+    flex-direction: column !important;
+    gap: 7px !important;
+  }
+
+  .note-reader-page .reader-back-link {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 40px;
+    display: flex !important;
+    flex: 0 0 auto !important;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+  }
+
+  .note-reader-page .reader-back-topic {
+    max-width: none !important;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .note-reader-page .reader-topbar-end {
+    width: 100% !important;
+    min-width: 0;
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .note-reader-page .reader-subject {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    line-height: 1.6 !important;
+  }
+
+  .note-reader-page .reader-header,
+  .note-reader-page .reader-document,
+  .note-reader-page .reader-content,
+  .note-reader-page .reader-section-divider {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .note-reader-page .reader-content {
+    font-size: 18px !important;
+    line-height: 1.85 !important;
+  }
+
+  .note-reader-page .reader-inspector {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Topic pages should follow their content height, not stretch empty panels. */
+  .topic-detail-page .topic-detail-hero,
+  .topic-detail-page .topic-detail-summary,
+  .topic-detail-page .topic-detail-note-panel {
+    min-height: 0 !important;
+    height: auto;
+  }
+
+  .topic-detail-page .topic-detail-description {
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  /* Keep the primary and secondary dialog actions visible while scrolling. */
+  .transfer-dialog-actions {
+    position: sticky;
+    bottom: calc(-16px - env(safe-area-inset-bottom));
+    z-index: 3;
+    margin: 12px -16px calc(-16px - env(safe-area-inset-bottom)) !important;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  /* The introductory privacy card repeats the search field's privacy help and
+     takes an entire phone screen row. Keep the concise, actionable search UI. */
+  .search-archive-page .search-privacy-card {
+    display: none !important;
+  }
+
+  .search-archive-page .search-archive-heading .page-subtitle {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+  }
+
+  .search-archive-page .search-discovery-state {
+    gap: 10px !important;
+    padding: 15px !important;
+  }
+
+  .search-archive-page .search-discovery-examples {
+    gap: 6px !important;
+  }
+
+  .search-archive-page .search-discovery-examples span {
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 11px !important;
+  }
+}
+
+/* On small phones, keep controls full width and avoid two-column action squeeze. */
+@media (max-width: 380px) {
+  .mobile-nav-more-grid {
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+
+  .mobile-utility-actions-grid {
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+
+  .overview-image-empty {
+    grid-template-columns: 40px minmax(0,1fr) !important;
+    padding: 12px !important;
+  }
+
+  .overview-image-empty-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .trash-page .trash-item-actions {
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+}
