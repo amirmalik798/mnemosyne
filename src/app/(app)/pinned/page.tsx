@@ -124,7 +124,7 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
               {notes.map((note) => <NoteRow key={note.id} note={note} />)}
             </div>
           ) : (
-            <div className="pinned-empty-state" role="status">
+            <div className="pinned-empty-state" role="region" aria-labelledby="pinned-empty-title" aria-describedby="pinned-empty-description">
               <div className="pinned-empty-illustration" aria-hidden="true">
                 <div className="pinned-empty-orbit pinned-empty-orbit-one" />
                 <div className="pinned-empty-orbit pinned-empty-orbit-two" />
@@ -136,8 +136,8 @@ export default async function PinnedNotesPage({ searchParams }: Props) {
 
               <div className="pinned-empty-copy">
                 <span className="eyebrow">A place for what matters</span>
-                <h3>Your reading list starts here.</h3>
-                <p>Keep important ideas close. Pin a note and it will be gathered here, ready to revisit without searching your entire archive.</p>
+                <h3 id="pinned-empty-title">Your reading list starts here.</h3>
+                <p id="pinned-empty-description">Keep important ideas close. Pin a note and it will be gathered here, ready to revisit without searching your entire archive.</p>
                 <Link href="/notes" className="primary-btn pinned-empty-primary">
                   <FileText size={16} aria-hidden="true" />
                   <span>Browse your notes</span>
