@@ -1318,15 +1318,39 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     );
   }
 
-  return <main className="page note-editor-page" aria-busy={busy || imageUploading}><div className="note-editor-heading" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:25 }}><Link href={noteId ? `/notes/${noteId}` : "/notes"} className="breadcrumb"><ArrowLeft size={14}/> {noteId ? "Back to note" : "All notes"}</Link><div className="note-editor-save-actions" style={{ display:"flex", gap:8, alignItems:"center" }}>
-        <button type="button" className="secondary-btn editor-header-action" onClick={() => setFocusMode((active) => !active)} aria-pressed={focusMode} aria-label={focusMode ? "Exit distraction-free mode" : "Enter distraction-free mode"} title={focusMode ? "Exit distraction-free mode" : "Distraction-free writing · Ctrl/⌘+Shift+F"}><Focus size={17} /><span>{focusMode ? "Exit focus" : "Focus"}</span></button>
-        <button type="button" className="secondary-btn editor-header-action" onClick={() => setInspectorOpen((open) => !open)} aria-expanded={inspectorOpen} aria-label={inspectorOpen ? "Collapse note inspector" : "Open note inspector"} title={inspectorOpen ? "Collapse note inspector · ⌘/Ctrl+I" : "Open note inspector · ⌘/Ctrl+I"}>{inspectorOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}<span>Properties</span></button>
-        <OperationStatus kind={getEditorStatusKind(status)} message={status} compact />
-        <button type="button" className="primary-btn editor-header-action" onClick={() => void save(false)} disabled={busy || imageUploading || !title.trim()} title={!title.trim() ? "Enter a note title before saving." : "Save note"} aria-label={imageUploading ? "Processing images" : busy ? "Saving note" : "Save note"} aria-busy={busy || imageUploading}>{busy || imageUploading ? <LoaderCircle className="operation-spinner" size={17}/> : <Save size={17}/>}<span>Save note</span></button></div></div>
-    <div className={`note-layout ${focusMode ? "focus-mode" : ""} ${inspectorOpen ? "" : "inspector-collapsed"}`}><section className="editor-main"><div className="eyebrow">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} placeholder="Untitled note" maxLength={180} disabled={busy || imageUploading} aria-label="Note title" aria-required="true" aria-describedby={!title.trim() ? "note-save-title-help" : undefined}/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); markDirty(); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy || imageUploading} aria-label="Note subject"/>
+  return (
+    <main className="page note-editor-page" aria-busy={busy || imageUploading}>
+      <header className="note-editor-heading">
+        <div className="note-editor-heading-start">
+          <Link href={noteId ? `/notes/${noteId}` : "/notes"} className="note-editor-back-link">
+            <ArrowLeft size={15} aria-hidden="true" />
+            <span>{noteId ? "Back to note" : "All notes"}</span>
+          </Link>
+          <span className="note-editor-heading-context">{noteId ? "EDITING NOTE" : "NEW NOTE"}</span>
+        </div>
+        <div className="note-editor-save-actions" role="group" aria-label="Editor view and save actions">
+          <button type="button" className="secondary-btn editor-header-action editor-focus-action" onClick={() => setFocusMode((active) => !active)} aria-pressed={focusMode} aria-label={focusMode ? "Exit distraction-free mode" : "Enter distraction-free mode"} title={focusMode ? "Exit distraction-free mode" : "Distraction-free writing · Ctrl/⌘+Shift+F"}>
+            <Focus size={17} aria-hidden="true" /><span>{focusMode ? "Exit focus" : "Focus"}</span>
+          </button>
+          <button type="button" className="secondary-btn editor-header-action editor-properties-toggle" onClick={() => setInspectorOpen((open) => !open)} aria-expanded={inspectorOpen} aria-label={inspectorOpen ? "Collapse note inspector" : "Open note inspector"} title={inspectorOpen ? "Collapse note inspector · ⌘/Ctrl+I" : "Open note inspector · ⌘/Ctrl+I"}>
+            {inspectorOpen ? <PanelRightClose size={17} aria-hidden="true" /> : <PanelRightOpen size={17} aria-hidden="true" />}
+            <span>Properties</span>
+          </button>
+          <div className="note-editor-save-status" aria-live="polite">
+            <OperationStatus kind={getEditorStatusKind(status)} message={status} compact />
+          </div>
+          <button type="button" className="primary-btn editor-header-action editor-save-button" onClick={() => void save(false)} disabled={busy || imageUploading || !title.trim()} title={!title.trim() ? "Enter a note title before saving." : "Save note"} aria-label={imageUploading ? "Processing images" : busy ? "Saving note" : "Save note"} aria-busy={busy || imageUploading}>
+            {busy || imageUploading ? <LoaderCircle className="operation-spinner" size={17} aria-hidden="true" /> : <Save size={17} aria-hidden="true" />}
+            <span>Save note</span>
+          </button>
+        </div>
+      </header>
+    <div className={`note-layout ${focusMode ? "focus-mode" : ""} ${inspectorOpen ? "" : "inspector-collapsed"}`}>
+      <section className="editor-main editor-writing-surface" aria-label="Note writing canvas">
+        <div className="eyebrow editor-kicker">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} placeholder="Untitled note" maxLength={180} disabled={busy || imageUploading} aria-label="Note title" aria-required="true" aria-describedby={!title.trim() ? "note-save-title-help" : undefined}/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); markDirty(); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy || imageUploading} aria-label="Note subject"/>
       {!title.trim() && <p id="note-save-title-help" className="editor-validation-hint" role="status">Add a title before saving this note.</p>}
       <div className="editor-toolbar editor-toolbar-quiet" role="toolbar" aria-label="Essential writing actions">
-        <span className="editor-toolbar-hint">Type <kbd>/</kbd> for blocks · Select text for formatting</span>
+        <span className="editor-toolbar-hint">Type <kbd>/</kbd> for blocks <span aria-hidden="true">·</span> Select text for quick formatting</span>
         <span className="tool-divider" />
         <input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const files = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ""; if (files.length) void uploadImages(files); }} />
         <button type="button" aria-label={imageUploading ? "Uploading images" : "Add images"} disabled={!editor || busy || imageUploading} className="tool-btn" onClick={() => imageRef.current?.click()} title="Add images">{imageUploading ? <LoaderCircle className="operation-spinner" aria-hidden="true" /> : <ImagePlus aria-hidden="true" />}<span className="tool-label">{imageUploading ? "Uploading…" : "Add images"}</span></button>
@@ -1337,7 +1361,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       </div>
       {imageUploadProgress && <UploadProgress label={imageUploadProgress.label} percentage={imageUploadProgress.percentage} detail={imageUploadProgress.detail} />}
       <details className="editor-advanced-formatting">
-        <summary>More formatting</summary>
+        <summary>Text appearance</summary>
         <div className="editor-formatting-controls" role="group" aria-label="Text appearance">
         <label className="inline-format-control">
           <span>Font</span>
@@ -1539,8 +1563,17 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         alt={imagePreview?.alt ?? "Note image"}
         onClose={closeImagePreview}
       />
-      <div className="editor-footer"><span>{words} words</span><OperationStatus kind={getEditorStatusKind(recoveryStatus)} message={recoveryStatus} compact /><span>Private encrypted note</span></div>
-    </section><aside className="editor-side" hidden={!inspectorOpen}><section className="panel"><h3 className="panel-title">Note properties</h3><div className="property-block"><label className="property-label" htmlFor="note-topic-select">Belongs to</label><select id="note-topic-select" dir="auto" lang={detectTextLanguage(availableTopics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy || imageUploading} onChange={(e)=>{setTopicId(e.target.value);markDirty();}}>{availableTopics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select>{topicsLoading && <OperationStatus kind="loading" message="Loading your topics…" compact />}{topicsError && <OperationStatus kind="failure" message={topicsError} compact />}</div><div className="property-block"><label className="property-label" htmlFor="note-tags">Tags</label><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy || imageUploading} onChange={(e)=>{setTagsInput(e.target.value);markDirty();}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button type="button" className="secondary-btn editor-property-action" disabled={busy || imageUploading} aria-pressed={pinned} aria-label={pinned ? "Unpin note" : "Pin note"} title={pinned ? "Unpin note" : "Pin note"} onClick={()=>{setPinned(!pinned);markDirty();}}>{pinned ? <PinOff size={17}/> : <Pin size={17}/>}<span>{pinned ? "Pinned note" : "Pin note"}</span></button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={availableTopics.length ? availableTopics : undefined} showLabel beforeTransfer={async()=>{if(busy || imageUploading)return false;return dirty || savingRef.current ? Boolean(await save(false)) : true;}}/></div>}</section><section className="panel"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p><div className="editor-interface-font"><div className="property-label">Interface typeface</div><FontSelector /></div></section>
+            <footer className="editor-footer note-editor-footer">
+        <span className="editor-word-count">{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
+        <span className="editor-recovery-status"><OperationStatus kind={getEditorStatusKind(recoveryStatus)} message={recoveryStatus} compact /></span>
+        <span className="editor-privacy-label"> <span aria-hidden="true">●</span> Encrypted note</span>
+      </footer>
+    </section><aside className="editor-side" aria-label="Note inspector" hidden={!inspectorOpen}>
+      <section className="panel editor-inspector-properties">
+        <div className="editor-inspector-heading">
+          <h3 className="panel-title">Note properties</h3>
+          <p>Keep this note organized and easy to find.</p>
+        </div><div className="property-block"><label className="property-label" htmlFor="note-topic-select">Belongs to</label><select id="note-topic-select" dir="auto" lang={detectTextLanguage(availableTopics.find((topic) => topic.id === topicId)?.title ?? "")} className="select-field" value={topicId} disabled={busy || imageUploading} onChange={(e)=>{setTopicId(e.target.value);markDirty();}}>{availableTopics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select>{topicsLoading && <OperationStatus kind="loading" message="Loading your topics…" compact />}{topicsError && <OperationStatus kind="failure" message={topicsError} compact />}</div><div className="property-block"><label className="property-label" htmlFor="note-tags">Tags</label><input id="note-tags" onFocus={() => setFocusTarget("tags")} dir="auto" lang={detectTextLanguage(tagsInput)} className="field" value={tagsInput} disabled={busy || imageUploading} onChange={(e)=>{setTagsInput(e.target.value);markDirty();}} placeholder="philosophy, research…"/><p className="form-hint">Separate tags with commas.</p></div><button type="button" className="secondary-btn editor-property-action editor-pin-action" disabled={busy || imageUploading} aria-pressed={pinned} aria-label={pinned ? "Unpin note" : "Pin note"} title={pinned ? "Unpin note" : "Pin note"} onClick={()=>{setPinned(!pinned);markDirty();}}>{pinned ? <PinOff size={17}/> : <Pin size={17}/>}<span>{pinned ? "Pinned note" : "Pin note"}</span></button>{noteId&&<div style={{marginTop:10}}><NoteTopicTransfer noteId={noteId} currentTopicId={topicId} topics={availableTopics.length ? availableTopics : undefined} showLabel beforeTransfer={async()=>{if(busy || imageUploading)return false;return dirty || savingRef.current ? Boolean(await save(false)) : true;}}/></div>}</section><section className="panel editor-inspector-guidance"><div className="property-label">Writing guidance</div><p className="form-hint" style={{fontSize:10,lineHeight:1.8}}>Use headings to create structure. Add quotations for source passages. Place images inline where they add context to the note.</p><div className="editor-interface-font"><div className="property-label">App-wide typeface</div><FontSelector /></div></section>
       {noteId && <section className="panel note-revisions">
         <details>
           <summary>Recent local versions · {revisionSnapshots.length}</summary>
