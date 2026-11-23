@@ -218,6 +218,8 @@ export function SearchWorkspace() {
         </section>
       ) : !searching && !error ? (
         <>
+          {resultCount > 0 && (
+            <>
           <section className="search-result-section" aria-labelledby="search-topics-title">
             <div className="search-result-section-heading">
               <div>
@@ -311,6 +313,8 @@ export function SearchWorkspace() {
               </div>
             ) : null}
           </section>
+            </>
+          )}
 
           {resultCount === 0 && (
             <div className="empty-state search-no-results" style={{ marginTop: 20 }}>
