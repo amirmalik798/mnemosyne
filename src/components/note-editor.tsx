@@ -1594,5 +1594,6 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
           )) : <p className="form-hint">Your saved versions will appear here after the next save.</p>}
         </details>
       </section>}
-      {noteId&&<button type="button" className="danger-btn editor-property-action editor-property-action--danger" onClick={removeNote} disabled={busy || imageUploading} aria-label="Move note to trash" title="Move note to trash"><Trash2 size={17}/><span>Move to trash</span></button>}</aside></div>{error&&<OperationStatus kind="error" message={error} />}{confirmationDialog}</main>;
+      {noteId&&<button type="button" className="danger-btn editor-property-action editor-property-action--danger" onClick={removeNote} disabled={busy || imageUploading} aria-label="Move note to trash" title="Move note to trash"><Trash2 size={17}/><span>Move to trash</span></button>}</aside></div>{error&&<OperationStatus kind="error" message={error} />}{confirmationDialog}</main>
+  );
 }
