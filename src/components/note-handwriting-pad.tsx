@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { Check, Eraser, PenLine, RotateCcw, RotateCw, X } from "lucide-react";
+import { Check, Eraser, LoaderCircle, PenLine, RotateCcw, RotateCw, X } from "lucide-react";
 
 type Point = { x: number; y: number; pressure: number };
 type Stroke = { color: string; width: number; points: Point[] };
@@ -268,7 +268,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
         <footer className="handwriting-actions">
           <button type="button" className="secondary-btn" onClick={onClose} disabled={exporting}>Cancel</button>
           <button type="button" className="primary-btn" onClick={() => void insertHandwriting()} disabled={!canUndo || exporting}>
-            {exporting ? <span className="operation-spinner" aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
+            {exporting ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
             <span>{exporting ? "Preparing…" : "Add to note"}</span>
           </button>
         </footer>
