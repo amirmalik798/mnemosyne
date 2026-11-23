@@ -6,7 +6,6 @@ import {
   ChevronDown,
   Copy,
   Download,
-  FolderOpen,
   LoaderCircle,
   Printer,
   Trash2,
@@ -194,17 +193,10 @@ export function NoteReaderActions({
 
   return (
     <div className="reader-action-groups" ref={toolbarRef} role="group" aria-label="Note actions">
-      <details className="reader-action-disclosure">
-        <summary aria-label="Organize note" title="Organize note">
-          <FolderOpen size={16} aria-hidden="true" />
-          <span>Organize</span>
-          <ChevronDown className="reader-action-chevron" size={14} aria-hidden="true" />
-        </summary>
-        <div className="reader-action-disclosure-panel" role="group" aria-label="Organization actions" onClick={closeMenus}>
-          <NoteImageDownload noteId={id} imageCount={imageCount} showLabel />
-          <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} showLabel />
-        </div>
-      </details>
+      <div className="reader-action-organize-group" role="group" aria-label="Organization actions" onClick={closeMenus}>
+        <NoteImageDownload noteId={id} imageCount={imageCount} showLabel />
+        <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} showLabel />
+      </div>
 
       <details className="reader-action-disclosure">
         <summary aria-label="Export note" title="Export note">
