@@ -10156,3 +10156,515 @@ html[data-theme="light"] .note-editor-page .editor-inspector-guidance {
   width: 68px;
   margin: 0 auto 29px;
 }
+
+
+/* ==========================================================================
+   Unified Reader workspace — uses the same canvas, measure and inspector
+   structure as the Editor, while keeping all note content read-only.
+   ========================================================================== */
+.note-reader-page {
+  width: 100%;
+  max-width: 1580px;
+  margin-inline: auto;
+  padding: 25px 42px 82px;
+}
+.note-reader-page .reader {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+.note-reader-page .note-reader-topbar {
+  width: 100%;
+  min-height: 48px;
+  margin-bottom: 13px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.note-reader-page .note-reader-actionbar {
+  width: 100%;
+  min-height: 52px;
+  justify-content: flex-end;
+  margin: 0 0 22px;
+  padding: 7px 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+.note-reader-page .reader-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 294px;
+  align-items: start;
+  gap: 24px;
+  min-width: 0;
+}
+.note-reader-page .reader-document.editor-main {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: clamp(22px, 3vw, 42px);
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background:
+    radial-gradient(ellipse at 8% 0%, color-mix(in srgb, var(--gold) 5%, transparent), transparent 34%),
+    linear-gradient(155deg, color-mix(in srgb, var(--surface-2) 72%, var(--surface)), var(--surface));
+  box-shadow: var(--shadow-card);
+}
+.note-reader-page .reader-header {
+  width: 100%;
+  max-width: none;
+  margin: 0 0 24px;
+  padding: 0 0 22px;
+  border-bottom: 1px solid var(--line);
+}
+.note-reader-page .reader-topic-kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 15px;
+}
+.note-reader-page .reader-topic-kicker .eyebrow {
+  margin: 0;
+  font-size: calc(10px * var(--font-scale, 1));
+}
+.note-reader-page .reader-topic-name {
+  min-height: 25px;
+  text-decoration: none;
+  transition: background .16s ease, border-color .16s ease;
+}
+.note-reader-page .reader-topic-name:hover {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+.note-reader-page .reader-title {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  margin: 0 0 12px;
+  padding: 0 0 7px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: calc(clamp(38px, 4.1vw, 54px) * var(--font-scale, 1));
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+.note-reader-page .reader-subject {
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  margin: 0 0 17px;
+  padding: 0 0 13px;
+  border: 0;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: calc(15px * var(--font-scale, 1)) !important;
+  line-height: 1.6;
+}
+.note-reader-page .reader-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  color: var(--muted);
+  font-size: calc(11px * var(--font-scale, 1));
+  line-height: 1.55;
+}
+.note-reader-page .reader-section-divider {
+  width: 52px;
+  height: 2px;
+  margin: 0 0 22px;
+  border: 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--gold), color-mix(in srgb, var(--gold) 12%, transparent));
+}
+.note-reader-page .reader-content {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: calc(20px * var(--font-scale, 1));
+  line-height: 1.92;
+  overflow-wrap: anywhere;
+}
+.note-reader-page .reader-content p {
+  margin: 0 0 1.15em;
+  color: var(--text);
+  line-height: inherit;
+}
+.note-reader-page .reader-content h1,
+.note-reader-page .reader-content h2,
+.note-reader-page .reader-content h3 {
+  margin: 1.65em 0 .65em;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-weight: 650;
+  line-height: 1.28;
+  letter-spacing: -.02em;
+  scroll-margin-top: 105px;
+}
+.note-reader-page .reader-content h1 { font-size: 1.7em; }
+.note-reader-page .reader-content h2 { font-size: 1.4em; }
+.note-reader-page .reader-content h3 { font-size: 1.18em; }
+.note-reader-page .reader-content ul,
+.note-reader-page .reader-content ol {
+  margin: 0 0 1.2em;
+  padding-inline-start: 1.5em;
+}
+.note-reader-page .reader-content li { margin: .2em 0; }
+.note-reader-page .reader-content blockquote {
+  margin: 1.4em 0;
+  padding: 14px 18px;
+  border-left: 3px solid var(--gold);
+  border-radius: 0 9px 9px 0;
+  background: color-mix(in srgb, var(--gold) 7%, var(--surface-2));
+  color: var(--text);
+  line-height: 1.75;
+}
+.note-reader-page .reader-content figure {
+  margin: 1.5em 0;
+  break-inside: avoid;
+}
+.note-reader-page .reader-content .note-image-trigger {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.note-reader-page .reader-content .note-image-trigger img {
+  width: auto;
+  max-width: 100%;
+  max-height: 760px;
+  margin: 0 auto;
+  border-radius: 0;
+}
+
+/* Read-only inspector mirrors the Editor's properties column. */
+.note-reader-page .reader-inspector {
+  position: sticky;
+  top: 88px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.note-reader-page .reader-inspector-panel {
+  position: relative;
+  min-width: 0;
+  padding: 19px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(155deg, var(--surface-2), var(--surface));
+  box-shadow: var(--shadow-card);
+}
+.note-reader-page .reader-inspector-heading {
+  margin: 0 0 16px;
+}
+.note-reader-page .reader-inspector-heading .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: calc(9px * var(--font-scale, 1));
+}
+.note-reader-page .reader-inspector-heading h2 {
+  margin: 7px 0 5px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: calc(18px * var(--font-scale, 1));
+  font-weight: 650;
+  letter-spacing: -.02em;
+}
+.note-reader-page .reader-inspector-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: calc(11px * var(--font-scale, 1));
+  line-height: 1.55;
+}
+.note-reader-page .reader-inspector-topic {
+  min-width: 0;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  text-decoration: none;
+  transition: border-color .16s ease, background .16s ease;
+}
+.note-reader-page .reader-inspector-topic:hover {
+  border-color: var(--gold-border);
+  background: var(--gold-soft);
+}
+.note-reader-page .reader-inspector-topic-icon {
+  width: 35px;
+  height: 35px;
+  flex: 0 0 35px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--gold-border);
+  border-radius: 9px;
+  background: var(--gold-soft);
+  color: var(--gold-bright);
+}
+.note-reader-page .reader-inspector-topic-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.note-reader-page .reader-inspector-topic-copy small {
+  color: var(--dim);
+  font-size: calc(8px * var(--font-scale, 1));
+  font-weight: 750;
+  letter-spacing: .12em;
+}
+.note-reader-page .reader-inspector-topic-copy strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: calc(12px * var(--font-scale, 1));
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-reader-page .reader-inspector-topic > svg {
+  flex: 0 0 auto;
+  color: var(--icon-secondary-action);
+}
+.note-reader-page .reader-inspector-pinned {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border: 1px solid rgba(203,180,126,.46);
+  border-radius: 8px;
+  background: rgba(203,180,126,.13);
+  color: var(--gold-bright);
+  font-size: calc(11px * var(--font-scale, 1));
+  font-weight: 700;
+}
+.note-reader-page .reader-inspector-pinned svg { color: var(--gold); }
+.note-reader-page .reader-inspector-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.note-reader-page .reader-inspector-stats > div {
+  min-width: 0;
+  min-height: 68px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+.note-reader-page .reader-inspector-stats dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: calc(10px * var(--font-scale, 1));
+  font-weight: 550;
+}
+.note-reader-page .reader-inspector-stats dt svg {
+  flex: 0 0 auto;
+  color: var(--icon-secondary-action);
+}
+.note-reader-page .reader-inspector-stats dd {
+  margin: 0;
+  color: var(--text);
+  font-size: calc(16px * var(--font-scale, 1));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.note-reader-page .reader-inspector-stats > div:last-child dd {
+  font-size: calc(10px * var(--font-scale, 1));
+  font-weight: 600;
+  line-height: 1.45;
+}
+.note-reader-page .reader-inspector-heading--compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 11px;
+}
+.note-reader-page .reader-inspector-heading--compact h2 { margin: 0; }
+.note-reader-page .reader-inspector-tags .reader-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.note-reader-page .reader-inspector-tags .tag-pill {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.note-reader-page .reader-inspector-readonly {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--surface-2));
+  box-shadow: none;
+}
+.note-reader-page .reader-readonly-mark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--gold);
+}
+.note-reader-page .reader-inspector-readonly strong {
+  display: block;
+  margin: 1px 0 4px;
+  color: var(--text);
+  font-size: calc(11px * var(--font-scale, 1));
+}
+.note-reader-page .reader-inspector-readonly p {
+  margin: 0;
+  color: var(--muted);
+  font-size: calc(10px * var(--font-scale, 1));
+  line-height: 1.55;
+}
+.note-reader-page .reader-note-navigation {
+  width: 100%;
+  margin: 22px 0 18px;
+}
+.note-reader-page .note-connections,
+.note-reader-page .reader-footer {
+  width: 100%;
+  margin-inline: 0;
+}
+html[data-theme="light"] .note-reader-page .reader-document.editor-main {
+  border-color: #E2DACE;
+  background:
+    radial-gradient(ellipse at 8% 0%, rgba(169,120,27,.045), transparent 34%),
+    linear-gradient(155deg, #FFFFFF, #FCFAF5);
+  box-shadow: 0 12px 36px rgba(59,47,26,.055);
+}
+html[data-theme="light"] .note-reader-page .reader-inspector-panel {
+  border-color: #E2DACE;
+  background: linear-gradient(155deg, #FFFFFF, #FBF9F3);
+  box-shadow: 0 8px 24px rgba(59,47,26,.045);
+}
+html[data-theme="light"] .note-reader-page .reader-inspector-topic {
+  border-color: #E2DACE;
+  background: #FFFFFF;
+}
+html[data-theme="light"] .note-reader-page .reader-inspector-topic:hover {
+  border-color: #B69547;
+  background: #F5EEDC;
+}
+html[data-theme="light"] .note-reader-page .reader-inspector-stats > div {
+  border-color: #E8E2D7;
+  background: #FCFAF5;
+}
+html[data-theme="light"] .note-reader-page .reader-inspector-pinned {
+  border-color: #C4A04F;
+  background: #F3E8CB;
+  color: #76520F;
+}
+@media (max-width: 1100px) {
+  .note-reader-page { padding-inline: 26px; }
+  .note-reader-page .reader-workspace-grid {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 17px;
+  }
+}
+@media (max-width: 900px) {
+  .note-reader-page .reader-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .note-reader-page .reader-inspector {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .note-reader-page .reader-inspector-readonly {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .note-reader-page { padding: 18px 16px 54px; }
+  .note-reader-page .reader-workspace-grid { gap: 14px; }
+  .note-reader-page .reader-document.editor-main { padding: 20px; }
+  .note-reader-page .reader-inspector {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .note-reader-page .reader-inspector-readonly { grid-column: auto; }
+  .note-reader-page .reader-title {
+    font-size: calc(clamp(34px, 7vw, 46px) * var(--font-scale, 1));
+  }
+  .note-reader-page .reader-content {
+    font-size: calc(18px * var(--font-scale, 1));
+    line-height: 1.82;
+  }
+  .note-reader-page .note-reader-actionbar {
+    justify-content: flex-start;
+    margin-bottom: 16px;
+  }
+  .note-reader-page .reader-action-groups { justify-content: flex-start; }
+  .note-reader-page .reader-note-navigation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .note-reader-page .reader-neighbor-link--newer,
+  .note-reader-page .reader-neighbor-empty--end {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+@media (max-width: 480px) {
+  .note-reader-page .reader-document.editor-main { padding: 16px; }
+  .note-reader-page .note-reader-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .note-reader-page .reader-topbar-end {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .note-reader-page .reader-mode-pill { display: inline-flex; }
+  .note-reader-page .reader-content {
+    font-size: calc(17px * var(--font-scale, 1));
+    line-height: 1.8;
+  }
+  .note-reader-page .reader-meta { gap: 5px 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-reader-page .reader-inspector-topic { transition: none; }
+}
+@media print {
+  .note-reader-page .reader-workspace-grid {
+    display: block !important;
+  }
+  .note-reader-page .reader-document.editor-main {
+    padding: 0 !important;
+    border: 0 !important;
+    background: #FFFFFF !important;
+  }
+  .note-reader-page .reader-inspector { display: none !important; }
+}
