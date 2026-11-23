@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, MoreHorizontal, Pin, PinOff, Trash2 } from "lucide-react";
+import { LoaderCircle, Pin, PinOff, Trash2 } from "lucide-react";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
+import { ActionOverflowMenu } from "@/components/action-overflow-menu";
 import { useConfirmation } from "@/components/confirmation-dialog";
 import { notifyOperation } from "@/components/operation-status";
 
@@ -11,7 +12,7 @@ export function NoteRowActions({
   noteId,
   currentTopicId,
   pinned,
-  compact = false,
+  compact = true,
 }: {
   noteId: string;
   currentTopicId: string;
@@ -22,29 +23,6 @@ export function NoteRowActions({
   const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
   const [isPinned, setIsPinned] = useState(pinned);
   const [busy, setBusy] = useState<"pin" | "delete" | null>(null);
-  const moreActionsRef = useRef<HTMLDetailsElement>(null);
-
-  useEffect(() => {
-    if (!compact) return;
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      if (event.target instanceof Node && !moreActionsRef.current?.contains(event.target)) {
-        if (moreActionsRef.current) moreActionsRef.current.open = false;
-      }
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || !moreActionsRef.current?.open) return;
-      event.preventDefault();
-      moreActionsRef.current.open = false;
-      moreActionsRef.current.querySelector<HTMLElement>("summary")?.focus();
-    };
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [compact]);
-
   useEffect(() => {
     setIsPinned(pinned);
   }, [pinned]);
@@ -130,13 +108,10 @@ export function NoteRowActions({
     <div className={compact ? "note-row-actions note-row-actions--compact" : "note-row-actions"} role="group" aria-label="Note actions">
       {pinAction}
       {compact ? (
-        <details className="note-row-more" ref={moreActionsRef}>
-          <summary aria-label="More note actions" title="More note actions"><MoreHorizontal size={18} aria-hidden="true" /></summary>
-          <div className="note-row-more-menu" role="group" aria-label="More note actions">
-            <NoteTopicTransfer noteId={noteId} currentTopicId={currentTopicId} showLabel />
-            {trashAction}
-          </div>
-        </details>
+        <ActionOverflowMenu label="More note actions">
+          <NoteTopicTransfer noteId={noteId} currentTopicId={currentTopicId} showLabel />
+          {trashAction}
+        </ActionOverflowMenu>
       ) : (
         <>
           <NoteTopicTransfer noteId={noteId} currentTopicId={currentTopicId} showLabel />
