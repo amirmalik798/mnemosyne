@@ -98,8 +98,8 @@ export function TrashWorkspace() {
   }
 
   return (
-    <main className="page">
-      <div className="page-heading">
+    <main className="page trash-page">
+      <header className="trash-page-hero">
         <div className="trash-page-heading">
           <div className="eyebrow">The archive's safety net · Recovery space</div>
           <h1 className="page-title">Recently <em>deleted.</em></h1>
