@@ -9206,3 +9206,24 @@ html[data-theme="light"] .note-reader-page .reader-content p { color: #26292E; }
   .note-reader-page .note-connections,
   .note-reader-page .reader-footer { display: none !important; }
 }
+
+
+.reader-action-organize-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.reader-action-organize-group > .reader-action-button {
+  min-height: 38px;
+}
+@media (max-width: 480px) {
+  .reader-action-organize-group {
+    flex: 1 1 auto;
+  }
+  .reader-action-organize-group > .reader-action-button {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding-inline: 8px;
+  }
+}
