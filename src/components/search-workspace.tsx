@@ -226,9 +226,28 @@ export function SearchWorkspace() {
           </div> : topics.length > 0 ? <p className="search-section-empty">No notes matched this search. Matching topics are shown above.</p> : null}
 
           {resultCount === 0 && (
-            <div className="empty-state" style={{ marginTop: 20 }}>
+            <div className="empty-state search-no-results" style={{ marginTop: 20 }}>
+              <Search aria-hidden="true" />
               <h3>No matches found</h3>
-              <p>Search completed, but no topics or notes matched “{query.trim()}”. Try a different word or a broader subject.</p>
+              <p>
+                Search completed, but no topics or notes matched “{query.trim()}”.
+                {filter !== "all" ? " Try searching all content or use a broader phrase." : " Try a different word or a broader subject."}
+              </p>
+              <div className="search-empty-actions">
+                {filter !== "all" && (
+                  <button type="button" className="secondary-btn" onClick={() => setFilter("all")}>
+                    Show all content
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => { setQuery(""); setFilter("all"); }}
+                >
+                  <X size={15} aria-hidden="true" />
+                  <span>Clear search</span>
+                </button>
+              </div>
             </div>
           )}
         </>
