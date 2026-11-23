@@ -8,6 +8,7 @@ import { RichContent } from "@/components/rich-content";
 import { NoteReaderActions } from "@/components/note-reader-actions";
 import { detectTextLanguage } from "@/lib/bidi";
 import { ReaderProgress } from "@/components/reader-progress";
+import { ReaderFocusToggle } from "@/components/reader-focus-toggle";
 import { formatArchiveDate, formatArchiveDateTime } from "@/lib/date-format";
 type RichTextNode = {
   type?: unknown;
@@ -220,6 +221,7 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
             <span className="reader-back-topic" dir="auto" lang={detectTextLanguage(topicTitle)}>{topicTitle}</span>
           </Link>
           <div className="reader-topbar-end">
+            <ReaderFocusToggle />
             <span className="reader-mode-pill"><BookOpen size={14} aria-hidden="true" /> Reading</span>
             <Link
               className="primary-btn reader-edit-button"
