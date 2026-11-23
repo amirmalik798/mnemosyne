@@ -14472,3 +14472,297 @@ html[data-preset] {
   .pinned-page .pinned-empty-illustration { width: 140px; height: 140px; }
   .pinned-page .pinned-how-to { padding: 14px; }
 }
+
+
+/* Keep the redesigned Pinned page composed at tablet and phone widths. */
+@media (max-width: 1099px) {
+  .pinned-page .pinned-page-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+
+  .pinned-page .pinned-page-heading {
+    min-width: 0;
+  }
+
+  .pinned-page .pinned-collection-card {
+    width: 100%;
+    max-width: 100%;
+    min-height: 130px;
+  }
+
+  .pinned-page .pinned-collection-count-row {
+    margin-top: 12px;
+  }
+
+  .pinned-page .pinned-collection-count-row strong {
+    font-size: 38px;
+  }
+
+  .pinned-page .pinned-workspace-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .pinned-page .pinned-workspace-title-group {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .pinned-page .pinned-workspace-title-group h2 {
+    margin: 5px 0;
+    color: var(--text);
+    font-family: Georgia,'Times New Roman',serif;
+    font-size: 22px;
+    font-weight: 400;
+  }
+
+  .pinned-page .pinned-workspace-title-group p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .pinned-page .pinned-workspace-actions {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .pinned-page .pinned-workspace-actions .archive-sort-control {
+    min-height: 42px;
+    flex: 1 1 220px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 7px 5px 11px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+
+  .pinned-page .pinned-workspace-actions .archive-sort-control select {
+    min-width: 0;
+    flex: 1 1 auto;
+    height: 34px;
+    padding-inline: 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .pinned-page .pinned-browse-button {
+    min-height: 42px;
+    flex: 0 0 auto;
+    gap: 7px;
+    padding-inline: 12px;
+  }
+
+  .pinned-page .pinned-collection-surface.is-empty,
+  .pinned-page .pinned-empty-state {
+    min-height: 0;
+  }
+
+  .pinned-page .pinned-empty-state {
+    display: grid;
+    grid-template-columns: 150px minmax(0,1fr);
+    align-items: center;
+    gap: 22px;
+    padding: 25px;
+  }
+
+  .pinned-page .pinned-empty-illustration {
+    position: relative;
+    width: 136px;
+    height: 136px;
+    display: grid;
+    place-items: center;
+    justify-self: center;
+    border: 1px solid color-mix(in srgb,var(--gold) 23%,transparent);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 44%,color-mix(in srgb,var(--gold) 16%,transparent),transparent 60%),var(--surface);
+  }
+
+  .pinned-page .pinned-empty-orbit {
+    position: absolute;
+    inset: 9px;
+    border: 1px solid color-mix(in srgb,var(--gold) 17%,transparent);
+    border-radius: 50%;
+  }
+
+  .pinned-page .pinned-empty-orbit-two {
+    inset: 20px;
+    border-style: dashed;
+    border-color: var(--line-strong);
+  }
+
+  .pinned-page .pinned-empty-book {
+    width: 65px;
+    height: 65px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--gold-border);
+    border-radius: 18px;
+    background: var(--surface-2);
+    color: var(--gold-bright);
+    transform: rotate(-4deg);
+  }
+
+  .pinned-page .pinned-empty-pin {
+    position: absolute;
+    top: 18px;
+    right: 17px;
+    width: 31px;
+    height: 31px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--gold-border);
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--gold-bright);
+  }
+
+  .pinned-page .pinned-empty-spark {
+    position: absolute;
+    color: var(--gold-bright);
+  }
+
+  .pinned-page .pinned-empty-spark-one { top: 21px; left: 22px; }
+  .pinned-page .pinned-empty-spark-two { right: 23px; bottom: 25px; }
+
+  .pinned-page .pinned-empty-copy {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .pinned-page .pinned-empty-copy h3 {
+    margin: 7px 0 8px;
+    color: var(--text);
+    font-family: Georgia,'Times New Roman',serif;
+    font-size: 27px;
+    font-weight: 400;
+    line-height: 1.15;
+  }
+
+  .pinned-page .pinned-empty-copy p {
+    max-width: 520px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .pinned-page .pinned-empty-primary {
+    min-height: 43px;
+    margin-top: 15px;
+    gap: 8px;
+  }
+
+  .pinned-page .pinned-how-to {
+    grid-column: 1 / -1;
+    padding: 15px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--surface-2);
+  }
+
+  .pinned-page .pinned-how-to-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 9px;
+    border-bottom: 1px solid var(--line);
+    color: var(--gold-bright);
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .pinned-page .pinned-how-to-steps {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .pinned-page .pinned-how-to-step {
+    min-width: 0;
+    flex: 1 1 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .pinned-page .pinned-how-to-number {
+    width: 25px;
+    height: 25px;
+    flex: 0 0 25px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--gold-border);
+    border-radius: 7px;
+    background: var(--gold-soft);
+    color: var(--gold-bright);
+    font: 700 9px ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+
+  .pinned-page .pinned-how-to-step-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .pinned-page .pinned-how-to-step-copy strong {
+    color: var(--text);
+    font-size: 10px;
+  }
+
+  .pinned-page .pinned-how-to-step-copy small {
+    color: var(--muted);
+    font-size: 9px;
+    line-height: 1.4;
+  }
+
+  .pinned-page .pinned-how-to-connector { display: none; }
+}
+
+@media (max-width: 560px) {
+  .pinned-page .pinned-page-promise { max-width: 100%; }
+  .pinned-page .pinned-workspace-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .pinned-page .pinned-workspace-actions .archive-sort-control,
+  .pinned-page .pinned-browse-button {
+    width: 100%;
+    min-width: 0;
+  }
+  .pinned-page .pinned-browse-button { justify-content: center; }
+  .pinned-page .pinned-empty-state {
+    grid-template-columns: minmax(0,1fr);
+    justify-items: stretch;
+    gap: 18px;
+    padding: 20px 16px;
+  }
+  .pinned-page .pinned-empty-illustration { width: 116px; height: 116px; }
+  .pinned-page .pinned-empty-copy { text-align: center; }
+  .pinned-page .pinned-empty-copy h3 { font-size: 25px; }
+  .pinned-page .pinned-empty-primary { width: 100%; justify-content: center; }
+  .pinned-page .pinned-how-to { grid-column: 1; }
+  .pinned-page .pinned-how-to-steps { flex-direction: column; gap: 11px; }
+  .pinned-page .pinned-how-to-step { width: 100%; }
+  .pinned-page .pinned-collection-surface.has-notes { padding: 6px 10px; }
+}
