@@ -61,9 +61,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-      const initialTheme: Theme = savedTheme === "light" ? "light" : "dark";
       const savedPreset = window.localStorage.getItem(PRESET_STORAGE_KEY);
       const initialPreset = isPreset(savedPreset) ? savedPreset : DEFAULT_PRESET;
+      const presetDefaultTheme = PRESETS.find((preset) => preset.id === initialPreset)?.defaultTheme ?? "dark";
+      const initialTheme: Theme = savedTheme === "light" || savedTheme === "dark" ? savedTheme : presetDefaultTheme;
       const savedFont = window.localStorage.getItem(FONT_STORAGE_KEY);
       const initialFont: AppFont = isAppFont(savedFont) ? savedFont : DEFAULT_FONT;
       const savedFontSize = window.localStorage.getItem(FONT_SIZE_STORAGE_KEY);
