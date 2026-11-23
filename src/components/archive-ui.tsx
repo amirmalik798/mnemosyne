@@ -19,7 +19,8 @@ export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; va
     <Link
       className={`topic-card ${variant === "dashboard" ? "topic-card-dashboard" : ""} ${archiveCard ? "topic-card-archive" : ""} ${collectionCard ? "topic-card-collection" : ""} ${featuredArchiveCard ? "topic-card-archive-featured" : ""}`}
       href={`/topics/${topic.id}`}
-      aria-label={collectionCard ? `Open ${title} collection` : undefined}
+      aria-label={`Open collection: ${title}`}
+      title={`Open collection: ${title}`}
     >
       <div className="topic-cover">
         {topic.coverUrl
@@ -65,7 +66,12 @@ export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; va
 export function NoteRow({ note, compactActions = false, showOpenCue = false }: { note: NoteItem; compactActions?: boolean; showOpenCue?: boolean }) {
   return (
     <div className={`note-row ${note.pinned ? "note-row-pinned" : ""}`}>
-      <Link href={`/notes/${note.id}`} className="note-row-main-link">
+      <Link
+        href={`/notes/${note.id}`}
+        className="note-row-main-link"
+        aria-label={`Open note: ${note.title || "Untitled note"}`}
+        title={`Open note: ${note.title || "Untitled note"}`}
+      >
         <div className="note-icon">{note.pinned ? <Pin /> : <FileText />}</div>
         <div className="note-main">
           <div className="note-row-title" dir="auto" lang={detectTextLanguage(note.title)}>
