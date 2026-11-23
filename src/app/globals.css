@@ -17509,3 +17509,223 @@ html[data-preset] {
   .trash-page .trash-delete-button,
   .trash-page .trash-empty-browse { transition: none !important; }
 }
+
+
+/* ==========================================================================
+   MNEMOSYNE — app-wide readability system
+   A central typography floor keeps metadata, labels and helper copy readable
+   across every workspace and theme. Existing page layouts remain unchanged.
+   ========================================================================== */
+:root {
+  --font-scale: 1;
+  --readable-micro-size: 12.5px;
+  --readable-control-size: 13.5px;
+  --readable-body-size: 15px;
+}
+
+/* Activate the typography sizes already offered in Settings. */
+html[data-font-size="compact"] { --font-scale: .9; }
+html[data-font-size="default"] { --font-scale: 1; }
+html[data-font-size="comfortable"] { --font-scale: 1.1; }
+html[data-font-size="large"] { --font-scale: 1.2; }
+
+body {
+  font-size: max(14px, calc(var(--readable-body-size) * var(--font-scale, 1)));
+  line-height: 1.55;
+}
+
+/* Secondary information: never fall below a comfortable desktop reading size. */
+body :where(
+  small,
+  time,
+  .eyebrow,
+  .brand-sub,
+  .nav-label,
+  .status-row,
+  .vault-caption,
+  .profile-name,
+  .profile-sub,
+  .breadcrumb,
+  .search-trigger,
+  .search-trigger kbd,
+  .stat span,
+  .filter-chip,
+  .small-field,
+  .cover-category,
+  .topic-subject,
+  .topic-description,
+  .topic-meta,
+  .create-card p,
+  .note-row-sub,
+  .note-row-meta,
+  .form-label,
+  .form-hint,
+  .cover-upload-text,
+  .error-text,
+  .success-text,
+  .inline-format-control,
+  .format-reset-btn,
+  .property-label,
+  .tag-pill,
+  .editor-footer,
+  .reader-meta,
+  .image-lightbox-caption,
+  .nav-count,
+  [class*="-meta"],
+  [class*="-caption"],
+  [class*="-hint"],
+  [class*="-sub"],
+  [class*="-help"],
+  [class*="-foot"],
+  [class*="-date"],
+  [class*="-description"],
+  [class*="-subject"],
+  [class*="-category"],
+  [class*="-count"],
+  [class*="-mode"],
+  [class*="-label"],
+  [class*="-copy"],
+  [class*="-note"],
+  [class*="-link"]
+) {
+  font-size: max(var(--readable-micro-size), calc(var(--readable-micro-size) * var(--font-scale, 1))) !important;
+  line-height: 1.5;
+}
+
+/* Common controls need to be readable at a glance, not merely tappable. */
+body :where(
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn,
+  .nav-link,
+  .theme-toggle,
+  .search-trigger,
+  .archive-search-clear,
+  .archive-sort-control select,
+  .select-field,
+  .field,
+  .textarea-field,
+  .small-field,
+  .filter-chip,
+  .settings-nav a,
+  .mobile-nav-link,
+  .mobile-nav-more-link,
+  .note-row-action,
+  .trash-action-button,
+  .reader-action-button,
+  .editor-header-action,
+  .tool-btn-label,
+  .confirmation-dialog-actions button
+) {
+  font-size: max(var(--readable-control-size), calc(var(--readable-control-size) * var(--font-scale, 1))) !important;
+}
+
+/* Keep quiet metadata readable against every theme's surface. */
+body :where(
+  small,
+  time,
+  .vault-caption,
+  .profile-sub,
+  .topic-meta,
+  .note-row-sub,
+  .note-row-meta,
+  .form-hint,
+  .property-label,
+  .editor-footer,
+  .reader-meta,
+  .result-copy,
+  .result-meta,
+  .result-note-context,
+  .result-note-subject,
+  .result-excerpt p,
+  .search-filter-explanation,
+  .search-section-caption,
+  .search-panel-foot,
+  .trash-guidance-item small,
+  .trash-item-origin,
+  .trash-item-date,
+  .all-notes-guide-step small,
+  .pinned-how-to-step-copy small
+) {
+  color: var(--muted) !important;
+}
+
+/* Labels remain editorial, but stop relying on tiny size and excessive tracking. */
+.eyebrow,
+.property-label,
+.nav-label,
+.brand-sub {
+  letter-spacing: .13em;
+  line-height: 1.45;
+}
+
+/* Form values and placeholder text are especially important for task completion. */
+body :where(input, textarea, select, .field, .select-field, .textarea-field) {
+  font-size: max(14px, calc(14px * var(--font-scale, 1))) !important;
+}
+
+body :where(input, textarea, select)::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* Do not let button captions or status messages become clipped by the new floor. */
+body :where(.primary-btn, .secondary-btn, .danger-btn, .nav-link, .theme-toggle) {
+  line-height: 1.35;
+}
+
+body :where(.form-hint, .vault-caption, .topic-description, .note-row-sub, .page-subtitle) {
+  line-height: 1.65;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --readable-micro-size: 13px;
+    --readable-control-size: 14px;
+    --readable-body-size: 15.5px;
+  }
+
+  body :where(.field, .select-field, .textarea-field, input, textarea, select) {
+    font-size: max(16px, calc(16px * var(--font-scale, 1))) !important;
+  }
+
+  body :where(.mobile-nav-link) {
+    font-size: max(11.5px, calc(11.5px * var(--font-scale, 1))) !important;
+  }
+
+  body :where(.mobile-nav-more-trigger::after) {
+    font-size: 10px;
+  }
+
+  body :where(.mobile-nav-more-copy small) {
+    font-size: max(13px, calc(13px * var(--font-scale, 1))) !important;
+  }
+
+  body :where(.eyebrow, .property-label, .nav-label, .brand-sub) {
+    letter-spacing: .11em;
+  }
+}
+
+@media (prefers-contrast: more) {
+  body :where(
+    small,
+    time,
+    .vault-caption,
+    .profile-sub,
+    .topic-meta,
+    .note-row-sub,
+    .note-row-meta,
+    .form-hint,
+    .property-label,
+    .editor-footer,
+    .reader-meta,
+    .result-meta,
+    .search-panel-foot
+  ) {
+    color: var(--text) !important;
+  }
+
+  body :where(.field, .select-field, .textarea-field, button, a) {
+    border-color: var(--line-strong);
+  }
+}
