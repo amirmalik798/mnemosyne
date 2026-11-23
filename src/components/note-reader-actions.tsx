@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
+import { ActionOverflowMenu } from "@/components/action-overflow-menu";
 import { NoteImageDownload } from "@/components/note-image-download";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 import { useConfirmation } from "@/components/confirmation-dialog";
@@ -41,7 +42,7 @@ export function NoteReaderActions({
   const [preparingPdf, setPreparingPdf] = useState(false);
 
   const closeMenus = useCallback(() => {
-    toolbarRef.current?.querySelectorAll<HTMLDetailsElement>(".reader-action-disclosure[open]")
+    toolbarRef.current?.querySelectorAll<HTMLDetailsElement>(".reader-more-actions[open], .reader-action-disclosure[open]")
       .forEach((menu) => { menu.open = false; });
   }, []);
 
@@ -193,12 +194,13 @@ export function NoteReaderActions({
 
   return (
     <div className="reader-action-groups" ref={toolbarRef} role="group" aria-label="Note actions">
-      <div className="reader-action-organize-group" role="group" aria-label="Organization actions" onClick={closeMenus}>
-        <NoteImageDownload noteId={id} imageCount={imageCount} showLabel />
-        <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} showLabel />
-      </div>
+      <ActionOverflowMenu className="reader-more-actions" label="More note actions">
+        <div className="reader-action-organize-group" role="group" aria-label="Organization actions" onClick={closeMenus}>
+          <NoteImageDownload noteId={id} imageCount={imageCount} showLabel />
+          <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} showLabel />
+        </div>
 
-      <details className="reader-action-disclosure">
+        <details className="reader-action-disclosure">
         <summary aria-label="Export note" title="Export note">
           <Download size={16} aria-hidden="true" />
           <span>Export</span>
@@ -228,18 +230,19 @@ export function NoteReaderActions({
         </div>
       </details>
 
-      <button
-        type="button"
-        className="reader-trash-action"
-        onClick={() => { closeMenus(); void remove(); }}
-        disabled={busy || copying}
-        aria-busy={busy}
-        title={busy ? "Moving note to Recently deleted…" : "Move note to trash"}
-        aria-label={busy ? "Moving note to Recently deleted" : "Move note to trash"}
-      >
-        {busy ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <Trash2 size={16} aria-hidden="true" />}
-        <span>{busy ? "Moving…" : "Move to trash"}</span>
-      </button>
+        <button
+          type="button"
+          className="reader-trash-action"
+          onClick={() => { closeMenus(); void remove(); }}
+          disabled={busy || copying}
+          aria-busy={busy}
+          title={busy ? "Moving note to Recently deleted…" : "Move note to trash"}
+          aria-label={busy ? "Moving note to Recently deleted" : "Move note to trash"}
+        >
+          {busy ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <Trash2 size={16} aria-hidden="true" />}
+          <span>{busy ? "Moving…" : "Move to trash"}</span>
+        </button>
+      </ActionOverflowMenu>
 
       {message && <OperationStatus kind={messageKind} message={message} compact />}
       {confirmationDialog}
