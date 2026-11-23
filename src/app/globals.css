@@ -11010,3 +11010,47 @@ html[data-theme="light"].reader-focus-active .note-reader-page .reader-focus-tog
     padding: 18px 8px;
   }
 }
+
+
+/* Focus reading alignment: title metadata, table of contents and body share
+   one consistent measure. Avoid mixing ch-based widths from different font
+   sizes (the header uses UI text while the body uses larger reading text). */
+html.reader-focus-active .note-reader-page .reader-document.editor-main {
+  width: 100%;
+}
+html.reader-focus-active .note-reader-page .reader-header {
+  width: 100%;
+  max-width: none !important;
+  margin: 0 0 24px !important;
+}
+html.reader-focus-active .note-reader-page .reader-title,
+html.reader-focus-active .note-reader-page .reader-subject,
+html.reader-focus-active .note-reader-page .reader-meta {
+  width: 100%;
+  max-width: none !important;
+  margin-left: 0;
+  margin-right: 0;
+}
+html.reader-focus-active .note-reader-page .reader-toc {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 0 27px !important;
+}
+html.reader-focus-active .note-reader-page .reader-content {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+html.reader-focus-active .note-reader-page .reader-section-divider {
+  width: 68px !important;
+  max-width: 68px !important;
+  margin: 0 0 28px !important;
+}
+@media (max-width: 760px) {
+  html.reader-focus-active .note-reader-page .reader-header,
+  html.reader-focus-active .note-reader-page .reader-toc,
+  html.reader-focus-active .note-reader-page .reader-content {
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
