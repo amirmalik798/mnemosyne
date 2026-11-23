@@ -10037,7 +10037,7 @@ html[data-theme="light"] .note-reader-page .reader-toc-link:hover {
 .note-editor-page .editor-toolbar-controls .tool-divider {
   display: none;
 }
-.note-editor-page .editor-main .focus-active-block {
+.note-editor-page .note-layout.focus-mode .editor-main .focus-active-block {
   border-radius: 5px;
   box-shadow: inset 2px 0 0 color-mix(in srgb, var(--gold) 58%, transparent);
   background: color-mix(in srgb, var(--gold) 3.5%, transparent);
@@ -10086,7 +10086,7 @@ html[data-theme="light"] .note-editor-page .editor-toolbar-controls .tool-btn[ar
   background: #F3E8CB;
   color: #76520F;
 }
-html[data-theme="light"] .note-editor-page .editor-main .focus-active-block {
+html[data-theme="light"] .note-editor-page .note-layout.focus-mode .editor-main .focus-active-block {
   background: rgba(169,120,27,.055);
   box-shadow: inset 2px 0 0 rgba(169,120,27,.52);
 }
@@ -11052,5 +11052,109 @@ html.reader-focus-active .note-reader-page .reader-section-divider {
   html.reader-focus-active .note-reader-page .reader-content {
     width: 100% !important;
     max-width: none !important;
+  }
+}
+
+
+/* Writing experience polish: remove visual chrome from the active block in
+   normal mode, keep the formatting toolbar readable while sticky, and give
+   writers useful document metrics without interrupting their flow. */
+.note-editor-page .editor-main .focus-active-block {
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.note-editor-page .editor-toolbar {
+  position: sticky;
+  top: 70px;
+  z-index: 12;
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  box-shadow: 0 8px 22px rgba(0,0,0,.16);
+  backdrop-filter: none;
+  scroll-margin-top: 118px;
+}
+html[data-theme="light"] .note-editor-page .editor-toolbar {
+  background: #FAF8F3;
+  border-color: #DCD4C6;
+  box-shadow: 0 8px 22px rgba(59,47,26,.10);
+}
+.note-editor-page .editor-toolbar-controls .tool-btn {
+  min-width: 40px;
+  min-height: 40px;
+  height: 40px;
+}
+.note-editor-page .editor-toolbar-controls .editor-tool-labelled {
+  min-height: 40px;
+}
+.note-editor-page .editor-toolbar-hint {
+  color: var(--muted);
+  font-size: calc(12px * var(--font-scale, 1));
+}
+.note-editor-page .rich-editor {
+  min-height: clamp(360px, 44vh, 560px);
+  padding-top: 14px;
+  padding-bottom: 28px;
+  scroll-margin-top: 124px;
+}
+.note-editor-page .rich-editor p.is-editor-empty:first-child::before,
+.note-editor-page .rich-editor p.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--dim);
+  opacity: .78;
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+.note-editor-page .editor-writing-metrics {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: calc(11px * var(--font-scale, 1));
+  font-variant-numeric: tabular-nums;
+}
+.note-editor-page .editor-writing-metrics .editor-word-count {
+  color: var(--text);
+  font-weight: 750;
+}
+.note-editor-page .editor-metric-separator {
+  color: var(--dim);
+}
+.note-editor-page .editor-recovery-status {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.note-editor-page .editor-privacy-label {
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .note-editor-page .editor-toolbar {
+    top: 66px;
+  }
+}
+@media (max-width: 760px) {
+  .note-editor-page .editor-toolbar {
+    position: static;
+    background: var(--surface-2);
+    box-shadow: none;
+  }
+  .note-editor-page .rich-editor {
+    min-height: clamp(300px, 42vh, 480px);
+  }
+}
+@media (max-width: 480px) {
+  .note-editor-page .editor-footer {
+    align-items: flex-start;
+  }
+  .note-editor-page .editor-writing-metrics {
+    flex-basis: 100%;
+  }
+  .note-editor-page .editor-recovery-status {
+    flex: 1 1 100%;
   }
 }
