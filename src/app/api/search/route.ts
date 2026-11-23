@@ -37,6 +37,7 @@ type SearchNote = {
   subject: string;
   topicTitle: string;
   tags: string[];
+  pinned: boolean;
   preview: string;
   matchType: "title" | "tag" | "content";
   updatedAt: unknown;
@@ -124,6 +125,7 @@ async function searchNotesInBatches(
           subject,
           topicTitle,
           tags,
+          pinned: Boolean(row.pinned),
           preview: scope === "titles"
             ? subject
             : scope === "tags"
