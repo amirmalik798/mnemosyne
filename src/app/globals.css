@@ -11435,3 +11435,19 @@ html[data-preset] .toast { color:var(--text); background:var(--surface-2); borde
   .theme-preset-grid { grid-template-columns:minmax(0,1fr); }
   .theme-preset-settings .settings-section-heading { align-items:center; }
 }
+
+
+/* Keep semantic icon colors aligned with the active palette. */
+html[data-preset] {
+  --icon-accent-action:var(--gold);
+  --icon-secondary-action:var(--green);
+  --icon-neutral-action:var(--blue);
+  --icon-format-action:var(--muted);
+  --icon-filter-action:var(--purple);
+  --icon-note-action:var(--green);
+  --icon-search-action:var(--blue);
+  --icon-sun-action:var(--gold);
+  --icon-moon-action:var(--purple);
+  --icon-font-action:var(--purple);
+  --icon-success-action:var(--green);
+}
