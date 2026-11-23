@@ -16806,7 +16806,7 @@ html[data-preset] {
 
   .trash-page .trash-guidance {
     display: grid;
-    grid-template-columns: repeat(3,minmax(0,1fr));
+    grid-template-columns: minmax(0,1fr) 1px minmax(0,1fr) 1px minmax(0,1fr);
     align-items: center;
     gap: 0;
     margin-bottom: 28px;
