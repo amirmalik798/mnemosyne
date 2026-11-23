@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, FolderOpen, FileText, ArrowUpRight, X } from "lucide-react";
+import { Search, FolderOpen, FileText, ArrowUpRight, X, CheckCircle2, Pin, Tag } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
 import { OperationStatus } from "@/components/operation-status";
 import { formatArchiveDateTime } from "@/lib/date-format";
@@ -99,16 +99,23 @@ export function SearchWorkspace() {
   const searching = waiting || busy;
 
   return (
-    <main className="page" aria-busy={searching}>
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">Find a thought</div>
-          <h1 className="page-title">Search the archive</h1>
-          <p className="page-subtitle">Search across topic names, subjects, note titles, tags and the words inside your notes.</p>
+    <main className="page search-archive-page" aria-busy={searching}>
+      <header className="search-archive-hero">
+        <div className="search-archive-heading">
+          <div className="eyebrow">Find a thought · Private archive search</div>
+          <h1 className="page-title">Search <em>the archive.</em></h1>
+          <p className="page-subtitle">Find a note, recover a phrase or return to an idea. Search across collections, subjects, titles, tags and the words inside your notes.</p>
         </div>
-      </div>
+        <aside className="search-privacy-card" aria-label="Search privacy">
+          <span className="search-privacy-icon"><Search size={18} aria-hidden="true" /></span>
+          <span className="search-privacy-copy">
+            <strong>Private by design</strong>
+            <small>Your archive is searched in decrypted memory. No plaintext search index is created.</small>
+          </span>
+        </aside>
+      </header>
 
-      <div className="archive-search-field">
+      <section className="search-archive-panel" aria-label="Search controls">\n      <div className="archive-search-field">
         <label className="archive-search-label" htmlFor="archive-search-input">Search your archive</label>
         <div className="archive-search-control">
           <Search size={19} aria-hidden="true" />
@@ -139,7 +146,7 @@ export function SearchWorkspace() {
             </button>
           )}
         </div>
-        <p className="archive-search-help" id="archive-search-help">Search your decrypted archive without creating a plaintext search index. Narrow the results using a filter.</p>
+        <p className="archive-search-help" id="archive-search-help">Search your decrypted archive without creating a plaintext search index. Choose a scope to narrow the results.</p>
         <div className="archive-search-filters" role="group" aria-label="Search filters">
           {(["all", "titles", "tags", "pinned"] as const).map((value) => (
             <button
@@ -154,6 +161,11 @@ export function SearchWorkspace() {
           ))}
         </div>
       </div>
+      <div className="search-panel-foot">
+        <span><kbd>Esc</kbd> {query.trim() ? "Clear query" : "Return to archive"}</span>
+        <span>{query.trim() ? "Results update as you type" : "Start with a word, name or phrase"}</span>
+      </div>
+      </section>
 
       {waiting && <OperationStatus kind="waiting" message="Preparing your search…" />}
       {busy && <OperationStatus kind="loading" message="Searching your encrypted archive…" />}
@@ -166,10 +178,19 @@ export function SearchWorkspace() {
         </div>
       )}
       {!searching && !error && query.trim() && (
-        <OperationStatus
-          kind="success"
-          message={resultCount === 1 ? "Search complete · 1 result found." : `Search complete · ${resultCount} results found.`}
-        />
+        <div className="search-result-overview" role="status" aria-live="polite" aria-atomic="true">
+          <div className="search-result-overview-copy">
+            <span className="search-result-overview-icon"><CheckCircle2 size={17} aria-hidden="true" /></span>
+            <span>
+              <strong>{resultCount === 1 ? "One match found" : `${resultCount} matches found`}</strong>
+              <small>Results for <b dir="auto">“{query.trim()}”</b></small>
+            </span>
+          </div>
+          <div className="search-result-breakdown" aria-label={`${topics.length} collections and ${notes.length} notes`}>
+            <span><FolderOpen size={14} aria-hidden="true" /> {topics.length} {topics.length === 1 ? "collection" : "collections"}</span>
+            <span><FileText size={14} aria-hidden="true" /> {notes.length} {notes.length === 1 ? "note" : "notes"}</span>
+          </div>
+        </div>
       )}
 
       {!query.trim() ? (
@@ -180,50 +201,99 @@ export function SearchWorkspace() {
         </div>
       ) : !searching && !error ? (
         <>
-          <div className="toolbar">
-            <div className="eyebrow">Topics · {topics.length}</div>
-          </div>
-          {topics.length > 0 ? <div className="search-results">
-            {topics.map((topic) => (
-              <Link href={`/topics/${topic.id}`} className="result-card" key={topic.id}>
-                <div className="result-type"><FolderOpen size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} /> Topic · {topic.category}</div>
-                <h3 className="result-title" dir="auto" lang={detectTextLanguage(topic.title)}><HighlightMatch value={topic.title} query={query} /></h3>
-                <p className="result-copy">
-                  <span dir="auto" lang={detectTextLanguage(topic.subject)}><HighlightMatch value={topic.subject} query={query} /></span>{" "}
-                  <span dir="auto" lang={detectTextLanguage(topic.description)}>{topic.description}</span>
-                </p>
-                <div className="result-meta"><span>Updated {formatArchiveDateTime(topic.updatedAt)}</span></div>
-                <div className="result-copy" style={{ marginTop: 12 }}>
-                  Open collection <ArrowUpRight size={12} style={{ display: "inline", verticalAlign: "middle" }} />
-                </div>
-              </Link>
-            ))}
-          </div> : notes.length > 0 ? <p className="search-section-empty">No topics matched this search. Matching notes are shown below.</p> : null}
+          <section className="search-result-section" aria-labelledby="search-topics-title">
+            <div className="search-result-section-heading">
+              <div>
+                <span className="eyebrow">Collections</span>
+                <h2 id="search-topics-title">Matching collections <span>{topics.length}</span></h2>
+              </div>
+              {topics.length > 0 && <span className="search-section-caption">Open a collection to explore its notes</span>}
+            </div>
+            {topics.length > 0 ? (
+              <div className="search-results">
+                {topics.map((topic) => (
+                  <Link href={`/topics/${topic.id}`} className="result-card result-card-topic" key={topic.id}>
+                    <div className="result-card-topline">
+                      <span className="result-type"><FolderOpen size={13} aria-hidden="true" /> Collection</span>
+                      <span className="result-card-category">{topic.category || "Uncategorized"}</span>
+                    </div>
+                    <h3 className="result-title" dir="auto" lang={detectTextLanguage(topic.title)}>
+                      <HighlightMatch value={topic.title || "Untitled collection"} query={query} />
+                    </h3>
+                    {(topic.subject || topic.description) && (
+                      <p className="result-copy">
+                        {topic.subject && <span className="result-subject" dir="auto" lang={detectTextLanguage(topic.subject)}><HighlightMatch value={topic.subject} query={query} /></span>}
+                        {topic.description && <span className="result-description" dir="auto" lang={detectTextLanguage(topic.description)}><HighlightMatch value={topic.description} query={query} /></span>}
+                      </p>
+                    )}
+                    <div className="result-card-footer">
+                      <span>Updated {formatArchiveDateTime(topic.updatedAt)}</span>
+                      <span className="result-open-cue">Open collection <ArrowUpRight size={14} aria-hidden="true" /></span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : notes.length > 0 ? (
+              <div className="search-section-empty">
+                No collections matched this phrase. The matching note is listed below, with its passage highlighted.
+              </div>
+            ) : null}
+          </section>
 
-          <div className="toolbar" style={{ marginTop: 29 }}>
-            <div className="eyebrow">Notes · {notes.length}</div>
-          </div>
-          {notes.length > 0 ? <div className="search-results">
-            {notes.map((note) => (
-              <Link href={`/notes/${note.id}`} className="result-card" key={note.id}>
-                <div className="result-type"><FileText size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} /> Note · {note.topicTitle}</div>
-                <h3 className="result-title" dir="auto" lang={detectTextLanguage(note.title)}><HighlightMatch value={note.title} query={query} /></h3>
-                <p className="result-copy">
-                  <span dir="auto" lang={detectTextLanguage(note.subject)}><HighlightMatch value={note.subject} query={query} /></span>{" "}
-                  <span dir="auto" lang={detectTextLanguage(note.preview)}><HighlightMatch value={note.preview} query={query} /></span>
-                </p>
-                {note.tags.length > 0 && (
-                  <div style={{ marginTop: 9 }}>
-                    {note.tags.slice(0, 4).map((tag) => <span className="tag-pill" key={tag}>#{tag}</span>)}
-                  </div>
-                )}
-                <div className="result-meta">
-                  <span>{note.matchType === "tag" ? "Matched tag" : note.matchType === "title" ? "Title / topic match" : "Matched passage"}</span>
-                  <span>Updated {formatArchiveDateTime(note.updatedAt)}</span>
-                </div>
-              </Link>
-            ))}
-          </div> : topics.length > 0 ? <p className="search-section-empty">No notes matched this search. Matching topics are shown above.</p> : null}
+          <section className="search-result-section search-note-section" aria-labelledby="search-notes-title">
+            <div className="search-result-section-heading">
+              <div>
+                <span className="eyebrow">Your writing</span>
+                <h2 id="search-notes-title">Matching notes <span>{notes.length}</span></h2>
+              </div>
+              {notes.length > 0 && <span className="search-section-caption">Select a note to continue reading</span>}
+            </div>
+            {notes.length > 0 ? (
+              <div className="search-results">
+                {notes.map((note) => (
+                  <Link href={`/notes/${note.id}`} className="result-card result-card-note" key={note.id}>
+                    <div className="result-card-topline">
+                      <span className="result-type"><FileText size={13} aria-hidden="true" /> Note</span>
+                      <span className={`result-match-badge result-match-badge--${note.matchType ?? "content"}`}>
+                        {note.matchType === "tag" ? <Tag size={12} aria-hidden="true" /> : note.matchType === "title" ? <FileText size={12} aria-hidden="true" /> : <Search size={12} aria-hidden="true" />}
+                        {note.matchType === "tag" ? "Tag match" : note.matchType === "title" ? "Title match" : "Passage match"}
+                      </span>
+                    </div>
+                    <h3 className="result-title" dir="auto" lang={detectTextLanguage(note.title)}>
+                      <HighlightMatch value={note.title.trim() || "Untitled note"} query={query} />
+                    </h3>
+                    <div className="result-note-context">
+                      <span dir="auto" lang={detectTextLanguage(note.topicTitle)}>{note.topicTitle || "Unfiled note"}</span>
+                      {note.pinned && <span className="result-note-pinned"><Pin size={11} aria-hidden="true" /> Pinned</span>}
+                    </div>
+                    {note.subject && <p className="result-note-subject" dir="auto" lang={detectTextLanguage(note.subject)}><HighlightMatch value={note.subject} query={query} /></p>}
+                    <div className="result-excerpt">
+                      <span className="result-excerpt-label">Matched text</span>
+                      <p dir="auto" lang={detectTextLanguage(note.preview)}>
+                        {note.preview.trim()
+                          ? <HighlightMatch value={note.preview.trim()} query={query} />
+                          : "Open this note to review its content."}
+                      </p>
+                    </div>
+                    {note.tags.length > 0 && (
+                      <div className="result-card-tags">
+                        {note.tags.slice(0, 4).map((tag) => <span className="tag-pill" key={tag}>#{tag}</span>)}
+                        {note.tags.length > 4 && <span className="result-tags-overflow">+{note.tags.length - 4}</span>}
+                      </div>
+                    )}
+                    <div className="result-card-footer">
+                      <span>Updated {formatArchiveDateTime(note.updatedAt)}</span>
+                      <span className="result-open-cue">Open note <ArrowUpRight size={14} aria-hidden="true" /></span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : topics.length > 0 ? (
+              <div className="search-section-empty">
+                No notes matched this phrase. The matching collections are shown above.
+              </div>
+            ) : null}
+          </section>
 
           {resultCount === 0 && (
             <div className="empty-state search-no-results" style={{ marginTop: 20 }}>
