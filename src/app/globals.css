@@ -10149,3 +10149,10 @@ html[data-theme="light"] .note-editor-page .editor-inspector-guidance {
     padding-inline: 6px;
   }
 }
+
+
+/* Keep the reader's gold section marker as a short editorial accent. */
+.note-reader-page .reader-section-divider {
+  width: 68px;
+  margin: 0 auto 29px;
+}
