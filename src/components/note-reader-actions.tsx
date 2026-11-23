@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
@@ -41,10 +41,10 @@ export function NoteReaderActions({
   const [copying, setCopying] = useState(false);
   const [preparingPdf, setPreparingPdf] = useState(false);
 
-  function closeMenus() {
+  const closeMenus = useCallback(() => {
     toolbarRef.current?.querySelectorAll<HTMLDetailsElement>(".reader-action-disclosure[open]")
       .forEach((menu) => { menu.open = false; });
-  }
+  }, []);
 
   useEffect(() => {
     const handleOutsidePointer = (event: PointerEvent) => {
@@ -67,7 +67,7 @@ export function NoteReaderActions({
       document.removeEventListener("pointerdown", handleOutsidePointer);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, []);
+  }, [closeMenus]);
 
   function markdown() {
     return noteToMarkdown(title, content, window.location.origin);
@@ -200,7 +200,7 @@ export function NoteReaderActions({
           <span>Organize</span>
           <ChevronDown className="reader-action-chevron" size={14} aria-hidden="true" />
         </summary>
-        <div className="reader-action-disclosure-panel" role="group" aria-label="Organization actions" onClickCapture={() => closeMenus()}>
+        <div className="reader-action-disclosure-panel" role="group" aria-label="Organization actions" onClick={closeMenus}>
           <NoteImageDownload noteId={id} imageCount={imageCount} showLabel />
           <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} showLabel />
         </div>
@@ -212,7 +212,7 @@ export function NoteReaderActions({
           <span>Export</span>
           <ChevronDown className="reader-action-chevron" size={14} aria-hidden="true" />
         </summary>
-        <div className="reader-action-disclosure-panel reader-action-export-panel" role="group" aria-label="Export actions" onClickCapture={() => closeMenus()}>
+        <div className="reader-action-disclosure-panel reader-action-export-panel" role="group" aria-label="Export actions" onClick={closeMenus}>
           <button type="button" className="secondary-btn reader-action-button" onClick={() => void copy()} aria-label={copying ? "Copying Markdown" : "Copy Markdown"} title="Copy Markdown" disabled={busy || copying} aria-busy={copying}>
             {copying ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
             <span>{copying ? "Copying…" : "Copy Markdown"}</span>
