@@ -17729,3 +17729,107 @@ body :where(.form-hint, .vault-caption, .topic-description, .note-row-sub, .page
     border-color: var(--line-strong);
   }
 }
+
+
+/* Final coverage for compact labels and summaries used by individual modules. */
+body :where(
+  .handwriting-width-control,
+  .handwriting-touch-control,
+  .overview-stat-card > span:last-child,
+  .settings-nav a,
+  .note-editor-heading-context,
+  .editor-kicker,
+  .editor-toolbar-hint,
+  .editor-tool-labelled,
+  .tool-label,
+  .reader-edit-button,
+  .reader-action-button,
+  .reader-action-disclosure > summary,
+  .reader-trash-action,
+  .topic-detail-actions > *,
+  .trash-action-button,
+  .mobile-nav-more-intro,
+  .note-row-more > summary,
+  .archive-pin-filter label,
+  .mobile-nav-more-trigger::after,
+  .pinned-browse-button,
+  .pinned-empty-primary,
+  .pinned-how-to-heading,
+  .pinned-how-to-number,
+  .pinned-how-to-step-copy strong,
+  .all-notes-count-value span,
+  .all-notes-explore-topics,
+  .all-notes-guide-heading,
+  .all-notes-guide-step strong,
+  .search-privacy-copy strong,
+  .archive-search-label,
+  .archive-search-count,
+  .search-result-overview-copy strong,
+  .search-result-breakdown span,
+  .result-type,
+  .result-match-badge,
+  .result-note-context,
+  .result-note-pinned,
+  .result-tags-overflow,
+  .search-section-empty,
+  .search-discovery-examples span,
+  .trash-guidance-item strong,
+  .trash-workspace-total,
+  .trash-item-origin,
+  .trash-item-date span,
+  .trash-restore-button,
+  .trash-delete-button,
+  .trash-empty-browse,
+  .operation-status
+) {
+  font-size: max(var(--readable-micro-size), calc(var(--readable-micro-size) * var(--font-scale, 1))) !important;
+  line-height: 1.5;
+}
+
+body :where(
+  .all-notes-empty-copy p,
+  .pinned-empty-copy p,
+  .search-discovery-copy p,
+  .search-no-results p,
+  .all-notes-workspace-copy p,
+  .trash-empty-copy p,
+  .trash-workspace-heading p,
+  .search-privacy-copy small
+) {
+  font-size: max(13px, calc(13px * var(--font-scale, 1))) !important;
+  line-height: 1.65;
+}
+
+/* Normal interface paragraphs are easier to scan; long-form note prose remains
+   governed by the dedicated reader and editor typography. */
+body p:not(.rich-editor p):not(.reader-content p) {
+  font-size: max(13px, calc(13px * var(--font-scale, 1)));
+  line-height: 1.65;
+}
+
+@media (max-width: 760px) {
+  body :where(
+    .handwriting-width-control,
+    .handwriting-touch-control,
+    .reader-edit-button,
+    .reader-action-button,
+    .reader-action-disclosure > summary,
+    .reader-trash-action,
+    .topic-detail-actions > *,
+    .trash-action-button,
+    .note-row-more > summary,
+    .archive-pin-filter label,
+    .pinned-browse-button,
+    .all-notes-explore-topics,
+    .search-discovery-examples span,
+    .trash-restore-button,
+    .trash-delete-button,
+    .trash-empty-browse
+  ) {
+    font-size: max(13px, calc(13px * var(--font-scale, 1))) !important;
+  }
+
+  body p:not(.rich-editor p):not(.reader-content p) {
+    font-size: max(14px, calc(14px * var(--font-scale, 1)));
+  }
+}
