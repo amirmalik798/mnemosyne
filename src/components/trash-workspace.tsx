@@ -116,7 +116,7 @@ export function TrashWorkspace() {
       {loadError && (
         <div style={{ display: "grid", gap: 10, marginBottom: 14 }}>
           <OperationStatus kind="error" message={loadError} />
-          <div><button type="button" className="secondary-btn trash-retry-button" onClick={() => void load()} disabled={loading} aria-label="Retry loading Recently deleted" title="Retry loading Recently deleted"><RefreshCw size={16} aria-hidden="true" /><span>Try again</span></button></div>
+          <div><button type="button" className="secondary-btn icon-only-btn trash-retry-button" onClick={() => void load()} disabled={loading} aria-label="Retry loading Recently deleted" title="Retry loading Recently deleted"><RefreshCw size={16} aria-hidden="true" /><span className="sr-only">Try again</span></button></div>
         </div>
       )}
       {error && <OperationStatus kind="failure" message={error} />}
