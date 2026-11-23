@@ -18837,3 +18837,10 @@ html[data-theme="light"] .action-overflow-menu .note-row-more-menu .reader-trash
   .topbar .topbar-overflow { display: none; }
 }
 
+
+@media (max-width: 760px) {
+  .topic-detail-page .topic-detail-overflow {
+    width: 44px !important;
+    flex: 0 0 44px !important;
+  }
+}
