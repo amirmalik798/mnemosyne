@@ -1,14 +1,17 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { Moon, Sun, Type } from "lucide-react";
+import { Check, Moon, Palette, Sun, Type } from "lucide-react";
 
 type Theme = "dark" | "light";
+type ThemePreset = "obsidian" | "papyrus" | "arctic" | "verdant" | "amethyst";
 type AppFont = "source-sans" | "inter" | "atkinson" | "lato" | "plus-jakarta";
 type AppFontSize = "compact" | "default" | "comfortable" | "large";
 type ThemeContextValue = {
   theme: Theme;
   toggleTheme: () => void;
+  themePreset: ThemePreset;
+  setThemePreset: (preset: ThemePreset) => void;
   font: AppFont;
   setFont: (font: AppFont) => void;
   fontSize: AppFontSize;
@@ -16,10 +19,21 @@ type ThemeContextValue = {
 };
 
 const THEME_STORAGE_KEY = "mnemosyne-theme";
+const PRESET_STORAGE_KEY = "mnemosyne-theme-preset";
 const FONT_STORAGE_KEY = "mnemosyne-font";
 const FONT_SIZE_STORAGE_KEY = "mnemosyne-font-size";
+const DEFAULT_PRESET: ThemePreset = "obsidian";
+const PRESETS: { id: ThemePreset; name: string; description: string; defaultTheme: Theme; swatches: [string,string,string,string] }[] = [
+  { id:"obsidian", name:"Obsidian", description:"Graphite depths, quiet contrast and champagne accents.", defaultTheme:"dark", swatches:["#080B10","#171F2B","#C5A059","#EAF0F6"] },
+  { id:"papyrus", name:"Papyrus", description:"Warm archival paper, soft stone and restrained brass.", defaultTheme:"light", swatches:["#F7F3EA","#FFFDF8","#9A6B1F","#25231F"] },
+  { id:"arctic", name:"Arctic", description:"Midnight blue, crisp surfaces and glacial cyan.", defaultTheme:"dark", swatches:["#07121C","#112839","#54C4DD","#E7F3F8"] },
+  { id:"verdant", name:"Verdant", description:"Deep evergreen, natural layers and calm sage.", defaultTheme:"dark", swatches:["#0A1510","#172A20","#9FC68A","#ECF4EB"] },
+  { id:"amethyst", name:"Amethyst", description:"Ink-plum surfaces, subtle depth and soft lavender.", defaultTheme:"dark", swatches:["#100C18","#241D32","#B69AF2","#F2ECFA"] },
+];
 const DEFAULT_FONT: AppFont = "source-sans";
 const DEFAULT_FONT_SIZE: AppFontSize = "default";
+
+function isPreset(value: string | null): value is ThemePreset { return PRESETS.some((preset) => preset.id === value); }
 
 function isAppFont(value: string | null): value is AppFont {
   return value === "source-sans" ||
@@ -40,6 +54,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
+  const [themePreset, setThemePresetState] = useState<ThemePreset>(DEFAULT_PRESET);
   const [font, setFontState] = useState<AppFont>(DEFAULT_FONT);
   const [fontSize, setFontSizeState] = useState<AppFontSize>(DEFAULT_FONT_SIZE);
 
@@ -47,19 +62,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     try {
       const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
       const initialTheme: Theme = savedTheme === "light" ? "light" : "dark";
+      const savedPreset = window.localStorage.getItem(PRESET_STORAGE_KEY);
+      const initialPreset = isPreset(savedPreset) ? savedPreset : DEFAULT_PRESET;
       const savedFont = window.localStorage.getItem(FONT_STORAGE_KEY);
       const initialFont: AppFont = isAppFont(savedFont) ? savedFont : DEFAULT_FONT;
       const savedFontSize = window.localStorage.getItem(FONT_SIZE_STORAGE_KEY);
       const initialFontSize: AppFontSize = isAppFontSize(savedFontSize) ? savedFontSize : DEFAULT_FONT_SIZE;
 
       document.documentElement.dataset.theme = initialTheme;
+      document.documentElement.dataset.preset = initialPreset;
       document.documentElement.dataset.font = initialFont;
       document.documentElement.dataset.fontSize = initialFontSize;
       setTheme(initialTheme);
+      setThemePresetState(initialPreset);
       setFontState(initialFont);
       setFontSizeState(initialFontSize);
     } catch {
       document.documentElement.dataset.theme = "dark";
+      document.documentElement.dataset.preset = DEFAULT_PRESET;
       document.documentElement.dataset.font = DEFAULT_FONT;
       document.documentElement.dataset.fontSize = DEFAULT_FONT_SIZE;
     }
@@ -76,6 +96,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
       return next;
     });
+  }, []);
+
+  const setThemePreset = useCallback((next: ThemePreset) => {
+    const nextTheme = PRESETS.find((preset) => preset.id === next)?.defaultTheme ?? "dark";
+    setThemePresetState(next);
+    setTheme(nextTheme);
+    document.documentElement.dataset.preset = next;
+    document.documentElement.dataset.theme = nextTheme;
+    try {
+      window.localStorage.setItem(PRESET_STORAGE_KEY, next);
+      window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch {
+      // Preferences still apply for this session.
+    }
   }, []);
 
   const setFont = useCallback((next: AppFont) => {
@@ -99,7 +133,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, font, setFont, fontSize, setFontSize }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, themePreset, setThemePreset, font, setFont, fontSize, setFontSize }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -130,6 +164,39 @@ export function ThemeToggle() {
       {theme === "dark" ? <Sun className="theme-sun-icon" size={18} aria-hidden="true" /> : <Moon className="theme-moon-icon" size={18} aria-hidden="true" />}
       <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
     </button>
+  );
+}
+
+export function ThemePresetSettings() {
+  const { themePreset, setThemePreset } = useAppTheme();
+  return (
+    <section id="themes" className="panel theme-preset-settings" aria-labelledby="theme-presets-heading">
+      <div className="settings-section-heading">
+        <div>
+          <h2 className="panel-title" id="theme-presets-heading">App-wide themes</h2>
+          <p className="page-subtitle">Five coordinated palettes for your archive, editor, navigation and dialogs. Every preset includes light and dark variants.</p>
+        </div>
+        <span className="theme-settings-mark"><Palette size={18} aria-hidden="true" /></span>
+      </div>
+      <div className="theme-preset-grid" role="group" aria-label="Choose an app-wide theme">
+        {PRESETS.map((preset) => (
+          <button key={preset.id} type="button" className={`theme-preset-card ${themePreset === preset.id ? "is-selected" : ""}`}
+            onClick={() => setThemePreset(preset.id)} aria-pressed={themePreset === preset.id}
+            aria-label={`Use ${preset.name} theme. ${preset.description}`}>
+            <span className="theme-preset-card-top">
+              <span className="theme-preset-name">{preset.name}</span>
+              <span className="theme-preset-check" aria-hidden="true">{themePreset === preset.id ? <Check size={15} /> : null}</span>
+            </span>
+            <span className="theme-preset-swatches" aria-hidden="true">
+              {preset.swatches.map((color, index) => <span key={index} className="theme-preset-swatch" style={{ backgroundColor: color }} />)}
+            </span>
+            <span className="theme-preset-description">{preset.description}</span>
+            <span className="theme-preset-mode">{preset.defaultTheme === "light" ? "Opens in light mode" : "Opens in dark mode"}</span>
+          </button>
+        ))}
+      </div>
+      <p className="theme-preset-note">Your palette is saved in this browser and applied throughout the app. Use the top-bar appearance control to switch between light and dark variants.</p>
+    </section>
   );
 }
 
