@@ -53,6 +53,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
 
   const [inkColor, setInkColor] = useState("#202936");
   const [lineWidth, setLineWidth] = useState(2.6);
+  const [allowTouch, setAllowTouch] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -88,6 +89,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
     const canvas = canvasRef.current;
     const observer = canvas ? new ResizeObserver(redraw) : null;
     if (canvas && observer) observer.observe(canvas);
+    redraw();
 
     const frame = window.requestAnimationFrame(() => canvas?.focus());
     function handleKeyDown(event: KeyboardEvent) {
@@ -114,7 +116,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
   });
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
-    if (exporting || (event.pointerType === "mouse" && event.button !== 0)) return;
+    if (exporting || (event.pointerType === "touch" && !allowTouch) || (event.pointerType === "mouse" && event.button !== 0)) return;
     event.preventDefault();
     const bounds = event.currentTarget.getBoundingClientRect();
     const point = getPoint(event, bounds);
@@ -222,7 +224,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
           <div className="handwriting-heading-copy">
             <span className="eyebrow">NATURAL INPUT</span>
             <h2 id="handwriting-title">Write by hand</h2>
-            <p id="handwriting-help">Use your phone stylus or finger. Your handwriting will be added to the note as an image.</p>
+            <p id="handwriting-help">Use your phone stylus to write. Enable finger input below if your device reports a passive stylus as touch. Your strokes are added as an image.</p>
           </div>
           <button type="button" className="handwriting-close" onClick={onClose} disabled={exporting} aria-label="Close handwriting pad" title="Close">
             <X size={19} aria-hidden="true" />
@@ -248,6 +250,10 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
           <label className="handwriting-ink-control">
             <span>Ink</span>
             <input type="color" value={inkColor} onChange={(event) => setInkColor(event.target.value)} disabled={exporting} aria-label="Ink color" />
+          </label>
+          <label className="handwriting-touch-control">
+            <input type="checkbox" checked={allowTouch} onChange={(event) => setAllowTouch(event.target.checked)} disabled={exporting} />
+            <span>Finger input</span>
           </label>
           <label className="handwriting-width-control">
             <span>Pen width</span>
