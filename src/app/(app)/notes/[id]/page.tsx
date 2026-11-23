@@ -262,8 +262,12 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
               <time dateTime={updatedAt}>Updated {formatArchiveDateTime(r.updated_at)}</time>
               <span aria-hidden="true">·</span>
               <span>{words} {words === 1 ? "word" : "words"}</span>
-              <span aria-hidden="true">·</span>
-              <span>{readingMinutes} min read</span>
+              {words > 0 && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{readingMinutes} min read</span>
+                </>
+              )}
               {imageCount > 0 && (
                 <>
                   <span aria-hidden="true">·</span>
