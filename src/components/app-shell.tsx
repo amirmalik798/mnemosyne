@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { BookOpen, Bookmark, Boxes, Command, FilePlus, FileText, FolderOpen, FolderPlus, LoaderCircle, LockKeyhole, Pin, Search, Settings, ShieldCheck, Trash2, X } from "lucide-react";
+import { BookOpen, Bookmark, Boxes, Command, FilePlus, FileText, FolderOpen, FolderPlus, LoaderCircle, LockKeyhole, MoreHorizontal, Pin, Search, Settings, ShieldCheck, Trash2, X } from "lucide-react";
 const TopicDialog = dynamic(
   () => import("@/components/topic-dialog").then((module) => module.TopicDialog),
   { loading: () => <OperationStatus kind="loading" message="Opening the topic editor…" /> },
@@ -25,6 +25,8 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const searchKey = searchParams.toString();
   const router = useRouter();
   const [showTopic, setShowTopic] = useState(false);
+  const [moreNavigationOpen, setMoreNavigationOpen] = useState(false);
+  const mobileMorePanelRef = useRef<HTMLElement>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [commandResults, setCommandResults] = useState<Array<{ id: string; href: string; title: string; detail: string }>>([]);
@@ -61,6 +63,46 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       commandPreviousFocusRef.current = null;
     });
   }
+  useEffect(() => {
+    setMoreNavigationOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!moreNavigationOpen) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => {
+      mobileMorePanelRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+    });
+    function handleMoreKeys(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMoreNavigationOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = mobileMorePanelRef.current?.querySelectorAll<HTMLElement>("a[href], button:not([disabled])");
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", handleMoreKeys, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", handleMoreKeys, true);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, [moreNavigationOpen]);
+
   useEffect(() => {
     const activeAccountKey = "mnemosyne:active-account";
     const handleAccountChange = (event: StorageEvent) => {
@@ -472,6 +514,10 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   }, [commandOpen, commandIndex]);
 
   const current = nav.flatMap((group) => group.items).find((item) => pathname === item.href || (item.href !== "/library" && pathname.startsWith(`${item.href}/`)));
+  const allMobileNavItems = nav.flatMap((group) => group.items);
+  const primaryMobileNavItems = allMobileNavItems.filter((item) => ["/library", "/topics", "/notes", "/search"].includes(item.href));
+  const moreMobileNavItems = allMobileNavItems.filter((item) => ["/pinned", "/trash", "/settings"].includes(item.href));
+  const moreNavigationActive = moreMobileNavItems.some((item) => current?.href === item.href);
   const breadcrumbLabel = pathname === "/notes/new"
     ? "New note"
     : pathname.startsWith("/notes/")
@@ -496,12 +542,69 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       </header>
       <div className="main-content" id="main-content" tabIndex={-1}>{children}</div>
     </div>
+    {moreNavigationOpen && (
+      <>
+        <button
+          type="button"
+          className="mobile-nav-more-backdrop"
+          aria-label="Close additional navigation"
+          onClick={() => setMoreNavigationOpen(false)}
+        />
+        <section
+          ref={mobileMorePanelRef}
+          className="mobile-nav-more"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-nav-more-title"
+        >
+          <div className="mobile-nav-more-heading">
+            <div>
+              <span className="eyebrow">YOUR ARCHIVE</span>
+              <h2 id="mobile-nav-more-title">More destinations</h2>
+            </div>
+            <button type="button" className="mobile-nav-more-close" onClick={() => setMoreNavigationOpen(false)} aria-label="Close menu">
+              <X size={18} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="mobile-nav-more-grid">
+            {moreMobileNavItems.map((item) => {
+              const Icon = item.icon;
+              const active = current?.href === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`mobile-nav-more-link ${active ? "active" : ""}`}
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => setMoreNavigationOpen(false)}
+                >
+                  <Icon size={20} aria-hidden="true" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      </>
+    )}
     <nav className="mobile-nav" aria-label="Main navigation">
-      {nav.flatMap((group) => group.items).map((item) => {
+      {primaryMobileNavItems.map((item) => {
         const Icon = item.icon;
         const active = current?.href === item.href;
-        return <Link key={item.href} href={item.href} className={`mobile-nav-link ${active ? "active" : ""}`} aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label}><Icon aria-hidden="true" /><span>{item.label}</span></Link>;
+        return <Link key={item.href} href={item.href} className={`mobile-nav-link ${active ? "active" : ""}`} aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label}><Icon aria-hidden="true" /><span>{item.label === "All topics" ? "Topics" : item.label === "All notes" ? "Notes" : item.label === "Search archive" ? "Search" : "Overview"}</span></Link>;
       })}
+      <button
+        type="button"
+        className={`mobile-nav-link mobile-nav-more-trigger ${moreNavigationActive ? "active" : ""}`}
+        onClick={() => setMoreNavigationOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={moreNavigationOpen}
+        aria-label="More destinations"
+        title="More destinations"
+      >
+        <MoreHorizontal aria-hidden="true" />
+        <span>More</span>
+      </button>
     </nav>
     {commandOpen && (
       <div
