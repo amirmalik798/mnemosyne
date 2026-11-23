@@ -9,7 +9,7 @@ import { OperationStatus } from "@/components/operation-status";
 import { formatArchiveDateTime } from "@/lib/date-format";
 
 type TopicResult = { id: string; title: string; subject: string; description: string; category: string; coverUrl: string | null; updatedAt: string };
-type NoteResult = { id: string; topicId: string; title: string; subject: string; topicTitle: string; tags: string[]; preview: string; updatedAt: string; matchType?: string };
+type NoteResult = { id: string; topicId: string; title: string; subject: string; topicTitle: string; tags: string[]; pinned: boolean; preview: string; updatedAt: string; matchType?: string };
 
 function HighlightMatch({ value, query }: { value: string; query: string }) {
   const term = query.trim();
@@ -156,10 +156,19 @@ export function SearchWorkspace() {
               aria-pressed={filter === value}
               onClick={() => setFilter(value)}
             >
-              {value === "all" ? "All" : value === "titles" ? "Titles" : value === "tags" ? "Tags" : "Pinned"}
+              {value === "all" ? "All content" : value === "titles" ? "Titles" : value === "tags" ? "Tags" : "Pinned only"}
             </button>
           ))}
         </div>
+        <p className="search-filter-explanation" aria-live="polite">
+          {filter === "all"
+            ? "Search collection details, note titles, tags and note content."
+            : filter === "titles"
+              ? "Search note titles and collection names."
+              : filter === "tags"
+                ? "Find notes by the tags you have assigned."
+                : "Search only notes you have pinned."}
+        </p>
       </div>
       <div className="search-panel-foot">
         <span><kbd>Esc</kbd> {query.trim() ? "Clear query" : "Return to archive"}</span>
@@ -194,11 +203,19 @@ export function SearchWorkspace() {
       )}
 
       {!query.trim() ? (
-        <div className="empty-state" style={{ marginTop: 22 }}>
-          <Search />
-          <h3>What are you looking for?</h3>
-          <p>Search terms are matched against your decrypted archive on the server. Your note content is not stored in a plaintext search index.</p>
-        </div>
+        <section className="search-discovery-state" aria-labelledby="search-discovery-title">
+          <div className="search-discovery-icon"><Search size={22} aria-hidden="true" /></div>
+          <div className="search-discovery-copy">
+            <span className="eyebrow">Start anywhere</span>
+            <h2 id="search-discovery-title">What do you remember?</h2>
+            <p>Enter a word, a phrase you recall, a person or a subject. Search looks inside your decrypted notes as well as their titles and collections.</p>
+          </div>
+          <div className="search-discovery-examples" aria-label="Things you can search for">
+            <span><FileText size={14} aria-hidden="true" /> A passage or quotation</span>
+            <span><FolderOpen size={14} aria-hidden="true" /> A collection or subject</span>
+            <span><Tag size={14} aria-hidden="true" /> A note tag</span>
+          </div>
+        </section>
       ) : !searching && !error ? (
         <>
           <section className="search-result-section" aria-labelledby="search-topics-title">
