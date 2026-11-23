@@ -1,32 +1,73 @@
 "use client";
-import { useState } from "react";
+
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Download, LoaderCircle, Printer, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  Copy,
+  Download,
+  FolderOpen,
+  LoaderCircle,
+  Printer,
+  Trash2,
+} from "lucide-react";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
+import { NoteImageDownload } from "@/components/note-image-download";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 import { useConfirmation } from "@/components/confirmation-dialog";
-
 import { noteToMarkdown } from "@/lib/markdown-export";
+
 export function NoteReaderActions({
   id,
   title,
   content,
   currentTopicId,
+  imageCount,
   showLabels = false,
 }: {
   id: string;
   title: string;
   content: unknown;
   currentTopicId: string;
+  imageCount: number;
   showLabels?: boolean;
 }) {
   const router = useRouter();
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const { confirm: requestConfirmation, dialog: confirmationDialog } = useConfirmation();
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState<OperationStatusKind>("success");
   const [busy, setBusy] = useState(false);
   const [copying, setCopying] = useState(false);
   const [preparingPdf, setPreparingPdf] = useState(false);
+
+  function closeMenus() {
+    toolbarRef.current?.querySelectorAll<HTMLDetailsElement>(".reader-action-disclosure[open]")
+      .forEach((menu) => { menu.open = false; });
+  }
+
+  useEffect(() => {
+    const handleOutsidePointer = (event: PointerEvent) => {
+      if (event.target instanceof Node && !toolbarRef.current?.contains(event.target)) {
+        closeMenus();
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const openMenu = toolbarRef.current?.querySelector<HTMLDetailsElement>(".reader-action-disclosure[open]");
+      if (!openMenu) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openMenu.open = false;
+      openMenu.querySelector<HTMLElement>("summary")?.focus();
+    };
+    document.addEventListener("pointerdown", handleOutsidePointer);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointer);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
 
   function markdown() {
     return noteToMarkdown(title, content, window.location.origin);
@@ -80,8 +121,6 @@ export function NoteReaderActions({
         throw new Error("The note could not be prepared for PDF export. Please refresh and try again.");
       }
 
-      // Load lazy images and web fonts before opening the print dialog so the
-      // saved document does not omit content that was below the screen.
       const images = Array.from(printableRoot.querySelectorAll<HTMLImageElement>(".reader-content img"));
       await Promise.all(images.map((image) => {
         image.loading = "eager";
@@ -128,7 +167,7 @@ export function NoteReaderActions({
     const accepted = await requestConfirmation({
       eyebrow: "Move note to trash",
       title: "Move this note to Recently deleted?",
-      description: "You can restore this note later from Recently deleted. Its content and encrypted images will be retained until you permanently delete it.",
+      description: "You can restore this note later from Recently deleted. Its content and encrypted images will be retained until permanent deletion.",
       confirmLabel: "Move to trash",
       tone: "danger",
     });
@@ -154,43 +193,64 @@ export function NoteReaderActions({
   }
 
   return (
-    <>
-      <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} showLabel={showLabels} />
-      <button type="button" className={showLabels ? "secondary-btn reader-action-button" : "secondary-btn icon-only-btn"} onClick={() => void copy()} aria-label={copying ? "Copying Markdown" : "Copy Markdown"} title={copying ? "Copying Markdown" : "Copy Markdown"} disabled={busy || copying} aria-busy={copying}>
-        {copying ? <LoaderCircle className="operation-spinner" size={16} /> : <Copy size={16} />}
-        {showLabels && <span>{copying ? "Copying…" : "Copy Markdown"}</span>}
-      </button>
-      <button type="button" className={showLabels ? "secondary-btn reader-action-button" : "secondary-btn icon-only-btn"} onClick={exportNote} aria-label="Export Markdown" title="Export Markdown" disabled={busy || copying}>
-        <Download size={16} />
-        {showLabels && <span>Export Markdown</span>}
-      </button>
-      <button
-        type="button"
-        className={showLabels ? "secondary-btn reader-action-button reader-action-button--pdf" : "secondary-btn icon-only-btn"}
-        onClick={() => void exportPdf()}
-        aria-label={preparingPdf ? "Preparing PDF export" : "Export note as PDF"}
-        title={preparingPdf ? "Preparing PDF export…" : "Export as PDF · choose Save as PDF in your print dialog"}
-        disabled={busy || copying || preparingPdf}
-        aria-busy={preparingPdf}
-      >
-        {preparingPdf ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <Printer size={16} aria-hidden="true" />}
-        {showLabels && <span>{preparingPdf ? "Preparing…" : "Export PDF"}</span>}
-      </button>
+    <div className="reader-action-groups" ref={toolbarRef} role="group" aria-label="Note actions">
+      <details className="reader-action-disclosure">
+        <summary aria-label="Organize note" title="Organize note">
+          <FolderOpen size={16} aria-hidden="true" />
+          <span>Organize</span>
+          <ChevronDown className="reader-action-chevron" size={14} aria-hidden="true" />
+        </summary>
+        <div className="reader-action-disclosure-panel" role="group" aria-label="Organization actions" onClickCapture={() => closeMenus()}>
+          <NoteImageDownload noteId={id} imageCount={imageCount} showLabel />
+          <NoteTopicTransfer noteId={id} currentTopicId={currentTopicId} showLabel />
+        </div>
+      </details>
+
+      <details className="reader-action-disclosure">
+        <summary aria-label="Export note" title="Export note">
+          <Download size={16} aria-hidden="true" />
+          <span>Export</span>
+          <ChevronDown className="reader-action-chevron" size={14} aria-hidden="true" />
+        </summary>
+        <div className="reader-action-disclosure-panel reader-action-export-panel" role="group" aria-label="Export actions" onClickCapture={() => closeMenus()}>
+          <button type="button" className="secondary-btn reader-action-button" onClick={() => void copy()} aria-label={copying ? "Copying Markdown" : "Copy Markdown"} title="Copy Markdown" disabled={busy || copying} aria-busy={copying}>
+            {copying ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+            <span>{copying ? "Copying…" : "Copy Markdown"}</span>
+          </button>
+          <button type="button" className="secondary-btn reader-action-button" onClick={exportNote} aria-label="Export Markdown" title="Export Markdown" disabled={busy || copying}>
+            <Download size={16} aria-hidden="true" />
+            <span>Export Markdown</span>
+          </button>
+          <button
+            type="button"
+            className="secondary-btn reader-action-button reader-action-button--pdf"
+            onClick={() => void exportPdf()}
+            aria-label={preparingPdf ? "Preparing PDF export" : "Export note as PDF"}
+            title={preparingPdf ? "Preparing PDF export…" : "Export as PDF"}
+            disabled={busy || copying || preparingPdf}
+            aria-busy={preparingPdf}
+          >
+            {preparingPdf ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <Printer size={16} aria-hidden="true" />}
+            <span>{preparingPdf ? "Preparing…" : "Export PDF"}</span>
+          </button>
+        </div>
+      </details>
 
       <button
         type="button"
-        className={showLabels ? "icon-button reader-action-button reader-action-button--danger" : "icon-button icon-only-btn"}
-        onClick={() => void remove()}
+        className="reader-trash-action"
+        onClick={() => { closeMenus(); void remove(); }}
         disabled={busy || copying}
         aria-busy={busy}
-        title={busy ? "Moving note to Recently deleted…" : "Move to trash"}
-        aria-label={busy ? "Moving note to Recently deleted" : "Move to trash"}
+        title={busy ? "Moving note to Recently deleted…" : "Move note to trash"}
+        aria-label={busy ? "Moving note to Recently deleted" : "Move note to trash"}
       >
-        {busy ? <LoaderCircle className="operation-spinner" /> : <Trash2 size={15} />}
-        {showLabels && <span>{busy ? "Moving…" : "Move to trash"}</span>}
+        {busy ? <LoaderCircle className="operation-spinner" size={16} aria-hidden="true" /> : <Trash2 size={16} aria-hidden="true" />}
+        <span>{busy ? "Moving…" : "Move to trash"}</span>
       </button>
+
       {message && <OperationStatus kind={messageKind} message={message} compact />}
       {confirmationDialog}
-    </>
+    </div>
   );
 }
