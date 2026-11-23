@@ -46,10 +46,12 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
   const strokesRef = useRef<Stroke[]>([]);
   const redoRef = useRef<Stroke[]>([]);
   const activeStrokeRef = useRef<Stroke | null>(null);
+  const exportingRef = useRef(false);
   const onCloseRef = useRef(onClose);
   const onInsertRef = useRef(onInsert);
   onCloseRef.current = onClose;
   onInsertRef.current = onInsert;
+  exportingRef.current = exporting;
 
   const [inkColor, setInkColor] = useState("#202936");
   const [lineWidth, setLineWidth] = useState(2.6);
@@ -93,7 +95,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
 
     const frame = window.requestAnimationFrame(() => canvas?.focus());
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !exporting) {
+      if (event.key === "Escape" && !exportingRef.current) {
         event.preventDefault();
         event.stopPropagation();
         onCloseRef.current();
@@ -107,7 +109,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
       document.removeEventListener("keydown", handleKeyDown, true);
       previouslyFocused?.focus();
     };
-  }, [redraw, exporting]);
+  }, [redraw]);
 
   const getPoint = (event: PointerEvent | ReactPointerEvent<HTMLCanvasElement>, bounds: DOMRect): Point => ({
     x: Math.max(0, Math.min(bounds.width, event.clientX - bounds.left)),
