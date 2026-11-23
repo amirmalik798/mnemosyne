@@ -43,6 +43,7 @@ function drawStroke(context: CanvasRenderingContext2D, stroke: Stroke) {
 
 export function NoteHandwritingPad({ onClose, onInsert }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   const strokesRef = useRef<Stroke[]>([]);
   const redoRef = useRef<Stroke[]>([]);
   const activeStrokeRef = useRef<Stroke | null>(null);
@@ -88,6 +89,8 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
     const previouslyFocused = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const canvas = canvasRef.current;
     const observer = canvas ? new ResizeObserver(redraw) : null;
     if (canvas && observer) observer.observe(canvas);
@@ -99,6 +102,25 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
         event.preventDefault();
         event.stopPropagation();
         onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const container = dialogRef.current;
+      const focusable = container?.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled]), canvas[tabindex='0'], [tabindex]:not([tabindex='-1'])",
+      );
+      if (!container || !focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+
+      if (event.shiftKey && (active === first || !container.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !container.contains(active))) {
+        event.preventDefault();
+        first.focus();
       }
     }
     document.addEventListener("keydown", handleKeyDown, true);
@@ -107,6 +129,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
       window.cancelAnimationFrame(frame);
       observer?.disconnect();
       document.removeEventListener("keydown", handleKeyDown, true);
+      document.body.style.overflow = previousBodyOverflow;
       previouslyFocused?.focus();
     };
   }, [redraw]);
@@ -221,7 +244,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
     <div className="handwriting-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !exporting) onClose();
     }}>
-      <section className="handwriting-dialog" role="dialog" aria-modal="true" aria-labelledby="handwriting-title" aria-describedby="handwriting-help" aria-busy={exporting}>
+      <section ref={dialogRef} className="handwriting-dialog" role="dialog" aria-modal="true" aria-labelledby="handwriting-title" aria-describedby="handwriting-help" aria-busy={exporting}>
         <header className="handwriting-header">
           <div className="handwriting-heading-copy">
             <span className="eyebrow">NATURAL INPUT</span>
