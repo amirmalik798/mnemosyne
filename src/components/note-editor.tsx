@@ -1349,15 +1349,63 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
       <section className="editor-main editor-writing-surface" aria-label="Note writing canvas">
         <div className="eyebrow editor-kicker">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} placeholder="Untitled note" maxLength={180} disabled={busy || imageUploading} aria-label="Note title" aria-required="true" aria-describedby={!title.trim() ? "note-save-title-help" : undefined}/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); markDirty(); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy || imageUploading} aria-label="Note subject"/>
       {!title.trim() && <p id="note-save-title-help" className="editor-validation-hint" role="status">Add a title before saving this note.</p>}
-      <div className="editor-toolbar editor-toolbar-quiet" role="toolbar" aria-label="Essential writing actions">
-        <span className="editor-toolbar-hint">Type <kbd>/</kbd> for blocks <span aria-hidden="true">·</span> Select text for quick formatting</span>
-        <span className="tool-divider" />
-        <input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const files = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ""; if (files.length) void uploadImages(files); }} />
-        <button type="button" aria-label={imageUploading ? "Uploading images" : "Add images"} disabled={!editor || busy || imageUploading} className="tool-btn" onClick={() => imageRef.current?.click()} title="Add images">{imageUploading ? <LoaderCircle className="operation-spinner" aria-hidden="true" /> : <ImagePlus aria-hidden="true" />}<span className="tool-label">{imageUploading ? "Uploading…" : "Add images"}</span></button>
-        <button type="button" aria-label="Remove selected image" disabled={busy || imageUploading || !imageSelected} className="tool-btn" onClick={() => void removeSelectedImage()} title="Remove selected image"><Trash2 aria-hidden="true" /><span className="tool-label">Remove image</span></button>
-        <span className="tool-divider" />
-        <button type="button" aria-label="Undo" disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().undo().run()} title="Undo"><Undo2 aria-hidden="true" /><span className="tool-label">Undo</span></button>
-        <button type="button" aria-label="Redo" disabled={busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().redo().run()} title="Redo"><Redo2 aria-hidden="true" /><span className="tool-label">Redo</span></button>
+      <div className="editor-toolbar editor-toolbar-quiet" role="toolbar" aria-label="Writing and formatting tools">
+        <span className="editor-toolbar-hint">Select text to format <span aria-hidden="true">·</span> Type <kbd>/</kbd> for blocks</span>
+        <div className="editor-toolbar-controls">
+          <div className="editor-tool-group" role="group" aria-label="Inline formatting">
+            <button type="button" aria-label="Bold" aria-pressed={editor?.isActive("bold") ?? false} disabled={!editor || busy || imageUploading} className={editor?.isActive("bold") ? "tool-btn active" : "tool-btn"} onClick={() => editor?.chain().focus().toggleBold().run()} title="Bold">
+              <Bold aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Italic" aria-pressed={editor?.isActive("italic") ?? false} disabled={!editor || busy || imageUploading} className={editor?.isActive("italic") ? "tool-btn active" : "tool-btn"} onClick={() => editor?.chain().focus().toggleItalic().run()} title="Italic">
+              <Italic aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Strikethrough" aria-pressed={editor?.isActive("strike") ?? false} disabled={!editor || busy || imageUploading} className={editor?.isActive("strike") ? "tool-btn active" : "tool-btn"} onClick={() => editor?.chain().focus().toggleStrike().run()} title="Strikethrough">
+              <Strikethrough aria-hidden="true" />
+            </button>
+          </div>
+
+          <span className="tool-divider" aria-hidden="true" />
+
+          <div className="editor-tool-group" role="group" aria-label="Block formatting">
+            <button type="button" aria-label="Heading 1" aria-pressed={editor?.isActive("heading", { level: 1 }) ?? false} disabled={!editor || busy || imageUploading} className={editor?.isActive("heading", { level: 1 }) ? "tool-btn active" : "tool-btn"} onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} title="Heading 1">
+              <Heading1 aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Heading 2" aria-pressed={editor?.isActive("heading", { level: 2 }) ?? false} disabled={!editor || busy || imageUploading} className={editor?.isActive("heading", { level: 2 }) ? "tool-btn active" : "tool-btn"} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2">
+              <Heading2 aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Bulleted list" aria-pressed={editor?.isActive("bulletList") ?? false} disabled={!editor || busy || imageUploading} className={editor?.isActive("bulletList") ? "tool-btn active" : "tool-btn"} onClick={() => editor?.chain().focus().toggleBulletList().run()} title="Bulleted list">
+              <List aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Numbered list" aria-pressed={editor?.isActive("orderedList") ?? false} disabled={!editor || busy || imageUploading} className={editor?.isActive("orderedList") ? "tool-btn active" : "tool-btn"} onClick={() => editor?.chain().focus().toggleOrderedList().run()} title="Numbered list">
+              <ListOrdered aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Block quote" aria-pressed={editor?.isActive("blockquote") ?? false} disabled={!editor || busy || imageUploading} className={editor?.isActive("blockquote") ? "tool-btn active" : "tool-btn"} onClick={() => editor?.chain().focus().toggleBlockquote().run()} title="Block quote">
+              <Quote aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Insert divider" disabled={!editor || busy || imageUploading} className="tool-btn" onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Insert divider">
+              <Minus aria-hidden="true" />
+            </button>
+          </div>
+
+          <span className="tool-divider" aria-hidden="true" />
+
+          <div className="editor-tool-group editor-tool-group--utility" role="group" aria-label="Images and history">
+            <input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const files = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ""; if (files.length) void uploadImages(files); }} />
+            <button type="button" aria-label={imageUploading ? "Uploading images" : "Add images"} disabled={!editor || busy || imageUploading} className="tool-btn editor-tool-labelled" onClick={() => imageRef.current?.click()} title="Add images">
+              {imageUploading ? <LoaderCircle className="operation-spinner" aria-hidden="true" /> : <ImagePlus aria-hidden="true" />}
+              <span className="tool-label">{imageUploading ? "Uploading…" : "Image"}</span>
+            </button>
+            <button type="button" aria-label="Remove selected image" disabled={busy || imageUploading || !imageSelected} className="tool-btn" onClick={() => void removeSelectedImage()} title="Remove selected image">
+              <Trash2 aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Undo" disabled={!editor || busy || imageUploading || !editor.can().undo()} className="tool-btn" onClick={() => editor?.chain().focus().undo().run()} title="Undo">
+              <Undo2 aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Redo" disabled={!editor || busy || imageUploading || !editor.can().redo()} className="tool-btn" onClick={() => editor?.chain().focus().redo().run()} title="Redo">
+              <Redo2 aria-hidden="true" />
+            </button>
+          </div>
+        </div>
       </div>
       {imageUploadProgress && <UploadProgress label={imageUploadProgress.label} percentage={imageUploadProgress.percentage} detail={imageUploadProgress.detail} />}
       <details className="editor-advanced-formatting">
