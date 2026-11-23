@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, FolderOpen, FileText, ArrowUpRight, X } from "lucide-react";
@@ -32,6 +32,15 @@ function HighlightMatch({ value, query }: { value: string; query: string }) {
 
 export function SearchWorkspace() {
   const router = useRouter();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Desktop users benefit from immediate keyboard focus. On touch devices,
+    // leave the keyboard closed until the user intentionally taps the field.
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const frame = window.requestAnimationFrame(() => searchInputRef.current?.focus({ preventScroll: true }));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "titles" | "tags" | "pinned">("all");
   const [topics, setTopics] = useState<TopicResult[]>([]);
@@ -105,7 +114,7 @@ export function SearchWorkspace() {
           <Search size={19} aria-hidden="true" />
           <input
             id="archive-search-input"
-            autoFocus
+            ref={searchInputRef}
             dir="auto"
             lang={detectTextLanguage(query)}
             className="field"
