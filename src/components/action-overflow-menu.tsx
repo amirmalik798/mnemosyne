@@ -54,6 +54,27 @@ export function ActionOverflowMenu({
     <details
       ref={detailsRef}
       className={["note-row-more", "action-overflow-menu", className].filter(Boolean).join(" ")}
+      onToggle={(event) => {
+        const details = event.currentTarget;
+        if (!details.open) {
+          delete details.dataset.menuSide;
+          delete details.dataset.menuAlign;
+          return;
+        }
+        details.dataset.menuSide = "below";
+        requestAnimationFrame(() => {
+          if (!details.isConnected || !details.open) return;
+          const panel = details.querySelector<HTMLElement>(".note-row-more-menu");
+          const trigger = details.querySelector<HTMLElement>("summary");
+          if (!panel || !trigger) return;
+          const triggerRect = trigger.getBoundingClientRect();
+          const panelRect = panel.getBoundingClientRect();
+          const spaceBelow = window.innerHeight - triggerRect.bottom;
+          const spaceAbove = triggerRect.top;
+          details.dataset.menuSide = spaceBelow < panelRect.height + 12 && spaceAbove > spaceBelow ? "above" : "below";
+          details.dataset.menuAlign = triggerRect.right + panelRect.width > window.innerWidth - 12 ? "right" : "left";
+        });
+      }}
     >
       <summary aria-label={label} title={label}>
         <MoreHorizontal size={19} aria-hidden="true" />
