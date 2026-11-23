@@ -131,6 +131,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
             <ActionOverflowMenu label="More collection actions" className="topic-detail-overflow">
               <TopicImageDownload topicId={id} imageCount={imageCount}/>
               <TopicEditDialog topic={{ id, title, subject, description, category, coverUrl: cover, noteCount: totalNotesIncludingTrash }} />
+              <Link href="/notes" className="secondary-btn topic-detail-browse-all"><FileText size={15} aria-hidden="true"/><span>Browse all notes</span><ArrowUpRight size={13} aria-hidden="true"/></Link>
                 </ActionOverflowMenu>
           </div>
         </div>
@@ -153,7 +154,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
             currentSort={sort}
             preserveQuery={pinFilter === "all" ? "" : `pin=${pinFilter}`}
           />
-          <Link href="/notes" className="secondary-btn topic-detail-browse-all"><FileText size={15} aria-hidden="true"/><span>Browse all notes</span><ArrowUpRight size={13} aria-hidden="true"/></Link>
+          
         </div>
       </div>
       <section className="panel topic-detail-note-panel" aria-labelledby="topic-detail-notes-heading">
