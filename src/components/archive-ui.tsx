@@ -63,7 +63,7 @@ export function TopicCard({ topic, variant = "default" }: { topic: TopicItem; va
   );
 }
 
-export function NoteRow({ note, compactActions = false, showOpenCue = false }: { note: NoteItem; compactActions?: boolean; showOpenCue?: boolean }) {
+export function NoteRow({ note, compactActions = true, showOpenCue = false }: { note: NoteItem; compactActions?: boolean; showOpenCue?: boolean }) {
   return (
     <div className={`note-row ${note.pinned ? "note-row-pinned" : ""}`}>
       <Link
