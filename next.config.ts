@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["vagrancy-untrained-tactless.ngrok-free.dev"],
   serverExternalPackages: ["argon2", "pg"],
   poweredByHeader: false,
+  // Hide the floating Next.js dev badge so it cannot cover mobile app controls.
+  devIndicators: false,
   compress: true,
   async headers() {
     return [
