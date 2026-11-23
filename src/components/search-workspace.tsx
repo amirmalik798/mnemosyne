@@ -115,7 +115,8 @@ export function SearchWorkspace() {
         </aside>
       </header>
 
-      <section className="search-archive-panel" aria-label="Search controls">\n      <div className="archive-search-field">
+      <section className="search-archive-panel" aria-label="Search controls">
+      <div className="archive-search-field">
         <label className="archive-search-label" htmlFor="archive-search-input">Search your archive</label>
         <div className="archive-search-control">
           <Search size={19} aria-hidden="true" />
