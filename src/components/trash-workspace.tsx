@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowRight, ArrowUpRight, CalendarClock, FileText, LoaderCircle, RefreshCw, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { OperationStatus, notifyOperation } from "@/components/operation-status";
 import { useConfirmation } from "@/components/confirmation-dialog";
+import { ActionOverflowMenu } from "@/components/action-overflow-menu";
 import { formatArchiveDate } from "@/lib/date-format";
 
 type Item = { id: string; title: string; subject: string; topicTitle: string; deletedAt: string };
@@ -189,10 +190,12 @@ export function TrashWorkspace() {
                         <span>{restoring ? "Restoring…" : "Restore note"}</span>
                         {!restoring && <ArrowRight size={14} aria-hidden="true" />}
                       </button>
-                      <button type="button" className="danger-btn trash-delete-button" disabled={busy !== null} onClick={() => void action(item.id, "delete")} aria-label={deleting ? `Deleting ${item.title} permanently` : `Permanently delete ${item.title}`} aria-busy={deleting}>
-                        {deleting ? <LoaderCircle className="operation-spinner" size={15} aria-hidden="true" /> : <Trash2 size={15} aria-hidden="true" />}
-                        <span>{deleting ? "Deleting…" : "Delete permanently"}</span>
-                      </button>
+                      <ActionOverflowMenu label={`More actions for ${item.title || "untitled note"}`} className="trash-item-overflow">
+                        <button type="button" className="danger-btn trash-delete-button" disabled={busy !== null} onClick={() => void action(item.id, "delete")} aria-label={deleting ? `Deleting ${item.title} permanently` : `Permanently delete ${item.title}`} aria-busy={deleting}>
+                          {deleting ? <LoaderCircle className="operation-spinner" size={15} aria-hidden="true" /> : <Trash2 size={15} aria-hidden="true" />}
+                          <span>{deleting ? "Deleting…" : "Delete permanently"}</span>
+                        </button>
+                      </ActionOverflowMenu>
                     </div>
                   </article>
                 );
