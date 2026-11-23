@@ -9830,3 +9830,322 @@ html[data-theme="light"] .note-editor-page .editor-pin-action[aria-pressed="true
   .note-editor-page .editor-toolbar .tool-btn,
   .note-editor-page .editor-pin-action { transition: none; }
 }
+
+
+/* ==========================================================================
+   Note surfaces refinement — align the Reader and Editor as one system.
+   ========================================================================== */
+
+/* The Reader uses a wider page grid, with a calm, consistent reading measure
+   centered independently from the full-width utility/action rows. */
+.note-reader-page .reader {
+  width: min(100%, 1120px);
+  max-width: 1120px;
+}
+.note-reader-page .reader-document {
+  width: min(100%, 900px);
+  margin-inline: auto;
+}
+.note-reader-page .reader-header {
+  width: min(100%, 760px);
+  margin: 0 auto 30px;
+  padding-bottom: 26px;
+}
+.note-reader-page .reader-title {
+  max-width: 20ch;
+  font-size: calc(clamp(44px, 5.2vw, 64px) * var(--font-scale, 1));
+  letter-spacing: -.045em;
+  line-height: 1.04;
+}
+.note-reader-page .reader-subject {
+  max-width: 58ch;
+  font-size: calc(17px * var(--font-scale, 1)) !important;
+  line-height: 1.7;
+}
+.note-reader-page .reader-content {
+  width: min(100%, 760px);
+  margin-inline: auto;
+  font-size: calc(21px * var(--font-scale, 1));
+  line-height: 1.92;
+}
+.note-reader-page .reader-content p {
+  margin-bottom: 1.45em;
+}
+.note-reader-page .reader-content h1,
+.note-reader-page .reader-content h2,
+.note-reader-page .reader-content h3 {
+  scroll-margin-top: 110px;
+}
+.note-reader-page .reader-section-divider {
+  width: min(100%, 760px);
+  margin-inline: auto;
+  margin-bottom: 29px;
+}
+.note-reader-page .reader-toc {
+  width: min(100%, 760px);
+  margin: 0 auto 27px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+}
+.note-reader-page .reader-toc > summary {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 15px;
+  color: var(--text);
+  font-size: calc(12px * var(--font-scale, 1));
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.note-reader-page .reader-toc > summary::-webkit-details-marker { display: none; }
+.note-reader-page .reader-toc > summary::after {
+  content: "+";
+  color: var(--gold);
+  font-size: 18px;
+  line-height: 1;
+}
+.note-reader-page .reader-toc[open] > summary::after { content: "−"; }
+.note-reader-page .reader-toc-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: calc(11px * var(--font-scale, 1));
+  font-weight: 550;
+}
+.note-reader-page .reader-toc nav {
+  padding: 0 10px 10px;
+  border-top: 1px solid var(--line);
+}
+.note-reader-page .reader-toc nav ol {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.note-reader-page .reader-toc-link {
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: calc(12px * var(--font-scale, 1));
+  text-decoration: none;
+}
+.note-reader-page .reader-toc-link--level-2 { padding-left: 25px; }
+.note-reader-page .reader-toc-link--level-3 { padding-left: 40px; }
+.note-reader-page .reader-note-navigation {
+  width: min(100%, 900px);
+  margin: 44px auto 18px;
+}
+.note-reader-page .note-connections,
+.note-reader-page .reader-footer {
+  width: min(100%, 900px);
+  margin-inline: auto;
+}
+.note-reader-page .note-connections {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 23px;
+  gap: 18px;
+}
+.note-reader-page .note-connections-heading {
+  grid-column: 1 / -1;
+}
+.note-reader-page .reader-footer {
+  margin-top: 35px;
+}
+.note-reader-page .note-connection-link {
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: 9px;
+}
+html[data-theme="light"] .note-reader-page .reader-toc {
+  border-color: #E2DACE;
+  background: #FCFAF5;
+}
+html[data-theme="light"] .note-reader-page .reader-toc > summary {
+  color: #292B2F;
+}
+html[data-theme="light"] .note-reader-page .reader-toc-link {
+  color: #555B63;
+}
+html[data-theme="light"] .note-reader-page .reader-toc-link:hover {
+  background: #F2EBDD;
+  color: #76520F;
+}
+
+/* Compact and consistent formatting clusters, with pressed and disabled
+   states that communicate the current text/block formatting. */
+.note-editor-page .editor-toolbar {
+  align-items: center;
+  gap: 7px;
+}
+.note-editor-page .editor-toolbar-hint {
+  flex: 1 1 170px;
+  margin-right: 0;
+}
+.note-editor-page .editor-toolbar-controls {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.note-editor-page .editor-tool-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface) 50%, transparent);
+}
+.note-editor-page .editor-toolbar-controls .tool-btn {
+  width: 35px;
+  min-width: 35px;
+  min-height: 35px;
+  height: 35px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+.note-editor-page .editor-toolbar-controls .tool-btn[aria-pressed="true"] {
+  border-color: var(--gold-border);
+  background: var(--gold-soft);
+  color: var(--gold-bright);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 9%, transparent);
+}
+.note-editor-page .editor-toolbar-controls .tool-btn:disabled {
+  opacity: .32;
+  cursor: not-allowed;
+}
+.note-editor-page .editor-toolbar-controls .tool-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.note-editor-page .editor-toolbar-controls .editor-tool-labelled {
+  width: auto;
+  min-width: 73px;
+  padding-inline: 8px;
+  gap: 6px;
+}
+.note-editor-page .editor-toolbar-controls .editor-tool-labelled .tool-label {
+  display: inline;
+}
+.note-editor-page .editor-toolbar-controls .tool-divider {
+  display: none;
+}
+.note-editor-page .editor-main .focus-active-block {
+  border-radius: 5px;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--gold) 58%, transparent);
+  background: color-mix(in srgb, var(--gold) 3.5%, transparent);
+}
+.note-editor-page .editor-main .rich-editor:focus {
+  outline: none;
+}
+.note-editor-page .editor-main .rich-editor > * {
+  scroll-margin-block: 110px;
+}
+.note-editor-page .editor-main .rich-editor > p:first-child,
+.note-editor-page .editor-main .rich-editor > h1:first-child,
+.note-editor-page .editor-main .rich-editor > h2:first-child,
+.note-editor-page .editor-main .rich-editor > h3:first-child {
+  margin-top: .35em;
+}
+.note-editor-page .editor-main .rich-editor p:empty::before {
+  color: var(--dim);
+}
+.note-editor-page .editor-inspector-properties {
+  position: relative;
+}
+.note-editor-page .editor-inspector-properties::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 19px;
+  right: 19px;
+  height: 2px;
+  border-radius: 0 0 999px 999px;
+  background: linear-gradient(90deg, var(--gold), color-mix(in srgb, var(--gold) 0%, transparent));
+}
+.note-editor-page .editor-inspector-guidance {
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-2)) !important;
+}
+.note-editor-page .editor-inspector-guidance > .form-hint {
+  font-size: calc(12px * var(--font-scale, 1)) !important;
+  line-height: 1.7 !important;
+}
+html[data-theme="light"] .note-editor-page .editor-tool-group {
+  border-color: #E2DACE;
+  background: #F8F5EE;
+}
+html[data-theme="light"] .note-editor-page .editor-toolbar-controls .tool-btn[aria-pressed="true"] {
+  border-color: #C4A04F;
+  background: #F3E8CB;
+  color: #76520F;
+}
+html[data-theme="light"] .note-editor-page .editor-main .focus-active-block {
+  background: rgba(169,120,27,.055);
+  box-shadow: inset 2px 0 0 rgba(169,120,27,.52);
+}
+html[data-theme="light"] .note-editor-page .editor-inspector-guidance {
+  background: #F8F5EE !important;
+}
+@media (max-width: 1100px) {
+  .note-reader-page .reader { width: min(100%, 1000px); }
+  .note-reader-page .reader-document,
+  .note-reader-page .reader-note-navigation,
+  .note-reader-page .note-connections,
+  .note-reader-page .reader-footer { width: min(100%, 860px); }
+}
+@media (max-width: 760px) {
+  .note-reader-page .reader-document,
+  .note-reader-page .reader-header,
+  .note-reader-page .reader-content,
+  .note-reader-page .reader-section-divider,
+  .note-reader-page .reader-toc,
+  .note-reader-page .reader-note-navigation,
+  .note-reader-page .note-connections,
+  .note-reader-page .reader-footer {
+    width: 100%;
+  }
+  .note-reader-page .reader-header { margin-bottom: 24px; }
+  .note-reader-page .reader-title {
+    font-size: calc(clamp(36px, 8vw, 50px) * var(--font-scale, 1));
+  }
+  .note-reader-page .reader-content {
+    font-size: calc(18px * var(--font-scale, 1));
+    line-height: 1.82;
+  }
+  .note-reader-page .note-connections {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+  .note-editor-page .editor-toolbar-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .note-editor-page .editor-toolbar-hint {
+    flex: 1 1 100%;
+  }
+}
+@media (max-width: 480px) {
+  .note-editor-page .editor-toolbar-controls {
+    gap: 4px;
+  }
+  .note-editor-page .editor-tool-group {
+    gap: 1px;
+  }
+  .note-editor-page .editor-toolbar-controls .tool-btn {
+    width: 33px;
+    min-width: 33px;
+    min-height: 33px;
+    height: 33px;
+  }
+  .note-editor-page .editor-toolbar-controls .editor-tool-labelled {
+    min-width: 64px;
+    padding-inline: 6px;
+  }
+}
