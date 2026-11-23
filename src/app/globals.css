@@ -8711,6 +8711,14 @@ html[data-theme="light"] .overview-recent-panel .note-row-pinned .note-icon {
   font-size: calc(13px * var(--font-scale, 1));
   box-shadow: 0 5px 16px rgba(203,180,126,.13);
 }
+.reader-edit-button {
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.reader-edit-button > span {
+  display: inline !important;
+}
 .note-reader-actionbar {
   display: flex;
   justify-content: flex-end;
