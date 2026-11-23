@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Copy, FolderInput, FolderPlus, LoaderCircle, RefreshCw, X } from "lucide-react";
 import { detectTextLanguage } from "@/lib/bidi";
@@ -204,7 +205,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
         <ArrowRightLeft size={17} />
         {showLabel && <span>Move / copy</span>}
       </button>
-      {open && (
+      {open && createPortal(
         <div
           className="transfer-backdrop"
           onMouseDown={(event: ReactMouseEvent<HTMLDivElement>) => {
@@ -279,7 +280,8 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
               </button>
             </footer>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
