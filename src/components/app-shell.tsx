@@ -10,6 +10,7 @@ const TopicDialog = dynamic(
   { loading: () => <OperationStatus kind="loading" message="Opening the topic editor…" /> },
 );
 import { ThemeToggle } from "@/components/theme-provider";
+import { ActionOverflowMenu } from "@/components/action-overflow-menu";
 import { readResumeLocation, saveResumeLocation } from "@/lib/resume-location";
 import { flushPendingLocalDraftWrites } from "@/lib/local-recovery";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
@@ -544,7 +545,15 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
     </aside>
     <div className="main-area">
       <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{breadcrumbLabel}</span></div>
-        <div className="top-actions" role="group" aria-label="Workspace actions"><ThemeToggle /><button type="button" className="search-trigger top-action-button" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive · /" aria-keyshortcuts="/"><Search size={17} aria-hidden="true" /><span>Search</span></button><button type="button" className="secondary-btn top-action-button" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><FilePlus size={17} aria-hidden="true" /><span>New note</span></button><button type="button" className="primary-btn top-action-button" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><FolderPlus size={17} aria-hidden="true" /><span>New topic</span></button><button type="button" className="lock-vault-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault · Ctrl/⌘+L"} aria-label={locking ? "Locking vault" : "Lock vault"} aria-keyshortcuts="Control+L Meta+L">{locking ? <LoaderCircle className="operation-spinner" size={15} aria-hidden="true" /> : <LockKeyhole size={15} aria-hidden="true" />}<span>{locking ? "Locking…" : "Lock vault"}</span></button></div>
+        <div className="top-actions" role="group" aria-label="Workspace actions">
+          <button type="button" className="search-trigger top-action-button" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive · /" aria-keyshortcuts="/"><Search size={17} aria-hidden="true" /><span>Search</span></button>
+          <button type="button" className="primary-btn top-action-button" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><FilePlus size={17} aria-hidden="true" /><span>New note</span></button>
+          <button type="button" className="lock-vault-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault · Ctrl/⌘+L"} aria-label={locking ? "Locking vault" : "Lock vault"} aria-keyshortcuts="Control+L Meta+L">{locking ? <LoaderCircle className="operation-spinner" size={15} aria-hidden="true" /> : <LockKeyhole size={15} aria-hidden="true" />}<span>{locking ? "Locking…" : "Lock vault"}</span></button>
+          <ActionOverflowMenu label="More workspace actions" className="topbar-overflow">
+            <ThemeToggle />
+            <button type="button" className="secondary-btn top-action-button" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><FolderPlus size={17} aria-hidden="true" /><span>New topic</span></button>
+          </ActionOverflowMenu>
+        </div>
       </header>
       <div className="main-content" id="main-content" tabIndex={-1}>{children}</div>
     </div>
