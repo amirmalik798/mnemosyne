@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, BookOpen, Edit3 } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CalendarClock, Clock3, Edit3, FileText, FolderOpen, Image as ImageIcon, Pin, Tags } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
 import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
@@ -42,7 +42,7 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
   const {id}=await params;
   const session=await requireVaultSession();
   const result = await queryAsUser(session.userId, 
-    `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.created_at, n.updated_at,
+    `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc, n.pinned, n.created_at, n.updated_at,
             t.title_enc AS topic_title_enc
      FROM notes n
      JOIN topics t ON t.id = n.topic_id
@@ -244,53 +244,113 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
           />
         </div>
 
-        <section className="reader-document" aria-labelledby="reader-note-title">
-          <header className="reader-header">
-            <div className="reader-topic-kicker">
-              <span className="eyebrow">NOTE IN</span>
-              <span className="reader-topic-name" dir="auto" lang={detectTextLanguage(topicTitle)}>{topicTitle}</span>
-            </div>
-            <h1 id="reader-note-title" className="reader-title" dir="auto" lang={detectTextLanguage(title)}>
-              {title || "Untitled note"}
-            </h1>
-            {subject && (
-              <p className="page-subtitle reader-subject" dir="auto" lang={detectTextLanguage(subject)}>
-                {subject}
-              </p>
+        <div className="reader-workspace-grid">
+          <article className="reader-document editor-main editor-writing-surface" aria-labelledby="reader-note-title">
+            <header className="reader-header">
+              <div className="reader-topic-kicker">
+                <span className="eyebrow">NOTE IN</span>
+                <Link href={`/topics/${r.topic_id}`} className="reader-topic-name" dir="auto" lang={detectTextLanguage(topicTitle)}>
+                  {topicTitle}
+                </Link>
+              </div>
+              <h1 id="reader-note-title" className="reader-title editor-title" dir="auto" lang={detectTextLanguage(title)}>
+                {title || "Untitled note"}
+              </h1>
+              {subject && (
+                <p className="page-subtitle reader-subject editor-subject" dir="auto" lang={detectTextLanguage(subject)}>
+                  {subject}
+                </p>
+              )}
+              <div className="reader-meta" aria-label="Note details">
+                <time dateTime={updatedAt}>Updated {formatArchiveDateTime(r.updated_at)}</time>
+                <span aria-hidden="true">·</span>
+                <span>{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
+                {words > 0 && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>{readingMinutes} min read</span>
+                  </>
+                )}
+                {imageCount > 0 && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>{imageCount} {imageCount === 1 ? "image" : "images"}</span>
+                  </>
+                )}
+              </div>
+            </header>
+
+            <div className="reader-section-divider" aria-hidden="true" />
+            <RichContent content={content} wikiLinks={wikiLinks} />
+          </article>
+
+          <aside className="reader-inspector" aria-label="Read-only note details">
+            <section className="panel reader-inspector-panel">
+              <div className="reader-inspector-heading">
+                <span className="eyebrow">ARCHIVE RECORD</span>
+                <h2>Note details</h2>
+                <p>A quick reference for this note.</p>
+              </div>
+
+              <Link href={`/topics/${r.topic_id}`} className="reader-inspector-topic">
+                <span className="reader-inspector-topic-icon"><FolderOpen size={17} aria-hidden="true" /></span>
+                <span className="reader-inspector-topic-copy">
+                  <small>COLLECTION</small>
+                  <strong dir="auto" lang={detectTextLanguage(topicTitle)}>{topicTitle}</strong>
+                </span>
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+
+              {Boolean(r.pinned) && (
+                <div className="reader-inspector-pinned">
+                  <Pin size={14} aria-hidden="true" />
+                  <span>Pinned for reference</span>
+                </div>
+              )}
+
+              <dl className="reader-inspector-stats">
+                <div>
+                  <dt><FileText size={14} aria-hidden="true" /> Words</dt>
+                  <dd>{words.toLocaleString()}</dd>
+                </div>
+                <div>
+                  <dt><Clock3 size={14} aria-hidden="true" /> Reading time</dt>
+                  <dd>{words > 0 ? `${readingMinutes} min` : "—"}</dd>
+                </div>
+                <div>
+                  <dt><ImageIcon size={14} aria-hidden="true" /> Images</dt>
+                  <dd>{imageCount}</dd>
+                </div>
+                <div>
+                  <dt><CalendarClock size={14} aria-hidden="true" /> Last updated</dt>
+                  <dd>{formatArchiveDateTime(r.updated_at)}</dd>
+                </div>
+              </dl>
+            </section>
+
+            {tags.length > 0 && (
+              <section className="panel reader-inspector-panel reader-inspector-tags">
+                <div className="reader-inspector-heading reader-inspector-heading--compact">
+                  <span className="eyebrow"><Tags size={12} aria-hidden="true" /> ORGANIZATION</span>
+                  <h2>Filed under</h2>
+                </div>
+                <div className="reader-tag-list" aria-label="Note tags">
+                  {tags.map((tag) => (
+                    <span className="tag-pill" dir="auto" lang={detectTextLanguage(tag)} key={tag}>#{tag}</span>
+                  ))}
+                </div>
+              </section>
             )}
-            <div className="reader-meta" aria-label="Note details">
-              <time dateTime={updatedAt}>Updated {formatArchiveDateTime(r.updated_at)}</time>
-              <span aria-hidden="true">·</span>
-              <span>{words} {words === 1 ? "word" : "words"}</span>
-              {words > 0 && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span>{readingMinutes} min read</span>
-                </>
-              )}
-              {imageCount > 0 && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span>{imageCount} {imageCount === 1 ? "image" : "images"}</span>
-                </>
-              )}
-            </div>
-          </header>
 
-          <div className="reader-section-divider" aria-hidden="true" />
-          <RichContent content={content} wikiLinks={wikiLinks} />
-
-          {tags.length > 0 && (
-            <section className="reader-tags" aria-label="Note tags">
-              <div className="property-label">Filed under</div>
-              <div className="reader-tag-list">
-                {tags.map((tag) => (
-                  <span className="tag-pill" dir="auto" lang={detectTextLanguage(tag)} key={tag}>#{tag}</span>
-                ))}
+            <section className="panel reader-inspector-panel reader-inspector-readonly">
+              <div className="reader-readonly-mark"><BookOpen size={15} aria-hidden="true" /></div>
+              <div>
+                <strong>Reading view</strong>
+                <p>This page is for reading and reference. Use Edit note to make changes.</p>
               </div>
             </section>
-          )}
-        </section>
+          </aside>
+        </div>
 
         {(olderNote || newerNote) && (
           <nav className="reader-note-navigation" aria-label="Navigate between notes in this topic">
