@@ -18716,3 +18716,68 @@ html[data-theme="light"] .action-overflow-menu .note-row-more-menu .reader-trash
 @media (prefers-reduced-motion: reduce) {
   .action-overflow-menu > summary { transition: none; }
 }
+
+
+/* Editor actions: keep Save and live status in view; group Focus and
+   Properties into the same overflow pattern used throughout the archive. */
+.note-editor-save-actions .editor-overflow-actions {
+  grid-area: focus;
+}
+
+.note-editor-save-actions .editor-overflow-actions > summary {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+}
+
+.note-editor-save-actions .editor-overflow-actions .note-row-more-menu {
+  min-width: 184px;
+}
+
+.note-editor-save-actions .editor-overflow-actions .editor-header-action {
+  width: 100%;
+  min-height: 40px;
+  height: auto;
+  justify-content: flex-start;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.note-editor-save-actions .editor-overflow-actions .editor-header-action:hover {
+  background: var(--surface-3);
+}
+
+@media (max-width: 760px) {
+  .note-editor-page .note-editor-save-actions {
+    grid-template-columns: 44px minmax(0,1fr);
+    grid-template-areas:
+      "focus save"
+      "status status";
+    align-items: center;
+  }
+
+  .note-editor-page .note-editor-save-actions .editor-overflow-actions {
+    grid-area: focus;
+    justify-self: start;
+  }
+
+  .note-editor-page .note-editor-save-actions .editor-overflow-actions > summary {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .note-editor-page .note-editor-save-button,
+  .note-editor-page .editor-save-button {
+    grid-area: save;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .note-editor-page .note-editor-save-status {
+    grid-area: status;
+  }
+}
