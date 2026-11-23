@@ -607,9 +607,10 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       <button
         type="button"
         className={`mobile-nav-link mobile-nav-more-trigger ${moreNavigationActive ? "active" : ""}`}
-        onClick={() => setMoreNavigationOpen(true)}
+        onClick={() => setMoreNavigationOpen((open) => !open)}
         aria-haspopup="dialog"
         aria-expanded={moreNavigationOpen}
+        aria-current={moreNavigationActive ? "page" : undefined}
         aria-label="More destinations"
         title="More destinations"
       >
