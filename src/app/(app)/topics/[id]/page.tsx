@@ -11,6 +11,7 @@ import { TopicEditDialog } from "@/components/topic-edit-dialog";
 import { ARCHIVE_PAGE_SIZE, ArchivePagination, parseArchivePage } from "@/components/archive-pagination";
 import { ArchiveSortControl } from "@/components/archive-sort-control";
 import { ArchivePinFilter, type ArchivePinFilterValue } from "@/components/archive-pin-filter";
+import { ActionOverflowMenu } from "@/components/action-overflow-menu";
 import { compareArchiveTitles, isAlphabeticalArchiveSort, parseArchiveSort } from "@/lib/archive-sort";
 
 type Props = {
@@ -126,9 +127,11 @@ export default async function TopicPage({ params, searchParams }: Props) {
         <div className="topic-detail-summary">
           <p className="page-subtitle topic-detail-description" dir="auto" lang={detectTextLanguage(description)}>{description || "A dedicated space for the notes and references in this collection."}</p>
           <div className="topic-detail-actions" role="group" aria-label="Collection actions">
-            <TopicImageDownload topicId={id} imageCount={imageCount}/>
-            <TopicEditDialog topic={{ id, title, subject, description, category, coverUrl: cover, noteCount: totalNotesIncludingTrash }} />
             <Link href={`/notes/new?topicId=${id}`} className="primary-btn topic-action-button" aria-label="Create a note in this topic" title="Create a note in this topic"><FilePlus size={16}/><span>New note</span></Link>
+            <ActionOverflowMenu label="More collection actions" className="topic-detail-overflow">
+              <TopicImageDownload topicId={id} imageCount={imageCount}/>
+              <TopicEditDialog topic={{ id, title, subject, description, category, coverUrl: cover, noteCount: totalNotesIncludingTrash }} />
+            </ActionOverflowMenu>
           </div>
         </div>
       </section>
