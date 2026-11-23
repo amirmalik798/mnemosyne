@@ -14,6 +14,12 @@ import { readResumeLocation, saveResumeLocation } from "@/lib/resume-location";
 import { flushPendingLocalDraftWrites } from "@/lib/local-recovery";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 
+const mobileMoreDescriptions: Record<string, string> = {
+  "/pinned": "Keep your most important notes close at hand.",
+  "/trash": "Restore a deleted note or remove it permanently.",
+  "/settings": "Choose themes, reading preferences and security options.",
+};
+
 const nav = [
   { label: "LIBRARY", items: [{ href: "/library", label: "Overview", icon: Boxes }, { href: "/topics", label: "All topics", icon: FolderOpen }, { href: "/notes", label: "All notes", icon: FileText }, { href: "/pinned", label: "Pinned notes", icon: Pin }, { href: "/search", label: "Search archive", icon: Search }] },
   { label: "PERSONAL", items: [{ href: "/trash", label: "Recently deleted", icon: Trash2 }, { href: "/settings", label: "Settings", icon: Settings }] },
@@ -561,6 +567,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             <div>
               <span className="eyebrow">YOUR ARCHIVE</span>
               <h2 id="mobile-nav-more-title">More destinations</h2>
+              <p className="mobile-nav-more-intro">Your archive tools and preferences.</p>
             </div>
             <button type="button" className="mobile-nav-more-close" onClick={() => setMoreNavigationOpen(false)} aria-label="Close menu">
               <X size={18} aria-hidden="true" />
@@ -578,8 +585,12 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                   aria-current={active ? "page" : undefined}
                   onClick={() => setMoreNavigationOpen(false)}
                 >
-                  <Icon size={20} aria-hidden="true" />
-                  <span>{item.label}</span>
+                  <span className="mobile-nav-more-icon"><Icon size={20} aria-hidden="true" /></span>
+                  <span className="mobile-nav-more-copy">
+                    <strong>{item.label}</strong>
+                    <small>{mobileMoreDescriptions[item.href]}</small>
+                  </span>
+                  <span className="mobile-nav-more-chevron" aria-hidden="true">›</span>
                 </Link>
               );
             })}
