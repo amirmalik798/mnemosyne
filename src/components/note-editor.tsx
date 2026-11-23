@@ -9,6 +9,7 @@ import { Plugin } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NoteTopicTransfer } from "@/components/note-topic-transfer";
+import { ActionOverflowMenu } from "@/components/action-overflow-menu";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { NoteImageNodeView } from "@/components/note-image-node-view";
 import { NoteHandwritingPad } from "@/components/note-handwriting-pad";
@@ -1334,13 +1335,15 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
           <span className="note-editor-heading-context">{noteId ? "EDITING NOTE" : "NEW NOTE"}</span>
         </div>
         <div className="note-editor-save-actions" role="group" aria-label="Editor view and save actions">
-          <button type="button" className="secondary-btn editor-header-action editor-focus-action" onClick={() => setFocusMode((active) => !active)} aria-pressed={focusMode} aria-label={focusMode ? "Exit distraction-free mode" : "Enter distraction-free mode"} title={focusMode ? "Exit distraction-free mode" : "Distraction-free writing · Ctrl/⌘+Shift+F"}>
-            <Focus size={17} aria-hidden="true" /><span>{focusMode ? "Exit focus" : "Focus"}</span>
-          </button>
-          <button type="button" className="secondary-btn editor-header-action editor-properties-toggle" onClick={() => setInspectorOpen((open) => !open)} aria-expanded={inspectorOpen} aria-label={inspectorOpen ? "Collapse note inspector" : "Open note inspector"} title={inspectorOpen ? "Collapse note inspector · ⌘/Ctrl+I" : "Open note inspector · ⌘/Ctrl+I"}>
-            {inspectorOpen ? <PanelRightClose size={17} aria-hidden="true" /> : <PanelRightOpen size={17} aria-hidden="true" />}
-            <span>Properties</span>
-          </button>
+          <ActionOverflowMenu label="More editor actions" className="editor-overflow-actions">
+            <button type="button" className="secondary-btn editor-header-action editor-focus-action" onClick={() => setFocusMode((active) => !active)} aria-pressed={focusMode} aria-label={focusMode ? "Exit distraction-free mode" : "Enter distraction-free mode"} title={focusMode ? "Exit distraction-free mode" : "Distraction-free writing · Ctrl/⌘+Shift+F"}>
+              <Focus size={17} aria-hidden="true" /><span>{focusMode ? "Exit focus" : "Focus"}</span>
+            </button>
+            <button type="button" className="secondary-btn editor-header-action editor-properties-toggle" onClick={() => setInspectorOpen((open) => !open)} aria-expanded={inspectorOpen} aria-label={inspectorOpen ? "Collapse note inspector" : "Open note inspector"} title={inspectorOpen ? "Collapse note inspector · ⌘/Ctrl+I" : "Open note inspector · ⌘/Ctrl+I"}>
+              {inspectorOpen ? <PanelRightClose size={17} aria-hidden="true" /> : <PanelRightOpen size={17} aria-hidden="true" />}
+              <span>Properties</span>
+            </button>
+          </ActionOverflowMenu>
           <div className="note-editor-save-status" aria-live="polite">
             <OperationStatus kind={getEditorStatusKind(status)} message={status} compact />
           </div>
