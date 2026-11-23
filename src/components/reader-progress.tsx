@@ -24,9 +24,14 @@ export function ReaderProgress() {
     update();
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(update)
+      : null;
+    if (resizeObserver) resizeObserver.observe(document.documentElement);
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
+      resizeObserver?.disconnect();
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
     };
   }, []);
@@ -39,6 +44,7 @@ export function ReaderProgress() {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={progress}
+      aria-valuetext={`${progress}% read`}
     >
       <span style={{ width: `${progress}%` }} />
     </div>
