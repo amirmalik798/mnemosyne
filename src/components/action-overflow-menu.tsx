@@ -69,8 +69,17 @@ export function ActionOverflowMenu({
           if (!panel || !trigger) return;
           const triggerRect = trigger.getBoundingClientRect();
           const panelRect = panel.getBoundingClientRect();
-          const spaceBelow = window.innerHeight - triggerRect.bottom;
-          const spaceAbove = triggerRect.top;
+          const phoneViewport = window.matchMedia("(max-width: 560px)").matches;
+          const mobileNavRect = phoneViewport
+            ? document.querySelector<HTMLElement>(".mobile-nav")?.getBoundingClientRect()
+            : undefined;
+          const stickyHeaderRect = phoneViewport
+            ? document.querySelector<HTMLElement>(".topbar")?.getBoundingClientRect()
+            : undefined;
+          const reservedBottom = mobileNavRect ? Math.max(0, window.innerHeight - mobileNavRect.top) : 0;
+          const reservedTop = stickyHeaderRect ? Math.max(0, stickyHeaderRect.bottom) : 0;
+          const spaceBelow = window.innerHeight - triggerRect.bottom - reservedBottom;
+          const spaceAbove = triggerRect.top - reservedTop;
           details.dataset.menuSide = spaceBelow < panelRect.height + 12 && spaceAbove > spaceBelow ? "above" : "below";
           details.dataset.menuAlign = triggerRect.right + panelRect.width > window.innerWidth - 12 ? "right" : "left";
         });
