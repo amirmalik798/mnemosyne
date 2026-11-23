@@ -131,7 +131,6 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
 
     function handleDialogKeys(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        if (busy) return;
         event.preventDefault();
         event.stopPropagation();
         closeDialog();
@@ -209,7 +208,7 @@ export function NoteTopicTransfer({ noteId, currentTopicId, topics, beforeTransf
         <div
           className="transfer-backdrop"
           onMouseDown={(event: ReactMouseEvent<HTMLDivElement>) => {
-            if (event.target === event.currentTarget && !busy) closeDialog();
+            if (event.target === event.currentTarget && !busyRef.current) closeDialog();
           }}
         >
           <section ref={dialogRef} className="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title" aria-describedby="transfer-description" aria-busy={busy || topicsLoading}>
