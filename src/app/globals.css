@@ -18781,3 +18781,59 @@ html[data-theme="light"] .action-overflow-menu .note-row-more-menu .reader-trash
     grid-area: status;
   }
 }
+
+
+/* Global header: keep Search, New note and Lock vault visible; put the less
+   frequent theme switch and topic creation beside them in one overflow menu. */
+.topbar .topbar-overflow > summary {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+}
+
+.topbar .topbar-overflow .note-row-more-menu {
+  min-width: 205px;
+}
+
+.topbar .topbar-overflow .theme-toggle,
+.topbar .topbar-overflow .top-action-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+
+.topbar .topbar-overflow .theme-toggle:hover,
+.topbar .topbar-overflow .top-action-button:hover {
+  border-color: transparent;
+  background: var(--surface-3);
+}
+
+.topbar .topbar-overflow .theme-toggle svg,
+.topbar .topbar-overflow .top-action-button svg {
+  flex: 0 0 17px;
+}
+
+@media (max-width: 1100px) {
+  .topbar .topbar-overflow > summary {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar .topbar-overflow { display: none; }
+}
+
