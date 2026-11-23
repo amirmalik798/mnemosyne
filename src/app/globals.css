@@ -13563,3 +13563,26 @@ html[data-preset] {
     transition: none !important;
   }
 }
+
+
+/* The Trash retry label is visible only on mobile; desktop retains its icon-only control. */
+@media (max-width: 560px) {
+  .trash-retry-button {
+    width: auto;
+    height: 42px;
+    flex: 0 0 auto;
+  }
+  .trash-retry-button .sr-only {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    clip: auto !important;
+    clip-path: none !important;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 650;
+  }
+}
