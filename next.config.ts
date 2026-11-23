@@ -20,6 +20,9 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const nextConfig: NextConfig = {
+  // Allow the Next.js dev server to serve assets through an ngrok free tunnel.
+  // This setting only affects development mode.
+  allowedDevOrigins: ["*.ngrok-free.app"],
   serverExternalPackages: ["argon2", "pg"],
   poweredByHeader: false,
   compress: true,
