@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FilePlus } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, FilePlus, FileText, Search, Sparkles } from "lucide-react";
 import { requireVaultSession } from "@/lib/auth";
 import { queryAsUser } from "@/lib/db";
 import { decryptText } from "@/lib/crypto";
@@ -91,29 +91,133 @@ export default async function NotesPage({ searchParams }: Props) {
     : decryptedNotes;
 
   return (
-    <main className="page">
+    <main className="page all-notes-page">
       <ArchiveIntegrityNotice count={unavailableNoteIds.size} itemLabel="note" />
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">Your writing</div>
-          <h1 className="page-title">All notes</h1>
-          <p className="page-subtitle">Every thought and reference, gathered in one searchable place.</p>
+      <header className="all-notes-hero">
+        <div className="all-notes-hero-copy">
+          <div className="eyebrow">Your writing · The complete archive</div>
+          <h1 className="page-title">All <em>notes.</em></h1>
+          <p className="page-subtitle">Every thought, reference and passing idea, gathered in one considered place.</p>
+          <div className="all-notes-promise">
+            <span className="all-notes-promise-icon"><BookOpen size={16} aria-hidden="true" /></span>
+            <span>
+              <strong>Your work, in one place.</strong>
+              <small>Browse, revisit and continue developing every note in your archive.</small>
+            </span>
+          </div>
         </div>
-        <div className="stats">
-          <div className="stat"><strong>{totalNotes}</strong><span>Notes</span></div>
+
+        <aside className="all-notes-count-card" aria-label={`${totalNotes} total ${totalNotes === 1 ? "note" : "notes"}`}>
+          <div className="all-notes-count-top">
+            <span className="all-notes-count-icon"><FileText size={18} aria-hidden="true" /></span>
+            <span className="all-notes-count-label">Your archive</span>
+          </div>
+          <div className="all-notes-count-value">
+            <strong>{totalNotes}</strong>
+            <span>{totalNotes === 1 ? "note" : "notes"} in your library</span>
+          </div>
+          <div className="all-notes-count-foot">
+            <span className="all-notes-count-dot" />
+            {unavailableNoteIds.size > 0
+              ? `${unavailableNoteIds.size} ${unavailableNoteIds.size === 1 ? "note needs" : "notes need"} attention`
+              : "Private and encrypted"}
+          </div>
+        </aside>
+      </header>
+
+      <section className="all-notes-workspace" aria-labelledby="all-notes-workspace-title">
+        <div className="all-notes-workspace-header">
+          <div className="all-notes-workspace-copy">
+            <span className="eyebrow">The collection</span>
+            <h2 id="all-notes-workspace-title">Your notes</h2>
+            <p>
+              {notes.length > 0
+                ? `Showing ${notes.length} ${notes.length === 1 ? "note" : "notes"} from your archive.`
+                : totalNotes > 0
+                  ? "Some records need attention before they can be displayed."
+                  : "A quiet space, ready for your next thought."}
+            </p>
+          </div>
+          <div className="all-notes-workspace-actions">
+            <ArchiveSortControl basePath="/notes" currentSort={sort} />
+            <Link href="/search" className="secondary-btn all-notes-search-button">
+              <Search size={15} aria-hidden="true" />
+              <span>Search archive</span>
+            </Link>
+            <Link href="/notes/new" className="primary-btn all-notes-create-button">
+              <FilePlus size={15} aria-hidden="true" />
+              <span>New note</span>
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
-      </div>
-      <div className="archive-sort-row"><ArchiveSortControl basePath="/notes" currentSort={sort} /></div>
-      <section className="panel">
-        <div className="note-list">
-          {notes.length ? notes.map((note) => <NoteRow key={note.id} note={note} />) : (
+
+        <div className={`all-notes-surface ${notes.length === 0 ? "is-empty" : "has-notes"}`}>
+          {notes.length > 0 ? (
+            <div className="note-list" aria-label="All notes">
+              {notes.map((note) => <NoteRow key={note.id} note={note} showOpenCue />)}
+            </div>
+          ) : unavailableNoteIds.size > 0 ? (
             <EmptyState
-              title={unavailableNoteIds.size ? "Some notes are unavailable" : "No notes yet"}
-              copy={unavailableNoteIds.size
-                ? "Their encrypted fields could not be authenticated. The original records remain unchanged; investigate the vault key and backup before making further changes."
-                : "Start with a short thought or build a longer reflection in the editor."}
-              action={unavailableNoteIds.size ? undefined : <Link href="/notes/new" className="primary-btn icon-only-btn" aria-label="Create note" title="Create note"><FilePlus size={17} /></Link>}
+              title="Your notes need attention"
+              copy="Some encrypted records could not be authenticated. The original notes remain unchanged. Review the integrity notice above and check the original vault key and a trusted backup before making further changes."
             />
+          ) : (
+            <div className="all-notes-empty" role="region" aria-labelledby="all-notes-empty-title" aria-describedby="all-notes-empty-description">
+              <div className="all-notes-empty-art" aria-hidden="true">
+                <span className="all-notes-empty-orbit all-notes-empty-orbit-one" />
+                <span className="all-notes-empty-orbit all-notes-empty-orbit-two" />
+                <span className="all-notes-empty-paper all-notes-empty-paper-back" />
+                <span className="all-notes-empty-paper all-notes-empty-paper-front">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+                <span className="all-notes-empty-book"><BookOpen size={32} strokeWidth={1.35} /></span>
+                <span className="all-notes-empty-spark all-notes-empty-spark-one">✦</span>
+                <span className="all-notes-empty-spark all-notes-empty-spark-two">✧</span>
+              </div>
+
+              <div className="all-notes-empty-copy">
+                <span className="eyebrow">A new chapter begins</span>
+                <h3 id="all-notes-empty-title">Give your first idea a place.</h3>
+                <p id="all-notes-empty-description">
+                  Start with a sentence, a passing thought or a longer reflection.
+                  Your notes stay private in your encrypted archive, ready to grow with you.
+                </p>
+                <div className="all-notes-empty-actions">
+                  <Link href="/notes/new" className="primary-btn all-notes-first-note">
+                    <FilePlus size={16} aria-hidden="true" />
+                    <span>Create your first note</span>
+                    <ArrowRight size={15} aria-hidden="true" />
+                  </Link>
+                  <Link href="/topics" className="all-notes-explore-topics">
+                    Explore your topics <ArrowUpRight size={14} aria-hidden="true" />
+                  </Link>
+                </div>
+              </div>
+
+              <aside className="all-notes-empty-guide" aria-label="A simple way to begin">
+                <div className="all-notes-guide-heading">
+                  <Sparkles size={15} aria-hidden="true" />
+                  <span>A simple way to begin</span>
+                </div>
+                <div className="all-notes-guide-step">
+                  <span className="all-notes-guide-number">01</span>
+                  <span><strong>Capture an idea</strong><small>Write a thought before it slips away.</small></span>
+                </div>
+                <span className="all-notes-guide-line" aria-hidden="true" />
+                <div className="all-notes-guide-step">
+                  <span className="all-notes-guide-number">02</span>
+                  <span><strong>Give it context</strong><small>Add a subject or place it in a topic.</small></span>
+                </div>
+                <span className="all-notes-guide-line" aria-hidden="true" />
+                <div className="all-notes-guide-step">
+                  <span className="all-notes-guide-number">03</span>
+                  <span><strong>Return and develop</strong><small>Your archive keeps each note close.</small></span>
+                </div>
+              </aside>
+            </div>
           )}
         </div>
       </section>
