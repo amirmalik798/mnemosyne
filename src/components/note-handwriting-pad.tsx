@@ -51,7 +51,6 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
   const onInsertRef = useRef(onInsert);
   onCloseRef.current = onClose;
   onInsertRef.current = onInsert;
-  exportingRef.current = exporting;
 
   const [inkColor, setInkColor] = useState("#202936");
   const [lineWidth, setLineWidth] = useState(2.6);
@@ -60,6 +59,7 @@ export function NoteHandwritingPad({ onClose, onInsert }: Props) {
   const [canRedo, setCanRedo] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [notice, setNotice] = useState("");
+  exportingRef.current = exporting;
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
