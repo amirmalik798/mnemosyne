@@ -595,6 +595,43 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               );
             })}
           </div>
+          <div className="mobile-utility-actions" aria-label="Quick actions">
+            <div className="mobile-utility-actions-heading">Quick actions</div>
+            <div className="mobile-utility-actions-grid">
+              <ThemeToggle />
+              <Link
+                href="/notes/new"
+                className="mobile-utility-action"
+                onClick={() => setMoreNavigationOpen(false)}
+              >
+                <FilePlus size={18} aria-hidden="true" />
+                <span>New note</span>
+              </Link>
+              <button
+                type="button"
+                className="mobile-utility-action"
+                onClick={() => {
+                  setMoreNavigationOpen(false);
+                  setShowTopic(true);
+                }}
+              >
+                <FolderPlus size={18} aria-hidden="true" />
+                <span>New topic</span>
+              </button>
+              <button
+                type="button"
+                className="mobile-utility-action mobile-utility-lock"
+                onClick={() => {
+                  setMoreNavigationOpen(false);
+                  void lockVault();
+                }}
+                disabled={locking}
+              >
+                {locking ? <LoaderCircle className="operation-spinner" size={18} aria-hidden="true" /> : <LockKeyhole size={18} aria-hidden="true" />}
+                <span>{locking ? "Locking…" : "Lock vault"}</span>
+              </button>
+            </div>
+          </div>
         </section>
       </>
     )}
