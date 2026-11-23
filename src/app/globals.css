@@ -13586,3 +13586,339 @@ html[data-preset] {
     font-weight: 650;
   }
 }
+
+
+/* Don Norman mobile affordances and signifiers.
+   Touch-first only: these rules do not alter the desktop layout. */
+@media (max-width: 560px) {
+  /* Make an entry point look and feel like an entry point. */
+  .note-row-main-link {
+    position: relative;
+    min-height: 66px;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-2) 76%, transparent);
+    text-decoration: none;
+    transition:
+      border-color .16s ease,
+      background-color .16s ease,
+      box-shadow .16s ease,
+      transform .16s ease;
+  }
+
+  .note-row-main-link:not(:has(.note-row-open-cue))::after {
+    content: "↗";
+    width: 29px;
+    height: 29px;
+    flex: 0 0 29px;
+    display: grid;
+    place-items: center;
+    margin-left: auto;
+    border: 1px solid var(--gold-border);
+    border-radius: 9px;
+    background: var(--gold-soft);
+    color: var(--gold-bright);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .note-row-main-link:active {
+    border-color: var(--gold);
+    background: var(--gold-soft);
+    transform: scale(.99);
+    box-shadow: 0 5px 16px color-mix(in srgb, var(--gold) 9%, transparent);
+  }
+
+  .note-row-main-link:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+    border-color: var(--gold);
+  }
+
+  .note-row-main-link:active .note-icon {
+    border-color: var(--gold);
+    background: var(--gold-soft);
+  }
+
+  /* Expose the purpose of compact overflow menus; don't make people guess an icon. */
+  .note-row-more > summary {
+    width: auto;
+    min-width: 76px;
+    height: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .note-row-more > summary::after {
+    content: "More";
+    color: inherit;
+    font: inherit;
+  }
+
+  .note-row-more[open] > summary,
+  .note-row-more > summary:focus-visible {
+    border-color: var(--gold);
+    background: var(--gold-soft);
+    color: var(--gold-bright);
+    outline: 2px solid color-mix(in srgb, var(--gold) 35%, transparent);
+    outline-offset: 2px;
+  }
+
+  .note-row-more-menu {
+    z-index: 70;
+    min-width: min(220px, calc(100vw - 42px));
+    padding: 9px;
+    border-radius: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.28);
+  }
+
+  .note-row-more-menu > * {
+    min-height: 42px;
+    width: 100%;
+  }
+
+  /* Collection cards and search results give a tactile confirmation on tap. */
+  .topic-card,
+  .result-card,
+  .create-card {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .topic-card:active,
+  .result-card:active,
+  .create-card:active {
+    border-color: var(--gold);
+    background-color: var(--gold-soft);
+    box-shadow: 0 7px 20px color-mix(in srgb, var(--gold) 11%, transparent);
+    transform: scale(.99);
+  }
+
+  .topic-card:focus-visible,
+  .result-card:focus-visible,
+  .create-card:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+    border-color: var(--gold);
+  }
+
+  .topic-card-open-cue {
+    min-height: 38px;
+    align-items: center;
+    margin-top: 11px;
+    padding: 10px 2px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .topic-card-open-cue svg {
+    width: 19px;
+    height: 19px;
+    padding: 2px;
+    border: 1px solid var(--gold-border);
+    border-radius: 7px;
+    background: var(--gold-soft);
+  }
+
+  .result-card {
+    position: relative;
+    min-height: 130px;
+    padding: 16px 15px 14px;
+    border-radius: 15px;
+  }
+
+  .result-card:active .result-title { color: var(--gold-bright); }
+
+  /* Filters visibly signal both their selected state and their touchability. */
+  .topic-filter-chip,
+  .archive-search-filters .filter-chip {
+    min-height: 44px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-2);
+    box-shadow: 0 2px 0 color-mix(in srgb, var(--text) 5%, transparent);
+    touch-action: manipulation;
+  }
+
+  .topic-filter-chip:active,
+  .archive-search-filters .filter-chip:active {
+    transform: scale(.97);
+  }
+
+  .topic-filter-chip.active,
+  .archive-search-filters .filter-chip.active {
+    border-color: var(--gold);
+    background: var(--gold-soft);
+    color: var(--gold-bright);
+    box-shadow: inset 0 0 0 1px var(--gold-border);
+  }
+
+  .archive-sort-control select,
+  .archive-pin-filter select {
+    min-height: 46px;
+    border-color: var(--line-strong);
+    background-color: var(--surface-2);
+    font-size: 13px;
+  }
+
+  .archive-sort-control label,
+  .archive-pin-filter label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  /* Search empty states bridge the evaluation gap with immediate next actions. */
+  .search-no-results {
+    padding: 32px 18px;
+    border-style: solid;
+    background: linear-gradient(155deg, var(--surface-2), var(--surface));
+  }
+
+  .search-no-results p { margin-bottom: 16px; }
+
+  .search-empty-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .search-empty-actions > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+  }
+
+  /* Buttons advertise their active/disabled state instead of silently failing. */
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn,
+  .search-trigger,
+  .theme-toggle {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .primary-btn:active:not(:disabled),
+  .secondary-btn:active:not(:disabled),
+  .danger-btn:active:not(:disabled),
+  .search-trigger:active:not(:disabled),
+  .theme-toggle:active:not(:disabled) {
+    transform: scale(.975);
+    filter: brightness(1.04);
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  .primary-btn:disabled,
+  .secondary-btn:disabled,
+  .danger-btn:disabled {
+    opacity: .52;
+    filter: saturate(.62);
+  }
+
+  /* Tell users when the secondary navigation sheet is open. */
+  .mobile-nav-more-trigger[aria-expanded="true"]::after {
+    content: "Open";
+    position: absolute;
+    right: 50%;
+    top: 2px;
+    transform: translateX(50%);
+    padding: 2px 5px;
+    border-radius: 999px;
+    background: var(--gold);
+    color: var(--gold-ink);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    line-height: 1.2;
+  }
+
+  .mobile-nav-more-trigger { position: relative; }
+
+  .mobile-nav-more-link {
+    min-height: 72px;
+    border-color: var(--line-strong);
+    box-shadow: 0 2px 0 color-mix(in srgb, var(--text) 4%, transparent);
+  }
+
+  .mobile-nav-more-link:active {
+    border-color: var(--gold);
+    background: var(--gold-soft);
+    transform: scale(.99);
+  }
+
+  /* Make the active workspace and current location unambiguous. */
+  .breadcrumb span:last-child {
+    color: var(--gold-bright);
+    font-weight: 700;
+  }
+
+  .mobile-nav-link[aria-current="page"] {
+    border-color: var(--gold-border);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 10%, transparent);
+  }
+
+  .mobile-nav-link:active { transform: scale(.96); }
+
+  /* Scrollable controls carry a subtle edge cue when more options are available. */
+  .topic-filter-chips,
+  .archive-search-filters,
+  .note-row-actions,
+  .editor-toolbar-controls {
+    scroll-behavior: smooth;
+    overscroll-behavior-inline: contain;
+  }
+
+  .topic-filter-chips,
+  .archive-search-filters {
+    scroll-snap-type: x proximity;
+  }
+
+  .topic-filter-chip,
+  .archive-search-filters .filter-chip {
+    scroll-snap-align: start;
+  }
+
+  .topic-filter-status {
+    border-color: var(--gold-border);
+    background: color-mix(in srgb, var(--gold-soft) 42%, var(--surface));
+  }
+
+  .topic-filter-status-dot {
+    box-shadow: 0 0 0 4px var(--gold-soft), 0 0 12px var(--gold-soft);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-row-main-link,
+  .topic-card,
+  .result-card,
+  .create-card,
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn,
+  .mobile-nav-link,
+  .mobile-nav-more-link {
+    transition: none !important;
+    transform: none !important;
+  }
+}
