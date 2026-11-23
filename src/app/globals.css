@@ -10668,3 +10668,186 @@ html[data-theme="light"] .note-reader-page .reader-inspector-pinned {
   }
   .note-reader-page .reader-inspector { display: none !important; }
 }
+
+
+/* ==========================================================================
+   Reading Focus — temporary, reversible, distraction-free reading mode.
+   It affects only the current Reader view and never changes note content.
+   ========================================================================== */
+.reader-focus-toggle {
+  min-height: 39px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 13px;
+  border: 1px solid var(--gold-border);
+  border-radius: 9px;
+  background: var(--gold-soft);
+  color: var(--gold-bright);
+  font-size: calc(12px * var(--font-scale, 1));
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .16s ease, background .16s ease, border-color .16s ease;
+}
+.reader-focus-toggle:hover {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 18%, var(--surface));
+  color: var(--text);
+}
+.reader-focus-toggle:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.reader-focus-toggle[aria-pressed="true"] {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, var(--gold), var(--gold-bright));
+  color: var(--gold-ink);
+}
+html[data-theme="light"] .reader-focus-toggle {
+  border-color: #C4A04F;
+  background: #F3E8CB;
+  color: #76520F;
+}
+html[data-theme="light"] .reader-focus-toggle:hover {
+  border-color: #A77D24;
+  background: #EBD9A9;
+  color: #5B3D08;
+}
+html[data-theme="light"] .reader-focus-toggle[aria-pressed="true"] {
+  border-color: #9B711C;
+  background: linear-gradient(135deg, #C99E3D, #A9781B);
+  color: #FFFFFF;
+}
+
+html.reader-focus-active,
+html.reader-focus-active body {
+  background: var(--bg);
+}
+html.reader-focus-active .sidebar,
+html.reader-focus-active .topbar,
+html.reader-focus-active .mobile-nav {
+  display: none !important;
+}
+html.reader-focus-active .main-area {
+  width: 100% !important;
+  min-height: 100vh;
+  margin-left: 0 !important;
+}
+html.reader-focus-active .main-content {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+html.reader-focus-active .note-reader-page {
+  width: 100%;
+  max-width: 1240px;
+  min-height: 100vh;
+  margin-inline: auto;
+  padding: 15px clamp(18px, 4vw, 56px) 80px;
+}
+html.reader-focus-active .reader-progress {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  width: 100%;
+  margin: 0;
+}
+html.reader-focus-active .note-reader-page .reader {
+  width: 100%;
+  max-width: none;
+}
+html.reader-focus-active .note-reader-page .note-reader-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  min-height: 57px;
+  margin: 0 0 22px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 91%, transparent);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+html.reader-focus-active .note-reader-page .reader-topbar-end {
+  gap: 8px;
+}
+html.reader-focus-active .note-reader-page .reader-mode-pill,
+html.reader-focus-active .note-reader-page .reader-edit-button {
+  display: none !important;
+}
+html.reader-focus-active .note-reader-page .note-reader-actionbar,
+html.reader-focus-active .note-reader-page .reader-inspector,
+html.reader-focus-active .note-reader-page .reader-note-navigation,
+html.reader-focus-active .note-reader-page .note-connections,
+html.reader-focus-active .note-reader-page .reader-footer {
+  display: none !important;
+}
+html.reader-focus-active .note-reader-page .reader-workspace-grid {
+  display: block;
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+}
+html.reader-focus-active .note-reader-page .reader-document.editor-main {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: clamp(20px, 4vw, 50px) clamp(16px, 5vw, 72px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html.reader-focus-active .note-reader-page .reader-header {
+  max-width: 78ch;
+  margin: 0 auto 28px;
+  padding-bottom: 25px;
+}
+html.reader-focus-active .note-reader-page .reader-title {
+  font-size: calc(clamp(42px, 5.2vw, 66px) * var(--font-scale, 1));
+}
+html.reader-focus-active .note-reader-page .reader-content {
+  width: 100%;
+  max-width: 78ch;
+  margin-inline: auto;
+  font-size: calc(clamp(19px, 1.5vw, 22px) * var(--font-scale, 1));
+  line-height: 1.95;
+}
+html.reader-focus-active .note-reader-page .reader-content p {
+  margin-bottom: 1.45em;
+}
+html.reader-focus-active .note-reader-page .reader-section-divider {
+  width: 78ch;
+  max-width: 100%;
+  margin: 0 auto 28px;
+  background: linear-gradient(90deg, var(--line-strong), transparent);
+}
+html.reader-focus-active .note-reader-page .reader-content img {
+  max-height: 820px;
+}
+html[data-theme="light"].reader-focus-active .note-reader-page .reader-header {
+  border-bottom-color: #E2DACE;
+}
+@media (max-width: 760px) {
+  html.reader-focus-active .note-reader-page {
+    padding: 10px 14px 56px;
+  }
+  html.reader-focus-active .note-reader-page .reader-document.editor-main {
+    padding: 20px 8px;
+  }
+  html.reader-focus-active .note-reader-page .note-reader-topbar {
+    min-height: 52px;
+    margin-bottom: 12px;
+  }
+  html.reader-focus-active .note-reader-page .reader-content {
+    font-size: calc(18px * var(--font-scale, 1));
+    line-height: 1.85;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader-focus-toggle { transition: none; }
+}
