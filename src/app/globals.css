@@ -12288,3 +12288,776 @@ html[data-preset] {
   .result-meta { min-width: 0; overflow-wrap: anywhere; }
   .mobile-nav-more-backdrop { margin: 0; padding: 0; appearance: none; }
 }
+
+
+/* ==========================================================================
+   Mobile finishing pass — writing, reading, detail views and touch ergonomics.
+   Every rule is scoped to phone-sized viewports; desktop layout is unchanged.
+   ========================================================================== */
+@media (max-width: 560px) {
+  /* Avoid long translated names, titles or user content widening the viewport. */
+  .page,
+  .page > *,
+  .panel,
+  .topic-detail-page,
+  .note-editor-page,
+  .note-reader-page,
+  .settings-content,
+  .settings-grid,
+  .note-layout,
+  .reader-workspace-grid {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .page img,
+  .panel img,
+  .reader-content img,
+  .rich-editor img,
+  .topic-detail-page img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .page table,
+  .reader-content table,
+  .rich-editor table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .page pre,
+  .reader-content pre,
+  .rich-editor pre {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .page :where(h1,h2,h3,p,small,strong,span,a,label,dt,dd) {
+    overflow-wrap: anywhere;
+  }
+
+  /* Editor: keep the save controls visible and the formatting tools usable. */
+  .note-editor-page {
+    padding-top: 18px;
+    padding-bottom: 34px;
+  }
+
+  .note-editor-page .note-editor-heading {
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px !important;
+    padding-bottom: 14px;
+  }
+
+  .note-editor-heading-start {
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .note-editor-back-link {
+    min-height: 42px;
+    padding-inline: 9px;
+    font-size: 12px;
+  }
+
+  .note-editor-heading-context {
+    min-width: 0;
+    padding-left: 9px;
+    font-size: 9px;
+    letter-spacing: .12em;
+    overflow-wrap: normal;
+  }
+
+  .note-editor-page .note-editor-save-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr);
+    grid-template-areas:
+      "focus properties save"
+      "status status status";
+    align-items: center;
+    gap: 8px;
+  }
+
+  .note-editor-page .editor-focus-action { grid-area: focus; }
+  .note-editor-page .editor-properties-toggle { grid-area: properties; }
+  .note-editor-page .editor-save-button {
+    grid-area: save;
+    width: 100%;
+    min-width: 0;
+    flex: initial;
+  }
+
+  .note-editor-save-status {
+    grid-area: status;
+    width: 100%;
+    max-width: 100%;
+    min-height: 20px;
+    justify-content: flex-start;
+  }
+
+  .note-editor-page .editor-header-action {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    height: 42px;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 7px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .note-editor-page .editor-header-action > span { display: inline; }
+  .note-editor-page .editor-header-action svg { width: 15px; height: 15px; }
+
+  .note-editor-page .editor-main {
+    width: 100%;
+    min-width: 0;
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .note-editor-page .editor-kicker {
+    margin-bottom: 8px;
+    font-size: 9px;
+  }
+
+  .note-editor-page .editor-title {
+    min-height: 52px;
+    padding: 5px 0 10px;
+    font-size: clamp(31px, 8vw, 38px);
+    line-height: 1.12;
+    overflow-wrap: anywhere;
+  }
+
+  .note-editor-page .editor-subject {
+    padding-bottom: 13px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .note-editor-page .editor-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+    margin-bottom: 13px;
+    padding: 8px;
+    border-radius: 12px;
+  }
+
+  .note-editor-page .editor-toolbar-hint {
+    width: 100%;
+    flex: 0 0 auto;
+    padding: 2px 2px 4px;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .note-editor-page .editor-toolbar-controls {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 7px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 1px 1px 5px;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .note-editor-page .editor-toolbar-controls::-webkit-scrollbar { display: none; }
+  .note-editor-page .editor-tool-group {
+    flex: 0 0 auto;
+    gap: 2px;
+  }
+
+  .note-editor-page .editor-toolbar-controls .tool-btn {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    flex: 0 0 40px;
+    border-radius: 9px;
+  }
+
+  .note-editor-page .editor-toolbar-controls .editor-tool-labelled {
+    width: auto;
+    min-width: 76px;
+    flex: 0 0 auto;
+    padding-inline: 9px;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .note-editor-page .editor-toolbar-controls .editor-tool-labelled .tool-label {
+    display: inline;
+    font-size: 11px;
+  }
+
+  .note-editor-page .editor-toolbar-controls .tool-divider {
+    flex: 0 0 1px;
+    margin-inline: 1px;
+  }
+
+  .note-editor-page .editor-formatting-controls {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+    padding: 11px;
+    margin: 0 0 13px;
+    border-radius: 12px;
+  }
+
+  .note-editor-page .inline-format-control {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .note-editor-page .inline-format-control select {
+    width: min(65%, 220px);
+    max-width: 65%;
+    min-width: 0;
+    height: 38px;
+    font-size: 12px;
+  }
+
+  .note-editor-page .inline-format-control input[type="color"] {
+    width: 42px;
+    height: 38px;
+  }
+
+  .note-editor-page .format-reset-btn {
+    min-height: 40px;
+    width: 100%;
+    margin: 0;
+    font-size: 12px;
+  }
+
+  .note-editor-page .rich-editor {
+    min-height: 52svh;
+    padding: 8px 0 28px;
+    font-size: 18px;
+    line-height: 1.82;
+    overflow-wrap: anywhere;
+  }
+
+  .note-editor-page .rich-editor p { margin-bottom: 16px; }
+  .note-editor-page .rich-editor h1 { font-size: 30px; }
+  .note-editor-page .rich-editor h2 { font-size: 26px; }
+  .note-editor-page .rich-editor h3 { font-size: 22px; }
+  .note-editor-page .editor-bubble-menu {
+    max-width: calc(100vw - 20px);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .note-editor-page .editor-side {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .note-editor-page .editor-side[hidden] { display: none !important; }
+  .note-editor-page .editor-side .panel { width: 100%; min-width: 0; }
+  .note-editor-page .editor-footer {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 9px 12px;
+    margin-top: 17px;
+    padding-top: 12px;
+    font-size: 10px;
+  }
+
+  .note-editor-page .editor-writing-metrics,
+  .note-editor-page .editor-recovery-status,
+  .note-editor-page .editor-privacy-label {
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* Reader: organize actions in a predictable two-row touch layout. */
+  .note-reader-page {
+    padding: 18px 16px 34px;
+  }
+
+  .note-reader-page .note-reader-topbar {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+
+  .note-reader-page .reader-back-link {
+    min-width: 0;
+    max-width: calc(100% - 105px);
+    min-height: 42px;
+    gap: 6px;
+    padding-inline: 7px;
+    font-size: 11px;
+  }
+
+  .note-reader-page .reader-back-topic { max-width: 27vw; }
+  .note-reader-page .reader-topbar-end { flex: 0 0 auto; gap: 7px; }
+  .note-reader-page .reader-mode-pill { display: none; }
+
+  .note-reader-page .reader-edit-button {
+    min-width: 88px;
+    min-height: 42px;
+    height: 42px;
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+
+  .note-reader-page .note-reader-actionbar {
+    width: 100%;
+    min-height: 0;
+    display: block;
+    margin: 0 0 16px;
+    padding: 10px 0;
+  }
+
+  .note-reader-page .reader-action-groups {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 8px;
+  }
+
+  .note-reader-page .reader-action-organize-group {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    gap: 8px;
+  }
+
+  .note-reader-page .reader-action-organize-group > * { min-width: 0; width: 100%; }
+  .note-reader-page .reader-action-organize-group .reader-action-button,
+  .note-reader-page .reader-action-organize-group .reader-action-button-labelled,
+  .note-reader-page .reader-action-organize-group .secondary-btn,
+  .note-reader-page .reader-action-organize-group .reader-action-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    height: 42px;
+    justify-content: center;
+    padding-inline: 7px;
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .note-reader-page .reader-action-disclosure { width: 100%; }
+  .note-reader-page .reader-action-disclosure > summary {
+    width: 100%;
+    min-height: 42px;
+    justify-content: center;
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+
+  .note-reader-page .reader-action-disclosure-panel {
+    right: auto;
+    left: 0;
+    width: min(280px, calc(100vw - 44px));
+  }
+
+  .note-reader-page .reader-trash-action {
+    width: 100%;
+    min-height: 42px;
+    justify-content: center;
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+
+  .note-reader-page .reader-workspace-grid {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0,1fr);
+    gap: 13px;
+  }
+
+  .note-reader-page .reader-document.editor-main {
+    width: 100%;
+    min-width: 0;
+    padding: 17px;
+    border-radius: 16px;
+  }
+
+  .note-reader-page .reader-header {
+    margin-bottom: 19px;
+    padding-bottom: 17px;
+  }
+
+  .note-reader-page .reader-topic-kicker {
+    flex-wrap: wrap;
+    gap: 6px 9px;
+    margin-bottom: 11px;
+  }
+
+  .note-reader-page .reader-title {
+    margin: 9px 0 10px;
+    font-size: clamp(31px, 8vw, 39px);
+    line-height: 1.13;
+    overflow-wrap: anywhere;
+  }
+
+  .note-reader-page .reader-subject {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .note-reader-page .reader-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .note-reader-page .reader-content {
+    width: 100%;
+    max-width: 100%;
+    font-size: 18px;
+    line-height: 1.85;
+    overflow-wrap: anywhere;
+  }
+
+  .note-reader-page .reader-content p { margin-bottom: 18px; }
+  .note-reader-page .reader-content h1 { font-size: 30px; }
+  .note-reader-page .reader-content h2 { font-size: 26px; }
+  .note-reader-page .reader-content h3 { font-size: 22px; }
+  .note-reader-page .reader-content blockquote { padding: 16px; margin: 20px 0; }
+  .note-reader-page .reader-inspector { display: grid; grid-template-columns: minmax(0,1fr); }
+  .note-reader-page .reader-note-navigation { grid-template-columns: minmax(0,1fr); gap: 9px; }
+  .note-reader-page .note-connections { grid-template-columns: minmax(0,1fr); padding: 14px; }
+
+  /* Topic details: preserve the cover's visual impact without oversized gaps. */
+  .topic-detail-page { padding-top: 17px; }
+  .topic-detail-page .topic-detail-cover {
+    width: 100%;
+    height: 180px !important;
+    min-height: 180px;
+    border-radius: 17px;
+  }
+
+  .topic-detail-page .topic-detail-cover-copy {
+    left: 16px;
+    right: 16px;
+    bottom: 15px;
+    width: auto;
+    max-width: none;
+  }
+
+  .topic-detail-page .topic-detail-cover .cover-glyph { font-size: 76px !important; }
+  .topic-detail-page .topic-detail-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 13px;
+    padding: 15px;
+    border-radius: 15px;
+  }
+
+  .topic-detail-page .topic-detail-description { font-size: 13px; }
+  .topic-detail-page .topic-detail-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    gap: 8px;
+  }
+
+  .topic-detail-page .topic-detail-actions > * {
+    width: 100%;
+    min-width: 0;
+    min-height: 43px;
+    justify-content: center;
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+
+  .topic-detail-page .topic-detail-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin: 20px 0 13px;
+  }
+
+  .topic-detail-page .topic-detail-notes-heading,
+  .topic-detail-page .topic-detail-section-heading {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .topic-detail-page .archive-toolbar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+    gap: 8px;
+  }
+
+  .topic-detail-page .archive-toolbar-actions > * { width: 100%; min-width: 0; }
+  .topic-detail-page .archive-toolbar-actions .archive-sort-control {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr);
+    width: 100%;
+    gap: 9px;
+  }
+
+  .topic-detail-page .archive-toolbar-actions .archive-sort-control > select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .topic-detail-page .topic-detail-note-panel {
+    width: 100%;
+    min-width: 0;
+    padding: 7px 12px;
+  }
+
+  .topic-detail-page .topic-detail-note-panel .note-row {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr);
+    gap: 10px;
+    padding: 13px 2px;
+  }
+
+  .topic-detail-page .topic-detail-note-panel .note-row-main-link {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 10px;
+  }
+
+  .topic-detail-page .topic-detail-note-panel .note-row-actions {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 0 !important;
+    padding-top: 9px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* Trash: full-width restore/delete actions, with no inherited desktop indent. */
+  .note-row-trash {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr);
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .note-row-trash .note-main { min-width: 0; }
+  .note-row-trash .note-row-title { white-space: normal; overflow-wrap: anywhere; }
+  .note-row-trash .note-row-meta { display: none !important; }
+  .note-row-trash > div:last-child,
+  .note-row-trash .trash-row-actions {
+    width: 100%;
+    min-width: 0;
+    margin: 0 !important;
+  }
+
+  .note-row-trash .trash-row-actions {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  .note-row-trash .trash-action-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    height: auto;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 7px;
+    white-space: normal;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .note-row-trash .trash-action-button > span {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  /* Settings: make each control and preset specimen fit the phone width. */
+  .settings-grid { width: 100%; grid-template-columns: minmax(0,1fr); }
+  .settings-nav { width: 100%; max-width: 100%; }
+  .settings-nav-heading { flex: 0 0 auto; }
+  .settings-content > .panel { padding: 15px; }
+  .settings-content .panel-title { font-size: 21px; }
+  .theme-preset-grid { grid-template-columns: minmax(0,1fr); }
+  .theme-preset-card { padding: 14px; }
+  .theme-preset-swatches .theme-preset-swatch { height: 34px; }
+
+  /* Dialogs and pickers use the visible screen area and safe-area insets. */
+  .modal-backdrop,
+  .transfer-backdrop,
+  .confirmation-dialog-backdrop {
+    align-items: end;
+    padding: max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom));
+  }
+
+  .modal,
+  .transfer-dialog,
+  .confirmation-dialog {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(88dvh, 760px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-radius: 20px 20px 15px 15px;
+    padding: 18px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .modal-head { gap: 10px; margin-bottom: 16px; }
+  .modal-title { font-size: 24px; line-height: 1.2; }
+  .form-grid { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .form-field.full { grid-column: auto; }
+  .form-actions {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    gap: 8px;
+  }
+  .form-actions > button { width: 100%; min-width: 0; min-height: 44px; }
+
+  .confirmation-dialog-actions {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    gap: 8px;
+  }
+  .confirmation-dialog-actions button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .archive-pagination {
+    width: 100%;
+    gap: 10px;
+    padding: 12px 0;
+  }
+  .archive-pagination-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+}
+
+/* Short landscape phones: reclaim horizontal workspace and compact the chrome. */
+@media (max-width: 900px) and (max-height: 520px) and (pointer: coarse) {
+  .sidebar { display: none !important; }
+  .main-area {
+    width: 100%;
+    margin-left: 0 !important;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+  .topbar {
+    min-height: 54px;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 12px;
+  }
+  .breadcrumb {
+    width: auto;
+    max-width: 28vw;
+    flex: 0 1 auto;
+  }
+  .top-actions {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: repeat(5,minmax(0,1fr));
+    gap: 6px;
+  }
+  .top-actions .theme-toggle,
+  .top-actions .search-trigger,
+  .top-actions > .secondary-btn,
+  .top-actions > .primary-btn,
+  .top-actions .lock-vault-btn {
+    width: 100%;
+    min-width: 0;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    flex: initial;
+    justify-content: center;
+  }
+  .top-actions .theme-toggle span,
+  .top-actions .search-trigger span,
+  .top-actions > .secondary-btn span,
+  .top-actions > .primary-btn span,
+  .top-actions .lock-vault-btn span { display: none !important; }
+  .mobile-nav {
+    display: grid !important;
+    grid-template-columns: repeat(5,minmax(0,1fr));
+    min-height: calc(58px + env(safe-area-inset-bottom));
+    gap: 4px;
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+  }
+  .mobile-nav-link {
+    min-height: 48px;
+    height: 48px;
+    gap: 2px;
+    font-size: 9px;
+  }
+  .mobile-nav-link svg { width: 18px; height: 18px; }
+  .page {
+    max-width: none;
+    padding: 17px 18px 24px;
+  }
+  .page-heading { margin-bottom: 14px; gap: 8px; }
+  .page-title { font-size: clamp(28px,5vw,36px); }
+  .stats { padding: 9px 12px; }
+  .topic-cover { height: 130px; }
+  .handwriting-dialog { max-height: 100svh; }
+}
