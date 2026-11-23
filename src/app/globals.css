@@ -13179,3 +13179,20 @@ html[data-preset] {
     background: var(--gold-soft);
   }
 }
+
+
+@media (max-width: 560px) {
+  .note-row-trash {
+    grid-template-columns: 42px minmax(0,1fr);
+    grid-template-areas:
+      "icon main"
+      "actions actions";
+    align-items: center;
+  }
+  .note-row-trash > .note-icon { grid-area: icon; }
+  .note-row-trash > .note-main { grid-area: main; }
+  .note-row-trash > .trash-row-actions { grid-area: actions; }
+  .topic-detail-page .topic-detail-actions > .topic-action-button {
+    grid-column: 1 / -1;
+  }
+}
