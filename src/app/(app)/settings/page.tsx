@@ -1,5 +1,5 @@
 import { SecuritySettings } from "@/components/security-settings";
-import { TypographySettings } from "@/components/theme-provider";
+import { ThemePresetSettings, TypographySettings } from "@/components/theme-provider";
 
 export default function SettingsPage() {
   return (
@@ -15,13 +15,15 @@ export default function SettingsPage() {
       <div className="settings-grid">
         <nav className="settings-nav" aria-label="Settings sections">
           <span className="settings-nav-heading">On this page</span>
-          <a href="#typography">Appearance & typography</a>
+          <a href="#themes">App-wide themes</a>
+          <a href="#typography">Typography</a>
           <a href="#security">Security & access</a>
           <a href="#privacy">Privacy model</a>
           <a href="#storage">Storage & backups</a>
         </nav>
 
         <div className="settings-content">
+          <ThemePresetSettings />
           <TypographySettings />
 
           <section id="security" aria-label="Security and access settings">
