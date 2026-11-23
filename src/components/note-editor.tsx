@@ -1305,7 +1305,10 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
     commands[id]?.();
   }
 
-  const words = (editor?.getText() ?? "").trim().split(/\s+/).filter(Boolean).length;
+  const editorText = editor?.getText() ?? "";
+  const words = editorText.trim().split(/\s+/).filter(Boolean).length;
+  const characters = Array.from(editorText).length;
+  const readingMinutes = words > 0 ? Math.max(1, Math.ceil(words / 220)) : 0;
   if (!availableTopics.length && !topicsLoading) {
     return (
       <main className="page">
@@ -1350,7 +1353,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         <div className="eyebrow editor-kicker">{noteId ? "Refine your thinking" : "A new inscription"}</div><input id="note-title" onFocus={() => setFocusTarget("title")} dir="auto" lang={detectTextLanguage(title)} className="editor-title" value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} placeholder="Untitled note" maxLength={180} disabled={busy || imageUploading} aria-label="Note title" aria-required="true" aria-describedby={!title.trim() ? "note-save-title-help" : undefined}/><input id="note-subject" onFocus={() => setFocusTarget("subject")} dir="auto" lang={detectTextLanguage(subject)} className="editor-subject" value={subject} onChange={(e) => { setSubject(e.target.value); markDirty(); }} placeholder="Add a subject or a quiet subtitle…" maxLength={180} disabled={busy || imageUploading} aria-label="Note subject"/>
       {!title.trim() && <p id="note-save-title-help" className="editor-validation-hint" role="status">Add a title before saving this note.</p>}
       <div className="editor-toolbar editor-toolbar-quiet" role="toolbar" aria-label="Writing and formatting tools" onMouseDown={(event) => { if (event.target instanceof HTMLElement && event.target.closest("button")) event.preventDefault(); }}>
-        <span className="editor-toolbar-hint">Select text to format <span aria-hidden="true">·</span> Type <kbd>/</kbd> for blocks</span>
+        <span className="editor-toolbar-hint">Select text to format <span aria-hidden="true">·</span> Type <kbd>/</kbd> to insert a block</span>
         <div className="editor-toolbar-controls">
           <div className="editor-tool-group" role="group" aria-label="Inline formatting">
             <button type="button" aria-label="Bold" aria-pressed={editor?.isActive("bold") ?? false} disabled={!editor || busy || imageUploading} className={editor?.isActive("bold") ? "tool-btn active" : "tool-btn"} onClick={() => editor?.chain().focus().toggleBold().run()} title="Bold">
@@ -1612,9 +1615,19 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         onClose={closeImagePreview}
       />
             <footer className="editor-footer note-editor-footer">
-        <span className="editor-word-count">{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
+        <div className="editor-writing-metrics" role="group" aria-label="Writing statistics">
+          <span className="editor-word-count">{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
+          <span className="editor-metric-separator" aria-hidden="true">·</span>
+          <span>{characters.toLocaleString()} {characters === 1 ? "character" : "characters"}</span>
+          {words > 0 && (
+            <>
+              <span className="editor-metric-separator" aria-hidden="true">·</span>
+              <span>{readingMinutes} min read</span>
+            </>
+          )}
+        </div>
         <span className="editor-recovery-status"><OperationStatus kind={getEditorStatusKind(recoveryStatus)} message={recoveryStatus} compact /></span>
-        <span className="editor-privacy-label"> <span aria-hidden="true">●</span> Encrypted note</span>
+        <span className="editor-privacy-label"><span aria-hidden="true">●</span> Encrypted note</span>
       </footer>
     </section><aside className="editor-side" aria-label="Note inspector" hidden={!inspectorOpen}>
       <section className="panel editor-inspector-properties">
