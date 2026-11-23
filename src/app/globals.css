@@ -9553,9 +9553,9 @@ html[data-theme="light"] .note-reader-page .reader-content p { color: #26292E; }
   line-height: 1.28;
   letter-spacing: -.02em;
 }
-.note-editor-page .rich-editor h1 { font-size: calc(1.7em * var(--font-scale, 1)); }
-.note-editor-page .rich-editor h2 { font-size: calc(1.4em * var(--font-scale, 1)); }
-.note-editor-page .rich-editor h3 { font-size: calc(1.18em * var(--font-scale, 1)); }
+.note-editor-page .rich-editor h1 { font-size: 1.7em; }
+.note-editor-page .rich-editor h2 { font-size: 1.4em; }
+.note-editor-page .rich-editor h3 { font-size: 1.18em; }
 .note-editor-page .rich-editor blockquote {
   margin: 1.4em 0;
   padding: 14px 18px;
