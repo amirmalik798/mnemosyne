@@ -244,7 +244,7 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
           />
         </div>
 
-        <article className="reader-document" aria-labelledby="reader-note-title">
+        <section className="reader-document" aria-labelledby="reader-note-title">
           <header className="reader-header">
             <div className="reader-topic-kicker">
               <span className="eyebrow">NOTE IN</span>
@@ -290,7 +290,7 @@ export default async function NoteReaderPage({params}:{params:Promise<{id:string
               </div>
             </section>
           )}
-        </article>
+        </section>
 
         {(olderNote || newerNote) && (
           <nav className="reader-note-navigation" aria-label="Navigate between notes in this topic">
