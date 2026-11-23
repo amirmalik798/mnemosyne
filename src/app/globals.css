@@ -12938,7 +12938,7 @@ html[data-preset] {
   /* Dialogs and pickers use the visible screen area and safe-area insets. */
   .modal-backdrop,
   .transfer-backdrop,
-  .confirmation-dialog-backdrop {
+  .confirmation-backdrop {
     align-items: end;
     padding: max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom));
   }
