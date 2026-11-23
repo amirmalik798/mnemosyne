@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
 
 type Props = {
@@ -41,7 +41,7 @@ export function ActionOverflowMenu({
     };
   }, []);
 
-  function closeAfterAction(event: React.MouseEvent<HTMLDivElement>) {
+  function closeAfterAction(event: ReactMouseEvent<HTMLDivElement>) {
     const target = event.target;
     if (!(target instanceof Element) || target.closest("summary")) return;
     if (!target.closest("button:not(:disabled), a[href]")) return;
