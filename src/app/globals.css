@@ -8907,9 +8907,9 @@ html[data-theme="light"] .overview-recent-panel .note-row-pinned .note-icon {
   letter-spacing: -.025em;
   line-height: 1.27;
 }
-.note-reader-page .reader-content h1 { font-size: calc(1.65em * var(--font-scale, 1)); }
-.note-reader-page .reader-content h2 { font-size: calc(1.38em * var(--font-scale, 1)); }
-.note-reader-page .reader-content h3 { font-size: calc(1.16em * var(--font-scale, 1)); }
+.note-reader-page .reader-content h1 { font-size: 1.65em; }
+.note-reader-page .reader-content h2 { font-size: 1.38em; }
+.note-reader-page .reader-content h3 { font-size: 1.16em; }
 .note-reader-page .reader-content ul,
 .note-reader-page .reader-content ol {
   margin: 0 0 1.35em;
