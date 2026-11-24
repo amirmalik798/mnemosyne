@@ -671,10 +671,10 @@ function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (messa
       {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load(0, false)}>Retry</button></div>}
       {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading your notes…</div>
         : visible.length ? <div className="note-list">{visible.map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={() => load(0, false)} notify={props.notify} />)}</div>
-          : <EmptyState icon={props.pinnedOnly ? <Pin size={24} /> : <FileText size={24} />}
+          : !error ? <EmptyState icon={props.pinnedOnly ? <Pin size={24} /> : <FileText size={24} />}
             title={query ? "No notes match that search" : props.pinnedOnly ? "Nothing pinned yet" : "A page waiting for a first thought"}
             description={query ? "Try another word or clear your search." : props.pinnedOnly ? "Pin useful notes and they will collect here." : "Create a note to capture an idea, question, or useful reference."}
-            action={!query ? <a className="button-primary" href="/notes/new"><Plus size={16} /> Create a note</a> : undefined} />}
+            action={!query ? <a className="button-primary" href="/notes/new"><Plus size={16} /> Create a note</a> : undefined} /> : null}
       {!loading && pagination?.hasMore && <div className="load-more"><button type="button" className="button-secondary" disabled={loadingMore} onClick={() => load(pagination.offset + pagination.limit, true)}>{loadingMore ? <Loader2 className="spin" size={16} /> : <ChevronDown size={16} />} Load more notes</button></div>}
     </div>
   );
@@ -807,6 +807,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
   }, [query, scope]);
 
   const total = notes.length + topics.length;
+  const hasCurrentResults = submittedQuery === query.trim() && !loading && !error;
   return (
     <div className="page-stack">
       <PageHeading eyebrow="Find a connection" title="Deep search" description="Search note titles, subjects, tags, topic names, and the text inside your notes." />
@@ -819,12 +820,12 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
       </section>
       {error && <div className="inline-alert error"><AlertCircle size={16} />{error}</div>}
       {loading && <div className="search-progress"><Loader2 className="spin" size={16} /> Looking through your archive…</div>}
-      {submittedQuery && !loading && <div className="search-summary"><span><b>{total}</b> matching results for <strong>“{submittedQuery}”</strong></span><span>Search is performed within your authenticated archive.</span></div>}
+      {hasCurrentResults && submittedQuery && <div className="search-summary"><span><b>{total}</b> matching results for <strong>“{submittedQuery}”</strong></span><span>Search is performed within your authenticated archive.</span></div>}
       {!query.trim() ? <div className="search-hint"><Sparkles size={18} /><p>Try a phrase, a person, a concept, or a tag you remember.</p></div>
         : !loading && !error && total === 0 && <EmptyState icon={<Search size={24} />} title="No matching fragments" description="Try a broader phrase, or change the search scope." />}
-      {topics.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Collections</h2><span>{topics.length}</span></div><div className="search-topic-results">{topics.map(topic => <button type="button" key={topic.id} onClick={() => router.push("/topics/" + topic.id)} className="search-topic-result"><Folder size={18} /><span><b>{topic.title}</b><small>{topic.category || "Collection"}{topic.subject ? " · " + topic.subject : ""}</small></span><ArrowUpRight size={16} /></button>)}</div></section>}
-      {notes.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Notes</h2><span>{notes.length}</span></div><div className="note-list">{notes.map(note => <button type="button" key={note.id} className="search-note-result" onClick={() => router.push("/notes/" + note.id + "/read")}><div className="note-row-icon"><FileText size={18} /></div><div className="note-row-copy"><div className="note-row-title-line"><h3>{note.title}</h3>{note.pinned && <Pin size={14} className="pin-mark" />}</div><p className="note-preview">{note.preview || note.subject || "Open note to see its contents."}</p><div className="note-meta"><span className="topic-chip">{note.topicTitle || "Collection"}</span><span className="match-chip">{note.matchType || "content"} match</span>{(note.tags || []).slice(0, 3).map(tag => <span className="tag-chip" key={tag}>#{tag}</span>)}</div></div><ArrowUpRight size={17} /></button>)}</div></section>}
-      {total > 0 && <div className="search-footnote">Search returns up to 25 collections and 40 notes per query.</div>}
+      {hasCurrentResults && topics.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Collections</h2><span>{topics.length}</span></div><div className="search-topic-results">{topics.map(topic => <button type="button" key={topic.id} onClick={() => router.push("/topics/" + topic.id)} className="search-topic-result"><Folder size={18} /><span><b>{topic.title}</b><small>{topic.category || "Collection"}{topic.subject ? " · " + topic.subject : ""}</small></span><ArrowUpRight size={16} /></button>)}</div></section>}
+      {hasCurrentResults && notes.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Notes</h2><span>{notes.length}</span></div><div className="note-list">{notes.map(note => <button type="button" key={note.id} className="search-note-result" onClick={() => router.push("/notes/" + note.id + "/read")}><div className="note-row-icon"><FileText size={18} /></div><div className="note-row-copy"><div className="note-row-title-line"><h3>{note.title}</h3>{note.pinned && <Pin size={14} className="pin-mark" />}</div><p className="note-preview">{note.preview || note.subject || "Open note to see its contents."}</p><div className="note-meta"><span className="topic-chip">{note.topicTitle || "Collection"}</span><span className="match-chip">{note.matchType || "content"} match</span>{(note.tags || []).slice(0, 3).map(tag => <span className="tag-chip" key={tag}>#{tag}</span>)}</div></div><ArrowUpRight size={17} /></button>)}</div></section>}
+      {hasCurrentResults && total > 0 && <div className="search-footnote">Search returns up to 25 collections and 40 notes per query.</div>}
     </div>
   );
 }
@@ -833,16 +834,18 @@ function TrashPage(props: { notify: (message: string) => void }) {
   const [notes, setNotes] = useState<any[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const load = useCallback(async (offset = 0, append = false) => {
-    setLoading(!append); setError("");
+    if (append) setLoadingMore(true); else setLoading(true);
+    setError("");
     try {
       const result = await apiJson<{ notes: any[]; pagination: Pagination }>("/api/trash?limit=50&offset=" + offset);
       setNotes(current => append ? current.concat(result.notes) : result.notes);
       setPagination(result.pagination);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load Trash."); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setLoadingMore(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
 
@@ -863,8 +866,8 @@ function TrashPage(props: { notify: (message: string) => void }) {
       {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load()}>Retry</button></div>}
       {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading Trash…</div>
         : notes.length ? <div className="note-list">{notes.map(note => <article key={note.id} className="trash-row"><div className="note-row-icon"><Trash2 size={18} /></div><div className="note-row-copy"><h3>{note.title || "Untitled note"}</h3><p className="note-subject">{note.subject || "No description"}</p><div className="note-meta"><span className="topic-chip">{note.topicTitle}</span><span>Deleted {formatDate(note.deletedAt, true)}</span></div></div><div className="trash-actions"><button type="button" className="button-secondary small" disabled={busyId === note.id} onClick={() => act(note, "restore")}><RotateCcw size={15} /> Restore</button><button type="button" className="button-danger small" disabled={busyId === note.id} onClick={() => act(note, "delete")}><Trash2 size={15} /> Delete permanently</button></div></article>)}</div>
-          : <EmptyState icon={<Trash2 size={24} />} title="Trash is empty" description="When you remove a note, it will appear here so you can recover it." />}
-      {!loading && pagination?.hasMore && <div className="load-more"><button type="button" className="button-secondary" onClick={() => load(pagination.offset + pagination.limit, true)}>Load more deleted notes <ChevronDown size={15} /></button></div>}
+          : !error ? <EmptyState icon={<Trash2 size={24} />} title="Trash is empty" description="When you remove a note, it will appear here so you can recover it." /> : null}
+      {!loading && pagination?.hasMore && <div className="load-more"><button type="button" className="button-secondary" disabled={loadingMore} onClick={() => load(pagination.offset + pagination.limit, true)}>{loadingMore ? <Loader2 className="spin" size={16} /> : <ChevronDown size={15} />} Load more deleted notes</button></div>}
     </div>
   );
 }
@@ -986,7 +989,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
           <div className="section-heading"><div><div className="eyebrow">Your recent thinking</div><h2>Recently updated notes</h2></div><a className="subtle-link" href="/all-notes">View all <ArrowRight size={14} /></a></div>
           {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading notes…</div>
             : sorted.length ? <div className="note-list compact-list">{sorted.slice(0, 5).map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={load} notify={props.notify} />)}</div>
-              : <EmptyState icon={<FileText size={22} />} title="No notes yet" description="Start with one thought. You can organize it into a collection." action={<a href="/notes/new" className="button-primary"><Plus size={16} /> New note</a>} />}
+              : !error ? <EmptyState icon={<FileText size={22} />} title="No notes yet" description="Start with one thought. You can organize it into a collection." action={<a href="/notes/new" className="button-primary"><Plus size={16} /> New note</a>} /> : null}
         </div>
         <aside className="dashboard-column pinned-column">
           <div className="section-heading"><div><div className="eyebrow">Keep close</div><h2>Pinned anchors</h2></div><a className="subtle-link" href="/pinned">See all <ArrowRight size={14} /></a></div>
@@ -1361,14 +1364,16 @@ export default function ArchiveApp() {
   }, []);
 
   const refreshTopics = useCallback(async () => {
-    try {
-      const [topicResult, categoryResult] = await Promise.all([
-        apiJson<{ topics: Topic[] }>("/api/topics"),
-        apiJson<{ categories: string[] }>("/api/topics/categories")
-      ]);
-      setTopics(topicResult.topics || []);
-      setCategories(categoryResult.categories || []);
-    } catch (cause) { notify(cause instanceof Error ? cause.message : "Unable to refresh your collections."); }
+    const [topicResult, categoryResult] = await Promise.allSettled([
+      apiJson<{ topics: Topic[] }>("/api/topics"),
+      apiJson<{ categories: string[] }>("/api/topics/categories")
+    ]);
+    if (topicResult.status === "fulfilled") setTopics(topicResult.value.topics || []);
+    if (categoryResult.status === "fulfilled") setCategories(categoryResult.value.categories || []);
+    if (topicResult.status === "rejected" || categoryResult.status === "rejected") {
+      const cause = topicResult.status === "rejected" ? topicResult.reason : categoryResult.status === "rejected" ? categoryResult.reason : null;
+      notify(cause instanceof Error ? cause.message : "Some collection navigation data could not be refreshed.");
+    }
   }, [notify]);
 
   useEffect(() => {
