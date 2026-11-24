@@ -79,6 +79,12 @@ export async function DELETE(request: Request, context: Context) {
          FROM deleted_note n
          WHERE t.id=n.topic_id
          RETURNING t.id
+       ),
+       removed_recovery_draft AS (
+         DELETE FROM note_drafts
+         WHERE note_id=$1
+           AND EXISTS (SELECT 1 FROM deleted_note)
+         RETURNING note_id
        )
        SELECT n.id
        FROM deleted_note n
