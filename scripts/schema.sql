@@ -351,3 +351,32 @@ DO $$ BEGIN
     FOREIGN KEY (cover_asset_id) REFERENCES assets(id) ON DELETE SET NULL;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+
+-- Encrypted recovery snapshots for in-progress note edits. Draft ciphertext uses
+-- the same per-account vault key as canonical notes; no plaintext content is
+-- stored in this table. One recoverable snapshot is retained per note.
+CREATE TABLE IF NOT EXISTS note_drafts (
+  note_id UUID PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  topic_id UUID NOT NULL,
+  title_enc BYTEA NOT NULL,
+  subject_enc BYTEA NOT NULL,
+  content_enc BYTEA NOT NULL,
+  tags_enc BYTEA NOT NULL,
+  pinned BOOLEAN NOT NULL DEFAULT FALSE,
+  base_note_updated_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT note_drafts_user_topic_fk
+    FOREIGN KEY (user_id, topic_id) REFERENCES topics(user_id, id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS note_drafts_user_updated_idx
+  ON note_drafts(user_id, updated_at DESC);
+
+ALTER TABLE note_drafts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE note_drafts FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS note_drafts_account_isolation ON note_drafts;
+CREATE POLICY note_drafts_account_isolation ON note_drafts
+  USING (user_id = NULLIF(current_setting('app.user_id', true), '')::uuid)
+  WITH CHECK (user_id = NULLIF(current_setting('app.user_id', true), '')::uuid);
