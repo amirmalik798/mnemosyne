@@ -1181,7 +1181,12 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   };
 
   const removeNote = async () => {
-    if (!props.noteId || !window.confirm("Move this note to Trash? You can restore it later.")) return;
+    if (!props.noteId || busyUpload || saving.current || saveState === "saving") return;
+    if (dirty || saveState !== "saved") {
+      setError("Save your changes before moving this note to Trash.");
+      return;
+    }
+    if (!window.confirm("Move this note to Trash? You can restore it later.")) return;
     try {
       await apiJson("/api/notes/" + props.noteId, { method: "DELETE" });
       props.notify("Note moved to Trash.");
@@ -1297,7 +1302,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
                 }
                 setTransferOpen(true);
               }}><ArrowDownUp size={16} /> Move or copy</button>
-              <button type="button" className="button-danger full-button" onClick={removeNote}><Trash2 size={16} /> Move to Trash</button>
+              <button type="button" className="button-danger full-button" disabled={busyUpload || saveState === "saving" || dirty || saveState !== "saved"} onClick={removeNote}><Trash2 size={16} /> Move to Trash</button>
             </>}
           </div>
         </aside>
