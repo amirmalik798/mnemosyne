@@ -360,6 +360,29 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .tiptap-content blockquote { border-left: 3px solid var(--lime); margin: 1.4em 0; padding: 2px 0 2px 18px; color: var(--muted); font-style: italic; }
 .tiptap-content pre { overflow: auto; padding: 14px 16px; border-radius: 9px; background: var(--panel-deep); color: #d8e0e9; font: 12px/1.65 ui-monospace,monospace; }
 .tiptap-content code { background: var(--panel-3); color: var(--lime); border-radius: 4px; padding: .12em .35em; font: .8em ui-monospace,monospace; }
+.tiptap-content a.note-link {
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 11%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--blue) 48%, transparent);
+  border-radius: 3px;
+  padding: 0 .13em;
+  text-decoration: none;
+  text-decoration-thickness: .08em;
+  text-underline-offset: .18em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.tiptap-content a.note-link:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--blue) 19%, transparent);
+  border-bottom-color: var(--blue);
+}
+.tiptap-content a.note-link:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
 .tiptap-content pre code { background: transparent; color: inherit; padding: 0; }
 .tiptap-content hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
 .tiptap-content img { display: block; max-width: 100%; height: auto; max-height: 640px; object-fit: contain; border-radius: 8px; margin: 1.4em auto; box-shadow: 0 6px 22px rgba(0,0,0,.18); }

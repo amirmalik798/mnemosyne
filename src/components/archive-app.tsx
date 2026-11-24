@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EditorContent, useEditor } from "@tiptap/react";
-import { Extension } from "@tiptap/core";
+import { Extension, Mark } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -16,7 +16,7 @@ import {
   ListOrdered, Loader2, Lock, LogOut, Maximize2, Menu, Moon, MoreHorizontal,
   MoreVertical, Pin, Plus, Quote, Redo2, RefreshCw, RotateCcw, Save, Search,
   Settings, Share2, ShieldCheck, Sparkles, Strikethrough, Sun, Tag, Trash2,
-  Type, Undo2, Upload, X
+  Type, Undo2, Upload, X, Link2
 } from "lucide-react";
 import { noteToMarkdown } from "@/lib/markdown-export";
 import { readVerificationToken } from "@/lib/verification-token";
@@ -128,12 +128,73 @@ const DirectionExtension = Extension.create({
   }
 });
 
+function safeNoteLinkHref(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const href = value.trim();
+  if (!href) return null;
+
+  // Permit local paths and fragments, but reject protocol-relative URLs.
+  if (/^\/(?!\/)/.test(href) || href.startsWith("#") || href.startsWith("?")) return href;
+
+  try {
+    const parsed = new URL(href);
+    return ["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol) ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeNoteLinkHref(value: string): string | null {
+  const href = value.trim();
+  if (!href) return null;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("/") || href.startsWith("#") || href.startsWith("?")) {
+    return safeNoteLinkHref(href);
+  }
+  return safeNoteLinkHref("https://" + href);
+}
+
+const LinkMark = Mark.create({
+  name: "link",
+  inclusive: false,
+  addAttributes() {
+    return {
+      href: {
+        default: null,
+        parseHTML: (element: HTMLElement) => safeNoteLinkHref(element.getAttribute("href")),
+      },
+      title: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("title"),
+      },
+    };
+  },
+  parseHTML() {
+    return [{
+      tag: "a[href]",
+      getAttrs: (element) => safeNoteLinkHref((element as HTMLElement).getAttribute("href")) ? null : false,
+    }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    const href = safeNoteLinkHref(HTMLAttributes.href);
+    if (!href) return ["span", {}, 0];
+    const title = typeof HTMLAttributes.title === "string" ? HTMLAttributes.title : undefined;
+    return ["a", {
+      href,
+      class: "note-link",
+      target: "_blank",
+      rel: "noopener noreferrer nofollow",
+      ...(title ? { title } : {}),
+    }, 0];
+  },
+});
+
 function editorExtensions() {
   return [
     StarterKit,
     ImageExtension.configure({ inline: false, allowBase64: false }),
     Placeholder.configure({ placeholder: "Begin with a thought. Let the connections emerge…" }),
-    DirectionExtension
+    DirectionExtension,
+    LinkMark
   ];
 }
 
@@ -1081,7 +1142,15 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
     extensions: editorExtensions(),
     content: EMPTY_DOC,
     immediatelyRender: false,
-    editorProps: { attributes: { class: "tiptap-content", spellcheck: "true" } },
+    editorProps: {
+      attributes: { class: "tiptap-content", spellcheck: "true" },
+      handleDOMEvents: {
+        click: (_view, event) => {
+          if (event.target instanceof Element && event.target.closest("a.note-link")) event.preventDefault();
+          return false;
+        },
+      },
+    },
     onUpdate: () => {
       if (hydrating.current) return;
       revisionRef.current += 1; setRevision(revisionRef.current); setDirty(true); setSaveState("unsaved"); setRetryAttempt(0);
@@ -1321,6 +1390,43 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
     }
   };
 
+  const addOrEditLink = () => {
+    if (!editor) return;
+    const isExistingLink = editor.isActive("link");
+    const selection = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(selection.from, selection.to, " ");
+    const currentHref = String(editor.getAttributes("link").href || "");
+    const initialHref = currentHref || (/^(https?:\/\/|www\.|[\w.-]+\.[a-z]{2,})/i.test(selectedText) ? selectedText : "https://");
+    const enteredHref = window.prompt(isExistingLink ? "Update hyperlink address" : "Enter hyperlink address", initialHref);
+    if (enteredHref === null) return;
+
+    if (!enteredHref.trim()) {
+      if (isExistingLink) editor.chain().focus().extendMarkRange("link").unsetMark("link").run();
+      return;
+    }
+
+    const href = normalizeNoteLinkHref(enteredHref);
+    if (!href) {
+      setError("Enter a valid web address, email address, telephone link, or local path.");
+      return;
+    }
+
+    if (selection.empty && !isExistingLink) {
+      const label = window.prompt("Text to display for this hyperlink", enteredHref.trim());
+      if (label === null || !label.trim()) return;
+      editor.chain().focus().insertContent({
+        type: "text",
+        text: label.trim(),
+        marks: [{ type: "link", attrs: { href } }],
+      }).run();
+      return;
+    }
+
+    const chain = editor.chain().focus();
+    if (isExistingLink) chain.extendMarkRange("link");
+    chain.setMark("link", { href }).run();
+  };
+
   const removeNote = async () => {
     if (!props.noteId || busyUpload || saving.current || saveState === "saving") return;
     if (dirty || saveState !== "saved") {
@@ -1407,6 +1513,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
               <button type="button" title="Italic" aria-label="Italic" className={editor?.isActive("italic") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("italic"))} onClick={() => editor?.chain().focus().toggleItalic().run()} disabled={creating}><Italic size={16} /></button>
               <button type="button" title="Strikethrough" aria-label="Strikethrough" className={editor?.isActive("strike") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("strike"))} onClick={() => editor?.chain().focus().toggleStrike().run()} disabled={creating}><Strikethrough size={16} /></button>
               <button type="button" title="Inline code" aria-label="Inline code" className={editor?.isActive("code") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("code"))} onClick={() => editor?.chain().focus().toggleCode().run()} disabled={creating}><Code size={16} /></button>
+              <button type="button" title="Add, edit, or remove hyperlink" aria-label="Add, edit, or remove hyperlink" className={editor?.isActive("link") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("link"))} onClick={addOrEditLink} disabled={creating || !editor}><Link2 size={16} /></button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">

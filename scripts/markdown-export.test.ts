@@ -36,6 +36,27 @@ test("preserves ordered numbering and nested list structure", () => {
   );
 });
 
+test("exports web, email, and telephone hyperlinks", () => {
+  const content = {
+    type: "doc",
+    content: [{
+      type: "paragraph",
+      content: [
+        { type: "text", text: "Website", marks: [{ type: "link", attrs: { href: "https://example.com/docs" } }] },
+        { type: "text", text: " · " },
+        { type: "text", text: "Email", marks: [{ type: "link", attrs: { href: "mailto:hello@example.com" } }] },
+        { type: "text", text: " · " },
+        { type: "text", text: "Call", marks: [{ type: "link", attrs: { href: "tel:+15551234567" } }] },
+      ],
+    }],
+  };
+
+  assert.equal(
+    noteToMarkdown("Links", content, "https://archive.example"),
+    "# Links\n\n[Website](https://example.com/docs) · [Email](mailto:hello@example.com) · [Call](tel:+15551234567)\n",
+  );
+});
+
 test("exports valid image references as absolute Markdown links", () => {
   const content = {
     type: "doc",
