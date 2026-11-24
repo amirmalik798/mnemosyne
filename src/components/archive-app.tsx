@@ -574,7 +574,7 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
   );
 }
 
-function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; onTopicsChanged?: () => void; notify: (message: string) => void }) {
+function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; onTopicsChanged?: () => void; notify: (message: string, variant?: ToastVariant) => void }) {
   const router = useRouter();
   const [transferOpen, setTransferOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -638,7 +638,7 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; on
   );
 }
 
-function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (message: string) => void; onTopicsChanged: () => void }) {
+function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -689,7 +689,7 @@ function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (messa
   );
 }
 
-function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: () => void; notify: (message: string) => void }) {
+function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: () => void; notify: (message: string, variant?: ToastVariant) => void }) {
   const router = useRouter();
   const [topic, setTopic] = useState<Topic | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -793,7 +793,7 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
   );
 }
 
-function SearchPage(props: { notify: (message: string) => void; topics: Topic[] }) {
+function SearchPage(props: { notify: (message: string, variant?: ToastVariant) => void; topics: Topic[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedQuery = searchParams.get("q") || "";
@@ -854,7 +854,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
   );
 }
 
-function TrashPage(props: { notify: (message: string) => void; onTopicsChanged: () => void }) {
+function TrashPage(props: { notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void }) {
   const [notes, setNotes] = useState<any[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -897,7 +897,7 @@ function TrashPage(props: { notify: (message: string) => void; onTopicsChanged: 
   );
 }
 
-function SettingsPage(props: { session: UserSession; onLogout: () => void; notify: (message: string) => void }) {
+function SettingsPage(props: { session: UserSession; onLogout: () => void; notify: (message: string, variant?: ToastVariant) => void }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -948,7 +948,7 @@ function SettingsPage(props: { session: UserSession; onLogout: () => void; notif
   );
 }
 
-function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (message: string) => void; onTopicsChanged: () => void }) {
+function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void }) {
   const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
@@ -1037,7 +1037,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
   );
 }
 
-function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify: (message: string) => void; onTopicsChanged: () => void }) {
+function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -1477,7 +1477,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   );
 }
 
-function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => void; notify: (message: string) => void }) {
+function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => void; notify: (message: string, variant?: ToastVariant) => void }) {
   const router = useRouter();
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
