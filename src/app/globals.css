@@ -30,7 +30,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 button { color: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
 a { color: inherit; text-decoration: none; }
-button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible {
+button:focus-visible, a:focus-visible, summary:focus-visible {
   outline: 2px solid var(--lime); outline-offset: 3px;
 }
 ::selection { background: rgba(166,217,87,.34); color: #fff; }
@@ -829,8 +829,7 @@ input.editor-subtitle-input:focus, input.editor-subtitle-input:focus-visible { b
 
 /* Strong signifiers and generous target sizes improve discoverability. */
 button, a, summary, input, textarea, select { touch-action: manipulation; }
-button:focus-visible, a:focus-visible, input:focus-visible,
-textarea:focus-visible, select:focus-visible, summary:focus-visible {
+button:focus-visible, a:focus-visible, summary:focus-visible {
   outline: 3px solid var(--lime);
   outline-offset: 3px;
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--lime) 18%, transparent);
@@ -882,4 +881,42 @@ textarea:focus-visible, select:focus-visible, summary:focus-visible {
 @media (prefers-contrast: more) {
   :root { --muted: #d0d4df; --quiet: #b3bac9; --line: #596174; --line-soft: rgba(210,216,230,.28); }
   .theme-light { --muted: #404858; --quiet: #515c70; --line: #aeb5a9; --line-soft: rgba(34,38,53,.22); }
+}
+
+/* Text fields use quiet, neutral focus styling throughout the application.
+   Keep a visible focus cue without the bright green rectangular ring. */
+.mnemosyne-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+.mnemosyne-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus-visible,
+.mnemosyne-app textarea:focus,
+.mnemosyne-app textarea:focus-visible,
+.mnemosyne-app select:focus,
+.mnemosyne-app select:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
+.mnemosyne-app .field input:focus,
+.mnemosyne-app .field input:focus-visible,
+.mnemosyne-app .field textarea:focus,
+.mnemosyne-app .field textarea:focus-visible,
+.mnemosyne-app .field select:focus,
+.mnemosyne-app .field select:focus-visible {
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.mnemosyne-app .search-field:focus-within {
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.mnemosyne-app input.editor-title-input:focus,
+.mnemosyne-app input.editor-title-input:focus-visible,
+.mnemosyne-app input.editor-subtitle-input:focus,
+.mnemosyne-app input.editor-subtitle-input:focus-visible,
+.mnemosyne-app .tag-entry input:focus,
+.mnemosyne-app .tag-entry input:focus-visible {
+  border-bottom-color: var(--line-soft);
+  outline: 0;
+  box-shadow: none;
 }
