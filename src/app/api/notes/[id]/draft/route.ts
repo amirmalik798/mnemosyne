@@ -80,6 +80,7 @@ export async function PUT(request: Request, context: Context) {
          content_enc = EXCLUDED.content_enc,
          tags_enc = EXCLUDED.tags_enc,
          pinned = EXCLUDED.pinned,
+         base_note_updated_at = EXCLUDED.base_note_updated_at,
          updated_at = NOW()
        RETURNING note_id`,
       [id, topicId, encryptText(title, session.key), encryptText(subject, session.key),
