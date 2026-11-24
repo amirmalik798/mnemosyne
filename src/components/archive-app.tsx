@@ -431,6 +431,10 @@ function TopicsPage(props: { topics: Topic[]; onOpen: (id: string) => void; onCr
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const categories = useMemo(() => Array.from(new Set(props.topics.map(t => t.category).filter(Boolean))).sort(), [props.topics]);
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("category");
+    if (requested && categories.includes(requested)) setCategory(requested);
+  }, [categories]);
   const filtered = useMemo(() => props.topics.filter(t =>
     (category === "all" || t.category === category) &&
     [t.title, t.subject, t.description, t.category].join(" ").toLowerCase().includes(query.toLowerCase())
@@ -721,7 +725,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
       setLoading(true); setError("");
       try {
         const response = await fetch("/api/search?q=" + encodeURIComponent(normalized) + "&scope=" + scope, { cache: "no-store", signal: controller.signal });
-        if (response.status === 204) return;
+        if (response.status === 204) { setNotes([]); setTopics([]); setSubmittedQuery(normalized); return; }
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || "Search failed.");
         setNotes(body.notes || []); setTopics(body.topics || []); setSubmittedQuery(normalized);
@@ -737,7 +741,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
     <div className="page-stack">
       <PageHeading eyebrow="Find a connection" title="Deep search" description="Search note titles, subjects, tags, topic names, and the text inside your notes." />
       <section className="search-stage">
-        <div className="search-stage-input"><Search size={22} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="What are you trying to remember?" aria-label="Search your archive" /><kbd>ENTER</kbd></div>
+        <div className="search-stage-input"><Search size={22} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="What are you trying to remember?" aria-label="Search your archive" /><kbd>LIVE SEARCH</kbd></div>
         <div className="search-scopes" role="group" aria-label="Search scope">
           {[["all", "Everything"], ["titles", "Titles"], ["tags", "Tags"], ["pinned", "Pinned"]].map(([value, label]) =>
             <button key={value} className={scope === value ? "scope-pill active" : "scope-pill"} onClick={() => setScope(value)} type="button">{label}</button>)}
@@ -868,7 +872,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = props.session.displayName?.trim().split(/\s+/)[0] || "there";
-  const pinCountLabel = notes.length === 100 && notes.every(n => n.pinned) ? "100+" : String(notes.filter(n => n.pinned).length);
+  const pinCountLabel = notes.length === 100 && totalNotes > 100 && notes.every(n => n.pinned) ? "100+" : String(notes.filter(n => n.pinned).length);
 
   return (
     <div className="page-stack dashboard-page">
@@ -891,7 +895,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
       <section className="metric-grid">
         <div className="metric-card"><div className="metric-label"><span>Collections</span><Folder size={17} /></div><strong>{props.topics.length}</strong><small>Personal topic spaces</small></div>
         <div className="metric-card"><div className="metric-label"><span>Notes in archive</span><FileText size={17} /></div><strong>{totalNotes}</strong><small>Saved manuscripts and fragments</small></div>
-        <div className="metric-card"><div className="metric-label"><span>Pinned notes</span><Pin size={17} /></div><strong>{pinCountLabel}</strong><small>{notes.length === 100 && notes.every(n => n.pinned) ? "At least 100 in the current page" : "Quick-access anchors"}</small></div>
+        <div className="metric-card"><div className="metric-label"><span>Pinned notes</span><Pin size={17} /></div><strong>{pinCountLabel}</strong><small>{notes.length === 100 && totalNotes > 100 && notes.every(n => n.pinned) ? "At least 100 in the current page" : "Quick-access anchors"}</small></div>
         <div className="metric-card"><div className="metric-label"><span>Latest activity</span><Clock3 size={17} /></div><strong className="metric-date">{latest ? relativeDate(latest.updatedAt) : "—"}</strong><small>{latest ? "Most recently updated note" : "Your archive is ready"}</small></div>
       </section>
       {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={load}>Retry</button></div>}
@@ -1090,7 +1094,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
 
   return (
     <div className="editor-page">
-      <div className="editor-topline"><button className="back-link" onClick={() => router.back()}><ArrowLeft size={15} /> Back</button>
+      <div className="editor-topline"><button className="back-link" onClick={() => router.push(topicId ? "/topics/" + topicId : "/all-notes")}><ArrowLeft size={15} /> Back</button>
         <div className={"save-indicator " + saveState}>{saveState === "saved" ? <CheckCircle2 size={14} /> : saveState === "saving" ? <Loader2 className="spin" size={14} /> : <Clock3 size={14} />}{saveState === "saved" ? "All changes saved" : saveState === "saving" ? "Saving…" : isNew ? "Not saved yet" : "Unsaved changes"}</div>
       </div>
       <div className="editor-layout">
@@ -1209,6 +1213,16 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
   }, [editor, toc]);
 
   const toggleFocus = () => { const next = !focus; setFocus(next); props.onFocusMode(next); };
+  useEffect(() => {
+    if (!focus) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setFocus(false);
+      props.onFocusMode(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [focus, props.onFocusMode]);
   if (loading) return <div className="loading-panel"><Loader2 className="spin" />Preparing reader…</div>;
   if (error || !note) return <div className="page-stack"><div className="inline-alert error"><AlertCircle size={16} />{error || "Note not found."}</div><button className="button-secondary" onClick={() => router.push("/all-notes")}><ArrowLeft size={16} /> Back to notes</button></div>;
 
@@ -1438,7 +1452,7 @@ export default function ArchiveApp() {
           {topics.slice(0, 10).map(topic => <a key={topic.id} href={"/topics/" + topic.id} className={parts[0] === "topics" && parts[1] === topic.id ? "selected" : ""}><Folder size={16} /><span>{topic.title}</span><small>{topic.noteCount}</small></a>)}
           <a href="/topics" className="sidebar-see-all">Explore all collections <ArrowRight size={13} /></a>
         </div>
-        {categories.length > 0 && <div className="sidebar-section tag-nav"><div className="sidebar-section-label">Categories</div><div className="sidebar-tags">{categories.slice(0, 7).map(category => <button key={category} onClick={() => { router.push("/topics"); setSidebarOpen(false); }}><Tag size={11} />{category}</button>)}</div></div>}
+        {categories.length > 0 && <div className="sidebar-section tag-nav"><div className="sidebar-section-label">Categories</div><div className="sidebar-tags">{categories.slice(0, 7).map(category => <button key={category} onClick={() => { router.push("/topics?category=" + encodeURIComponent(category)); setSidebarOpen(false); }}><Tag size={11} />{category}</button>)}</div></div>}
         <div className="sidebar-footer">
           <a href="/trash" className={parts[0] === "trash" ? "selected" : ""}><Trash2 size={17} /><span>Trash</span></a>
           <a href="/settings" className={parts[0] === "settings" ? "selected" : ""}><KeyRound size={17} /><span>Account & security</span><ShieldCheck size={14} className="green-icon" /></a>
