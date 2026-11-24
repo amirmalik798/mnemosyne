@@ -443,7 +443,7 @@ function TopicsPage(props: { topics: Topic[]; onOpen: (id: string) => void; onCr
   return (
     <div className="page-stack">
       <PageHeading eyebrow="Your knowledge map" title="Topic collections" description="A thoughtful structure for the subjects, projects, and questions you return to."
-        action={<button className="button-primary" onClick={props.onCreate}><Plus size={16} /> New collection</button>} />
+        action={<button type="button" className="button-primary" onClick={props.onCreate}><Plus size={16} /> New collection</button>} />
       <div className="toolbar-row">
         <label className="search-field"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a collection…" /></label>
         <label className="select-field"><Filter size={15} /><select value={category} onChange={e => setCategory(e.target.value)}>
@@ -454,7 +454,7 @@ function TopicsPage(props: { topics: Topic[]; onOpen: (id: string) => void; onCr
       {filtered.length ? <div className="topic-grid">{filtered.map(topic => <TopicCard key={topic.id} topic={topic} onOpen={props.onOpen} />)}</div>
         : <EmptyState icon={<Folder size={24} />} title={query || category !== "all" ? "No matching collections" : "Your first collection starts here"}
           description={query || category !== "all" ? "Try another search or choose a different category." : "Create a collection to give your research and notes a clear home."}
-          action={!query && category === "all" ? <button className="button-primary" onClick={props.onCreate}><Plus size={16} /> Create a collection</button> : undefined} />}
+          action={!query && category === "all" ? <button type="button" className="button-primary" onClick={props.onCreate}><Plus size={16} /> Create a collection</button> : undefined} />}
     </div>
   );
 }
@@ -466,18 +466,45 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
   const [error, setError] = useState("");
   const destinations = props.topics.filter(t => t.id !== props.note.topicId);
   const dialogRef = useRef<HTMLElement>(null);
+  const busyRef = useRef(busy);
+  const onCloseRef = useRef(props.onClose);
+  busyRef.current = busy;
+  onCloseRef.current = props.onClose;
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus();
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) props.onClose();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (!busyRef.current) onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ));
+      if (!focusable.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    window.addEventListener("keydown", handleEscape);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("keydown", handleKeyDown);
       previous?.focus();
     };
-  }, [busy, props.onClose]);
+  }, []);
   const submit = async () => {
     if (!topicId) { setError("Choose a destination collection."); return; }
     setBusy(true); setError("");
@@ -491,13 +518,13 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
     finally { setBusy(false); }
   };
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) props.onClose(); }}>
-      <section ref={dialogRef} tabIndex={-1} className="modal-card" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
+    <div className="modal-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget && !busy) props.onClose(); }}>
+      <section ref={dialogRef} tabIndex={-1} className="modal-card" role="dialog" aria-modal="true" aria-labelledby="transfer-title" aria-describedby="transfer-description">
         <div className="modal-header"><div><div className="eyebrow">Organize note</div><h2 id="transfer-title">Move or make a copy</h2></div><ActionButton title="Close dialog" onClick={props.onClose}><X size={18} /></ActionButton></div>
-        <p className="modal-note">“{props.note.title || "Untitled note"}”</p>
+        <p className="modal-note" id="transfer-description">“{props.note.title || "Untitled note"}”</p>
         <div className="choice-row">
-          <button className={action === "move" ? "choice-card selected" : "choice-card"} onClick={() => setAction("move")} type="button"><ArrowRight size={18} /><b>Move</b><small>Keep one note and change its collection.</small></button>
-          <button className={action === "copy" ? "choice-card selected" : "choice-card"} onClick={() => setAction("copy")} type="button"><Copy size={18} /><b>Copy</b><small>Create an independent duplicate with its images.</small></button>
+          <button type="button" className={action === "move" ? "choice-card selected" : "choice-card"} onClick={() => setAction("move")} type="button"><ArrowRight size={18} /><b>Move</b><small>Keep one note and change its collection.</small></button>
+          <button type="button" className={action === "copy" ? "choice-card selected" : "choice-card"} onClick={() => setAction("copy")} type="button"><Copy size={18} /><b>Copy</b><small>Create an independent duplicate with its images.</small></button>
         </div>
         <label className="field"><span>Destination collection</span><select value={topicId} onChange={e => setTopicId(e.target.value)}>
           <option value="">Choose a collection</option>{destinations.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
@@ -545,7 +572,7 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; no
   };
   return (
     <article className="note-row">
-      <button className="note-row-main" onClick={() => router.push("/notes/" + props.note.id + "/read")} type="button">
+      <button type="button" className="note-row-main" onClick={() => router.push("/notes/" + props.note.id + "/read")} type="button">
         <div className="note-row-icon"><FileText size={18} /></div>
         <div className="note-row-copy">
           <div className="note-row-title-line"><h3>{props.note.title || "Untitled note"}</h3>{props.note.pinned && <Pin size={14} className="pin-mark" />}</div>
@@ -611,14 +638,14 @@ function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (messa
         <label className="select-field"><ArrowDownUp size={15} /><select value={sort} onChange={e => setSort(e.target.value)}><option value="recent">Recently updated</option><option value="oldest">Oldest updated</option><option value="title">Title A–Z</option></select><ChevronDown size={14} /></label>
         <span className="result-count">{visible.length}{pagination ? " shown" : ""}</span>
       </div>
-      {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button onClick={() => load(0, false)} type="button">Retry</button></div>}
+      {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load(0, false)} type="button">Retry</button></div>}
       {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading your notes…</div>
         : visible.length ? <div className="note-list">{visible.map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={() => load(0, false)} notify={props.notify} />)}</div>
           : <EmptyState icon={props.pinnedOnly ? <Pin size={24} /> : <FileText size={24} />}
             title={query ? "No notes match that search" : props.pinnedOnly ? "Nothing pinned yet" : "A page waiting for a first thought"}
             description={query ? "Try another word or clear your search." : props.pinnedOnly ? "Pin useful notes and they will collect here." : "Create a note to capture an idea, question, or useful reference."}
             action={!query ? <a className="button-primary" href="/notes/new"><Plus size={16} /> Create a note</a> : undefined} />}
-      {!loading && pagination?.hasMore && <div className="load-more"><button className="button-secondary" disabled={loadingMore} onClick={() => load(pagination.offset + pagination.limit, true)}>{loadingMore ? <Loader2 className="spin" size={16} /> : <ChevronDown size={16} />} Load more notes</button></div>}
+      {!loading && pagination?.hasMore && <div className="load-more"><button type="button" className="button-secondary" disabled={loadingMore} onClick={() => load(pagination.offset + pagination.limit, true)}>{loadingMore ? <Loader2 className="spin" size={16} /> : <ChevronDown size={16} />} Load more notes</button></div>}
     </div>
   );
 }
@@ -684,11 +711,11 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
   };
 
   if (loading) return <div className="loading-panel"><Loader2 className="spin" />Opening collection…</div>;
-  if (error || !topic) return <div className="page-stack"><div className="inline-alert error"><AlertCircle size={16} />{error || "Collection not found."}</div><button className="button-secondary" onClick={() => router.push("/topics")}><ArrowLeft size={16} /> Back to collections</button></div>;
+  if (error || !topic) return <div className="page-stack"><div className="inline-alert error"><AlertCircle size={16} />{error || "Collection not found."}</div><button type="button" className="button-secondary" onClick={() => router.push("/topics")}><ArrowLeft size={16} /> Back to collections</button></div>;
 
   return (
     <div className="page-stack">
-      <button className="back-link" onClick={() => router.push("/topics")}><ArrowLeft size={15} /> All collections</button>
+      <button type="button" className="back-link" onClick={() => router.push("/topics")}><ArrowLeft size={15} /> All collections</button>
       <section className="topic-hero">
         {topic.coverUrl ? <img className="topic-cover" src={topic.coverUrl} alt="" /> : <div className="topic-cover-placeholder"><Folder size={34} /><span>YOUR COLLECTION</span></div>}
         <div className="topic-hero-overlay" />
@@ -699,11 +726,11 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
           {topic.description && <p className="topic-description">{topic.description}</p>}
           <div className="topic-hero-actions">
             <a className="button-primary" href={"/notes/new?topicId=" + topic.id}><Plus size={16} /> Add note</a>
-            <button className="button-glass" onClick={() => router.push("/topics/" + topic.id + "/edit")}><Edit3 size={15} /> Edit collection</button>
-            <button className="button-glass" onClick={() => coverInput.current?.click()} disabled={uploading}>{uploading ? <Loader2 className="spin" size={15} /> : <Upload size={15} />} {topic.coverUrl ? "Change cover" : "Add cover"}</button>
-            {topic.coverUrl && <button className="button-glass" onClick={removeCover}>Remove cover</button>}
-            <button className="button-glass" onClick={exportImages}><FileArchive size={15} /> Export images</button>
-            {notes.length === 0 && <button className="button-glass danger-glass" onClick={deleteTopic}><Trash2 size={15} /> Delete empty collection</button>}
+            <button type="button" className="button-glass" onClick={() => router.push("/topics/" + topic.id + "/edit")}><Edit3 size={15} /> Edit collection</button>
+            <button type="button" className="button-glass" onClick={() => coverInput.current?.click()} disabled={uploading}>{uploading ? <Loader2 className="spin" size={15} /> : <Upload size={15} />} {topic.coverUrl ? "Change cover" : "Add cover"}</button>
+            {topic.coverUrl && <button type="button" className="button-glass" onClick={removeCover}>Remove cover</button>}
+            <button type="button" className="button-glass" onClick={exportImages}><FileArchive size={15} /> Export images</button>
+            {notes.length === 0 && <button type="button" className="button-glass danger-glass" onClick={deleteTopic}><Trash2 size={15} /> Delete empty collection</button>}
             <input ref={coverInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e => void uploadCover(e.target.files?.[0])} />
           </div>
         </div>
@@ -757,7 +784,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
         <div className="search-stage-input"><Search size={22} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="What are you trying to remember?" aria-label="Search your archive" /><kbd>LIVE SEARCH</kbd></div>
         <div className="search-scopes" role="group" aria-label="Search scope">
           {[["all", "Everything"], ["titles", "Titles"], ["tags", "Tags"], ["pinned", "Pinned"]].map(([value, label]) =>
-            <button key={value} className={scope === value ? "scope-pill active" : "scope-pill"} onClick={() => setScope(value)} type="button">{label}</button>)}
+            <button type="button" key={value} className={scope === value ? "scope-pill active" : "scope-pill"} onClick={() => setScope(value)} type="button">{label}</button>)}
         </div>
       </section>
       {error && <div className="inline-alert error"><AlertCircle size={16} />{error}</div>}
@@ -765,8 +792,8 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
       {submittedQuery && !loading && <div className="search-summary"><span><b>{total}</b> matching results for <strong>“{submittedQuery}”</strong></span><span>Search is performed within your authenticated archive.</span></div>}
       {!query.trim() ? <div className="search-hint"><Sparkles size={18} /><p>Try a phrase, a person, a concept, or a tag you remember.</p></div>
         : !loading && !error && total === 0 && <EmptyState icon={<Search size={24} />} title="No matching fragments" description="Try a broader phrase, or change the search scope." />}
-      {topics.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Collections</h2><span>{topics.length}</span></div><div className="search-topic-results">{topics.map(topic => <button key={topic.id} onClick={() => router.push("/topics/" + topic.id)} className="search-topic-result"><Folder size={18} /><span><b>{topic.title}</b><small>{topic.category || "Collection"}{topic.subject ? " · " + topic.subject : ""}</small></span><ArrowUpRight size={16} /></button>)}</div></section>}
-      {notes.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Notes</h2><span>{notes.length}</span></div><div className="note-list">{notes.map(note => <button key={note.id} className="search-note-result" onClick={() => router.push("/notes/" + note.id + "/read")}><div className="note-row-icon"><FileText size={18} /></div><div className="note-row-copy"><div className="note-row-title-line"><h3>{note.title}</h3>{note.pinned && <Pin size={14} className="pin-mark" />}</div><p className="note-preview">{note.preview || note.subject || "Open note to see its contents."}</p><div className="note-meta"><span className="topic-chip">{note.topicTitle || "Collection"}</span><span className="match-chip">{note.matchType || "content"} match</span>{(note.tags || []).slice(0, 3).map(tag => <span className="tag-chip" key={tag}>#{tag}</span>)}</div></div><ArrowUpRight size={17} /></button>)}</div></section>}
+      {topics.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Collections</h2><span>{topics.length}</span></div><div className="search-topic-results">{topics.map(topic => <button type="button" key={topic.id} onClick={() => router.push("/topics/" + topic.id)} className="search-topic-result"><Folder size={18} /><span><b>{topic.title}</b><small>{topic.category || "Collection"}{topic.subject ? " · " + topic.subject : ""}</small></span><ArrowUpRight size={16} /></button>)}</div></section>}
+      {notes.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Notes</h2><span>{notes.length}</span></div><div className="note-list">{notes.map(note => <button type="button" key={note.id} className="search-note-result" onClick={() => router.push("/notes/" + note.id + "/read")}><div className="note-row-icon"><FileText size={18} /></div><div className="note-row-copy"><div className="note-row-title-line"><h3>{note.title}</h3>{note.pinned && <Pin size={14} className="pin-mark" />}</div><p className="note-preview">{note.preview || note.subject || "Open note to see its contents."}</p><div className="note-meta"><span className="topic-chip">{note.topicTitle || "Collection"}</span><span className="match-chip">{note.matchType || "content"} match</span>{(note.tags || []).slice(0, 3).map(tag => <span className="tag-chip" key={tag}>#{tag}</span>)}</div></div><ArrowUpRight size={17} /></button>)}</div></section>}
       {total > 0 && <div className="search-footnote">Search returns up to 25 collections and 40 notes per query.</div>}
     </div>
   );
@@ -803,11 +830,11 @@ function TrashPage(props: { notify: (message: string) => void }) {
   return (
     <div className="page-stack">
       <PageHeading eyebrow="Recover or remove" title="Trash" description="Notes stay here until you restore them or permanently delete them. Their attached images are kept with them." />
-      {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button onClick={() => load()} type="button">Retry</button></div>}
+      {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load()} type="button">Retry</button></div>}
       {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading Trash…</div>
-        : notes.length ? <div className="note-list">{notes.map(note => <article key={note.id} className="trash-row"><div className="note-row-icon"><Trash2 size={18} /></div><div className="note-row-copy"><h3>{note.title || "Untitled note"}</h3><p className="note-subject">{note.subject || "No description"}</p><div className="note-meta"><span className="topic-chip">{note.topicTitle}</span><span>Deleted {formatDate(note.deletedAt, true)}</span></div></div><div className="trash-actions"><button className="button-secondary small" disabled={busyId === note.id} onClick={() => act(note, "restore")}><RotateCcw size={15} /> Restore</button><button className="button-danger small" disabled={busyId === note.id} onClick={() => act(note, "delete")}><Trash2 size={15} /> Delete permanently</button></div></article>)}</div>
+        : notes.length ? <div className="note-list">{notes.map(note => <article key={note.id} className="trash-row"><div className="note-row-icon"><Trash2 size={18} /></div><div className="note-row-copy"><h3>{note.title || "Untitled note"}</h3><p className="note-subject">{note.subject || "No description"}</p><div className="note-meta"><span className="topic-chip">{note.topicTitle}</span><span>Deleted {formatDate(note.deletedAt, true)}</span></div></div><div className="trash-actions"><button type="button" className="button-secondary small" disabled={busyId === note.id} onClick={() => act(note, "restore")}><RotateCcw size={15} /> Restore</button><button type="button" className="button-danger small" disabled={busyId === note.id} onClick={() => act(note, "delete")}><Trash2 size={15} /> Delete permanently</button></div></article>)}</div>
           : <EmptyState icon={<Trash2 size={24} />} title="Trash is empty" description="When you remove a note, it will appear here so you can recover it." />}
-      {!loading && pagination?.hasMore && <div className="load-more"><button className="button-secondary" onClick={() => load(pagination.offset + pagination.limit, true)}>Load more deleted notes <ChevronDown size={15} /></button></div>}
+      {!loading && pagination?.hasMore && <div className="load-more"><button type="button" className="button-secondary" onClick={() => load(pagination.offset + pagination.limit, true)}>Load more deleted notes <ChevronDown size={15} /></button></div>}
     </div>
   );
 }
@@ -857,7 +884,7 @@ function SettingsPage(props: { session: UserSession; onLogout: () => void; notif
       </section>
       <section className="settings-card account-card">
         <div className="settings-card-heading"><div className="settings-icon"><Lock size={19} /></div><div><h2>Signed-in account</h2><p>{props.session.displayName} · {props.session.email}</p></div></div>
-        <button className="button-danger" onClick={props.onLogout}><LogOut size={16} /> Lock archive and sign out</button>
+        <button type="button" className="button-danger" onClick={props.onLogout}><LogOut size={16} /> Lock archive and sign out</button>
       </section>
     </div>
   );
@@ -920,7 +947,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
               <h2>{latest.title || "Untitled note"}</h2><p>{latest.subject || plainText(latest.content).slice(0, 260) || "Open this note and keep shaping the idea."}</p>
               <div className="resume-tags">{(latest.tags || []).slice(0, 5).map(tag => <span key={tag}>#{tag}</span>)}</div>
             </div>
-            <div className="resume-actions"><button className="button-primary" onClick={() => router.push("/notes/" + latest.id)}><Edit3 size={16} /> Resume writing</button><button className="button-secondary" onClick={() => router.push("/notes/" + latest.id + "/read")}><BookOpen size={16} /> Focus reading</button></div>
+            <div className="resume-actions"><button type="button" className="button-primary" onClick={() => router.push("/notes/" + latest.id)}><Edit3 size={16} /> Resume writing</button><button type="button" className="button-secondary" onClick={() => router.push("/notes/" + latest.id + "/read")}><BookOpen size={16} /> Focus reading</button></div>
           </div>
           : <div className="resume-card"><div className="resume-main"><div className="eyebrow">A blank page is a beginning</div><h2>Your next useful idea starts here.</h2><p>Capture a question, a passage, a discovery, or the outline of something you want to understand.</p></div><a className="button-primary" href="/notes/new"><Plus size={16} /> Create your first note</a></div>}
       </section>
@@ -933,7 +960,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
         </div>
         <aside className="dashboard-column pinned-column">
           <div className="section-heading"><div><div className="eyebrow">Keep close</div><h2>Pinned anchors</h2></div><a className="subtle-link" href="/pinned">See all <ArrowRight size={14} /></a></div>
-          {pinned.length ? <div className="pinned-stack">{pinned.map(note => <button className="pinned-card" key={note.id} onClick={() => router.push("/notes/" + note.id + "/read")}><div><span className="pinned-label"><Pin size={12} /> Pinned note</span><ArrowUpRight size={15} /></div><h3>{note.title || "Untitled note"}</h3><p>{plainText(note.content).slice(0, 120) || note.subject || "Open this fragment to continue reading."}</p><small>{note.topicTitle || "Collection"} · {relativeDate(note.updatedAt)}</small></button>)}</div>
+          {pinned.length ? <div className="pinned-stack">{pinned.map(note => <button type="button" className="pinned-card" key={note.id} onClick={() => router.push("/notes/" + note.id + "/read")}><div><span className="pinned-label"><Pin size={12} /> Pinned note</span><ArrowUpRight size={15} /></div><h3>{note.title || "Untitled note"}</h3><p>{plainText(note.content).slice(0, 120) || note.subject || "Open this fragment to continue reading."}</p><small>{note.topicTitle || "Collection"} · {relativeDate(note.updatedAt)}</small></button>)}</div>
             : <div className="mini-empty"><Pin size={18} /><p>Pin a note to keep an important idea close at hand.</p></div>}
         </aside>
       </section>
@@ -1107,7 +1134,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
 
   return (
     <div className="editor-page">
-      <div className="editor-topline"><button className="back-link" onClick={() => router.push(topicId ? "/topics/" + topicId : "/all-notes")}><ArrowLeft size={15} /> Back</button>
+      <div className="editor-topline"><button type="button" className="back-link" onClick={() => router.push(topicId ? "/topics/" + topicId : "/all-notes")}><ArrowLeft size={15} /> Back</button>
         <div className={"save-indicator " + saveState}>{saveState === "saved" ? <CheckCircle2 size={14} /> : saveState === "saving" ? <Loader2 className="spin" size={14} /> : <Clock3 size={14} />}{saveState === "saved" ? "All changes saved" : saveState === "saving" ? "Saving…" : isNew ? "Not saved yet" : "Unsaved changes"}</div>
       </div>
       <div className="editor-layout">
@@ -1119,38 +1146,38 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
             <label className="editor-topic-select"><Folder size={15} /><select value={topicId} onChange={e => { setTopicId(e.target.value); touchForm(); }} aria-label="Collection">
               <option value="">Choose collection…</option>{props.topics.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
             </select><ChevronDown size={14} /></label>
-            <button className={pinned ? "pin-toggle active" : "pin-toggle"} onClick={() => { setPinned(v => !v); touchForm(); }} type="button"><Pin size={14} /> {pinned ? "Pinned" : "Pin note"}</button>
-            <div className="editor-tags">{tags.map(tag => <button key={tag} onClick={() => { setTags(current => current.filter(t => t !== tag)); touchForm(); }} type="button" title={"Remove tag " + tag}>#{tag}<X size={11} /></button>)}
+            <button type="button" className={pinned ? "pin-toggle active" : "pin-toggle"} onClick={() => { setPinned(v => !v); touchForm(); }} type="button"><Pin size={14} /> {pinned ? "Pinned" : "Pin note"}</button>
+            <div className="editor-tags">{tags.map(tag => <button type="button" key={tag} onClick={() => { setTags(current => current.filter(t => t !== tag)); touchForm(); }} type="button" title={"Remove tag " + tag}>#{tag}<X size={11} /></button>)}
               <form className="tag-entry" onSubmit={e => { e.preventDefault(); addTag(); }}><input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="+ Add tag" aria-label="Add a tag" /><button type="submit" aria-label="Add tag"><Plus size={14} /></button></form>
             </div>
           </div>
           <div className="editor-toolbar" role="toolbar" aria-label="Text formatting">
             <div className="toolbar-group">
-              <button title="Paragraph" aria-label="Paragraph" className={editor?.isActive("paragraph") ? "tool-active" : ""} onClick={() => editor?.chain().focus().setParagraph().run()}><Type size={16} /></button>
-              <button title="Heading 1" aria-label="Heading 1" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
-              <button title="Heading 2" aria-label="Heading 2" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-              <button title="Heading 3" aria-label="Heading 3" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+              <button type="button" title="Paragraph" aria-label="Paragraph" className={editor?.isActive("paragraph") ? "tool-active" : ""} onClick={() => editor?.chain().focus().setParagraph().run()}><Type size={16} /></button>
+              <button type="button" title="Heading 1" aria-label="Heading 1" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
+              <button type="button" title="Heading 2" aria-label="Heading 2" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+              <button type="button" title="Heading 3" aria-label="Heading 3" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">
-              <button title="Bold" aria-label="Bold" className={editor?.isActive("bold") ? "tool-active" : ""} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold size={16} /></button>
-              <button title="Italic" aria-label="Italic" className={editor?.isActive("italic") ? "tool-active" : ""} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic size={16} /></button>
-              <button title="Strikethrough" aria-label="Strikethrough" onClick={() => editor?.chain().focus().toggleStrike().run()}><Strikethrough size={16} /></button>
-              <button title="Inline code" aria-label="Inline code" onClick={() => editor?.chain().focus().toggleCode().run()}><Code size={16} /></button>
+              <button type="button" title="Bold" aria-label="Bold" className={editor?.isActive("bold") ? "tool-active" : ""} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold size={16} /></button>
+              <button type="button" title="Italic" aria-label="Italic" className={editor?.isActive("italic") ? "tool-active" : ""} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic size={16} /></button>
+              <button type="button" title="Strikethrough" aria-label="Strikethrough" onClick={() => editor?.chain().focus().toggleStrike().run()}><Strikethrough size={16} /></button>
+              <button type="button" title="Inline code" aria-label="Inline code" onClick={() => editor?.chain().focus().toggleCode().run()}><Code size={16} /></button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">
-              <button title="Bulleted list" aria-label="Bulleted list" onClick={() => editor?.chain().focus().toggleBulletList().run()}><List size={16} /></button>
-              <button title="Numbered list" aria-label="Numbered list" onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered size={16} /></button>
-              <button title="Quote" aria-label="Quote" onClick={() => editor?.chain().focus().toggleBlockquote().run()}><Quote size={16} /></button>
-              <button title="Code block" aria-label="Code block" onClick={() => editor?.chain().focus().toggleCodeBlock().run()}><Code size={16} /></button>
+              <button type="button" title="Bulleted list" aria-label="Bulleted list" onClick={() => editor?.chain().focus().toggleBulletList().run()}><List size={16} /></button>
+              <button type="button" title="Numbered list" aria-label="Numbered list" onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered size={16} /></button>
+              <button type="button" title="Quote" aria-label="Quote" onClick={() => editor?.chain().focus().toggleBlockquote().run()}><Quote size={16} /></button>
+              <button type="button" title="Code block" aria-label="Code block" onClick={() => editor?.chain().focus().toggleCodeBlock().run()}><Code size={16} /></button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">
-              <button title="Insert image" aria-label="Insert image" disabled={!props.noteId || busyUpload} onClick={() => uploadRef.current?.click()}>{busyUpload ? <Loader2 size={16} className="spin" /> : <ImagePlus size={16} />}</button>
-              <button title="Toggle right-to-left writing" aria-label="Toggle right-to-left writing" className={rtl ? "tool-active" : ""} onClick={() => updateDirection(!rtl)}>{rtl ? <AlignLeft size={16} /> : <AlignRight size={16} />}</button>
-              <button title="Undo" aria-label="Undo" disabled={!editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={16} /></button>
-              <button title="Redo" aria-label="Redo" disabled={!editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={16} /></button>
+              <button type="button" title="Insert image" aria-label="Insert image" disabled={!props.noteId || busyUpload} onClick={() => uploadRef.current?.click()}>{busyUpload ? <Loader2 size={16} className="spin" /> : <ImagePlus size={16} />}</button>
+              <button type="button" title="Toggle right-to-left writing" aria-label="Toggle right-to-left writing" className={rtl ? "tool-active" : ""} onClick={() => updateDirection(!rtl)}>{rtl ? <AlignLeft size={16} /> : <AlignRight size={16} />}</button>
+              <button type="button" title="Undo" aria-label="Undo" disabled={!editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={16} /></button>
+              <button type="button" title="Redo" aria-label="Redo" disabled={!editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={16} /></button>
             </div>
             <input ref={uploadRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e => void uploadImage(e.target.files?.[0])} />
           </div>
@@ -1175,13 +1202,13 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
             <div className="side-info"><span>Saved state</span><b className={saveState}>{saveState === "saved" ? "Saved" : saveState === "saving" ? "Saving" : "Changes pending"}</b></div>
           </div>
           <div className="editor-side-actions">
-            <button className="button-primary full-button" disabled={saveState === "saving" || (!dirty && !isNew)} onClick={() => void saveNote(false)}><Save size={16} /> {isNew ? "Create note" : "Save changes"}</button>
+            <button type="button" className="button-primary full-button" disabled={saveState === "saving" || (!dirty && !isNew)} onClick={() => void saveNote(false)}><Save size={16} /> {isNew ? "Create note" : "Save changes"}</button>
             {props.noteId && <>
-              <button className="button-secondary full-button" onClick={() => router.push("/notes/" + props.noteId + "/read")}><BookOpen size={16} /> Read this note</button>
-              <button className="button-secondary full-button" onClick={() => saveMarkdown(title, editor?.getJSON())}><Download size={16} /> Export Markdown</button>
-              <button className="button-secondary full-button" onClick={exportImages}><FileArchive size={16} /> Download images</button>
-              <button className="button-secondary full-button" onClick={() => setTransferOpen(true)}><ArrowDownUp size={16} /> Move or copy</button>
-              <button className="button-danger full-button" onClick={removeNote}><Trash2 size={16} /> Move to Trash</button>
+              <button type="button" className="button-secondary full-button" onClick={() => router.push("/notes/" + props.noteId + "/read")}><BookOpen size={16} /> Read this note</button>
+              <button type="button" className="button-secondary full-button" onClick={() => saveMarkdown(title, editor?.getJSON())}><Download size={16} /> Export Markdown</button>
+              <button type="button" className="button-secondary full-button" onClick={exportImages}><FileArchive size={16} /> Download images</button>
+              <button type="button" className="button-secondary full-button" onClick={() => setTransferOpen(true)}><ArrowDownUp size={16} /> Move or copy</button>
+              <button type="button" className="button-danger full-button" onClick={removeNote}><Trash2 size={16} /> Move to Trash</button>
             </>}
           </div>
         </aside>
@@ -1238,15 +1265,15 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
     return () => window.removeEventListener("keydown", handleEscape);
   }, [focus, props.onFocusMode]);
   if (loading) return <div className="loading-panel"><Loader2 className="spin" />Preparing reader…</div>;
-  if (error || !note) return <div className="page-stack"><div className="inline-alert error"><AlertCircle size={16} />{error || "Note not found."}</div><button className="button-secondary" onClick={() => router.push("/all-notes")}><ArrowLeft size={16} /> Back to notes</button></div>;
+  if (error || !note) return <div className="page-stack"><div className="inline-alert error"><AlertCircle size={16} />{error || "Note not found."}</div><button type="button" className="button-secondary" onClick={() => router.push("/all-notes")}><ArrowLeft size={16} /> Back to notes</button></div>;
 
   return (
     <div className={"reader-page " + (focus ? "reader-is-focused" : "")}>
-      <div className="reader-toolbar"><div className="reader-toolbar-left"><button className="back-link" onClick={() => router.push("/all-notes")}><ArrowLeft size={15} /> Notes</button><span className="reader-divider" /><span className="reader-context">{note.topicTitle}</span></div>
+      <div className="reader-toolbar"><div className="reader-toolbar-left"><button type="button" className="back-link" onClick={() => router.push("/all-notes")}><ArrowLeft size={15} /> Notes</button><span className="reader-divider" /><span className="reader-context">{note.topicTitle}</span></div>
         <div className="reader-toolbar-actions"><label className="font-size-control"><Type size={15} /><input type="range" min="16" max="24" value={fontSize} onChange={e => setFontSize(Number(e.target.value))} aria-label="Reading text size" /><span>{fontSize}px</span></label>
-          <button className="icon-toolbar-button" title="Toggle focus mode" onClick={toggleFocus}>{focus ? <Maximize2 size={16} /> : <Eye size={16} />}<span>{focus ? "Exit focus" : "Focus mode"}</span></button>
-          <button className="icon-toolbar-button" title="Edit note" onClick={() => router.push("/notes/" + note.id)}><Edit3 size={16} /><span>Edit</span></button>
-          <button className="icon-toolbar-button" title="Export Markdown" onClick={() => saveMarkdown(note.title, note.content)}><Download size={16} /></button>
+          <button type="button" className="icon-toolbar-button" title="Toggle focus mode" onClick={toggleFocus}>{focus ? <Maximize2 size={16} /> : <Eye size={16} />}<span>{focus ? "Exit focus" : "Focus mode"}</span></button>
+          <button type="button" className="icon-toolbar-button" title="Edit note" onClick={() => router.push("/notes/" + note.id)}><Edit3 size={16} /><span>Edit</span></button>
+          <button type="button" className="icon-toolbar-button" title="Export Markdown" onClick={() => saveMarkdown(note.title, note.content)}><Download size={16} /></button>
         </div>
       </div>
       <div className="reader-layout">
@@ -1257,11 +1284,11 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
           <div className="reader-meta"><span>Created {formatDate(note.createdAt)}</span><span>Updated {relativeDate(note.updatedAt)}</span>{(note.tags || []).map(tag => <span key={tag} className="tag-chip">#{tag}</span>)}</div>
           <div className="reader-rule" />
           <article className="reader-prose" style={{ fontSize: fontSize + "px" }}><EditorContent editor={editor} style={{ fontSize: fontSize + "px" }} /></article>
-          <div className="reader-endnote"><BookOpen size={17} /><span>End of note · <button onClick={() => router.push("/notes/" + note.id)}>Continue editing</button></span></div>
+          <div className="reader-endnote"><BookOpen size={17} /><span>End of note · <button type="button" onClick={() => router.push("/notes/" + note.id)}>Continue editing</button></span></div>
         </main>
         <aside className="reader-aside">
-          {toc.length > 0 && <div className="reader-outline"><div className="eyebrow">On this page</div>{toc.map((heading, index) => <button key={heading.id} className={heading.level > 2 ? "outline-subitem" : ""} onClick={() => document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{String(index + 1).padStart(2, "0")} <span>{heading.title}</span></button>)}</div>}
-          <div className="reader-outline"><div className="eyebrow">Reading tools</div><button onClick={() => saveMarkdown(note.title, note.content)}><Download size={14} /><span>Export as Markdown</span></button><button onClick={() => router.push("/notes/" + note.id)}><Edit3 size={14} /><span>Edit this note</span></button></div>
+          {toc.length > 0 && <div className="reader-outline"><div className="eyebrow">On this page</div>{toc.map((heading, index) => <button type="button" key={heading.id} className={heading.level > 2 ? "outline-subitem" : ""} onClick={() => document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{String(index + 1).padStart(2, "0")} <span>{heading.title}</span></button>)}</div>}
+          <div className="reader-outline"><div className="eyebrow">Reading tools</div><button type="button" onClick={() => saveMarkdown(note.title, note.content)}><Download size={14} /><span>Export as Markdown</span></button><button type="button" onClick={() => router.push("/notes/" + note.id)}><Edit3 size={14} /><span>Edit this note</span></button></div>
         </aside>
       </div>
     </div>
@@ -1354,7 +1381,11 @@ export default function ArchiveApp() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const editing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      const editing = Boolean(target && (
+        target.matches("input, textarea, select") ||
+        target.isContentEditable ||
+        target.closest("button, a, [role='button']")
+      ));
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault(); router.push("/search"); return;
       }
@@ -1424,14 +1455,14 @@ export default function ArchiveApp() {
   else if (parts[0] === "trash") page = <TrashPage notify={notify} />;
   else if (parts[0] === "settings") page = <SettingsPage session={session} onLogout={lockVault} notify={notify} />;
   else if (parts.length === 0) page = <DashboardPage topics={topics} session={session} notify={notify} />;
-  else page = <div className="page-stack"><EmptyState icon={<Search size={24} />} title="We couldn't find that page" description="The address may have changed, or the page may no longer exist." action={<button className="button-secondary" onClick={() => router.push("/")}>Return to overview</button>} /></div>;
+  else page = <div className="page-stack"><EmptyState icon={<Search size={24} />} title="We couldn't find that page" description="The address may have changed, or the page may no longer exist." action={<button type="button" className="button-secondary" onClick={() => router.push("/")}>Return to overview</button>} /></div>;
 
   return (
     <div className={"mnemosyne-app theme-" + theme + (focusMode ? " focus-mode" : "")}>
-      <div className="mobile-topbar"><button className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button className="mobile-theme-button" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><button className="mobile-add-button" onClick={() => router.push("/notes/new")} aria-label="Create new note"><Plus size={19} /></button></div>
+      <div className="mobile-topbar"><button type="button" className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button type="button" className="mobile-theme-button" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><button type="button" className="mobile-add-button" onClick={() => router.push("/notes/new")} aria-label="Create new note"><Plus size={19} /></button></div>
       <aside className="icon-rail">
         <a href="/" className="rail-brand" aria-label="Mnemosyne overview"><BookOpen size={21} /></a>
-        <button className="rail-add" title="Quick capture · N" onClick={() => router.push("/notes/new")}><Plus size={20} /></button>
+        <button type="button" className="rail-add" title="Quick capture · N" onClick={() => router.push("/notes/new")}><Plus size={20} /></button>
         <div className="rail-nav">
           <a href="/search" title="Deep search · Ctrl/⌘ K" className={parts[0] === "search" ? "active" : ""}><Search size={19} /></a>
           <a href="/" title="Knowledge dashboard" className={pathname === "/" ? "active" : ""}><LayoutDashboard size={19} /></a>
@@ -1440,8 +1471,8 @@ export default function ArchiveApp() {
           <a href="/pinned" title="Pinned notes" className={parts[0] === "pinned" ? "active" : ""}><Pin size={19} /></a>
         </div>
         <div className="rail-bottom">
-          <button title="Lock archive" onClick={lockVault}><Lock size={17} /></button>
-          <button title="Toggle theme" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
+          <button type="button" title="Lock archive" onClick={lockVault}><Lock size={17} /></button>
+          <button type="button" title="Toggle theme" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
           <a href="/settings" title="Account settings"><Settings size={17} /></a>
           <div className="avatar-mark" title={session.displayName}>{(session.displayName || "M").slice(0, 1).toUpperCase()}</div>
         </div>
@@ -1449,7 +1480,7 @@ export default function ArchiveApp() {
       <aside className={"workspace-sidebar " + (sidebarOpen ? "mobile-open" : "")}>
         <div className="sidebar-header">
           <div><b>Personal archive</b><span><StatusDot /> Session active</span></div>
-          <button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={17} /></button>
+          <button type="button" className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={17} /></button>
         </div>
         <form className="sidebar-search" onSubmit={e => { e.preventDefault(); const input = (e.currentTarget.elements.namedItem("q") as HTMLInputElement); router.push("/search?q=" + encodeURIComponent(input.value)); setSidebarOpen(false); }}>
           <Search size={15} /><input name="q" placeholder="Search notes, tags…" /><kbd>Ctrl/⌘K</kbd>
@@ -1462,26 +1493,26 @@ export default function ArchiveApp() {
           <a href="/search" className={parts[0] === "search" ? "selected" : ""}><Search size={17} /><span>Deep search</span></a>
         </div>
         <div className="sidebar-section collection-nav">
-          <div className="sidebar-section-heading"><span className="sidebar-section-label">Topic collections</span><button title="Create a collection" onClick={() => { router.push("/topics/new"); setSidebarOpen(false); }}><Plus size={15} /></button></div>
+          <div className="sidebar-section-heading"><span className="sidebar-section-label">Topic collections</span><button type="button" title="Create a collection" onClick={() => { router.push("/topics/new"); setSidebarOpen(false); }}><Plus size={15} /></button></div>
           {topics.slice(0, 10).map(topic => <a key={topic.id} href={"/topics/" + topic.id} className={parts[0] === "topics" && parts[1] === topic.id ? "selected" : ""}><Folder size={16} /><span>{topic.title}</span><small>{topic.noteCount}</small></a>)}
           <a href="/topics" className="sidebar-see-all">Explore all collections <ArrowRight size={13} /></a>
         </div>
-        {categories.length > 0 && <div className="sidebar-section tag-nav"><div className="sidebar-section-label">Categories</div><div className="sidebar-tags">{categories.slice(0, 7).map(category => <button key={category} onClick={() => { router.push("/topics?category=" + encodeURIComponent(category)); setSidebarOpen(false); }}><Tag size={11} />{category}</button>)}</div></div>}
+        {categories.length > 0 && <div className="sidebar-section tag-nav"><div className="sidebar-section-label">Categories</div><div className="sidebar-tags">{categories.slice(0, 7).map(category => <button type="button" key={category} onClick={() => { router.push("/topics?category=" + encodeURIComponent(category)); setSidebarOpen(false); }}><Tag size={11} />{category}</button>)}</div></div>}
         <div className="sidebar-footer">
           <a href="/trash" className={parts[0] === "trash" ? "selected" : ""}><Trash2 size={17} /><span>Trash</span></a>
           <a href="/settings" className={parts[0] === "settings" ? "selected" : ""}><KeyRound size={17} /><span>Account & security</span><ShieldCheck size={14} className="green-icon" /></a>
-          <div className="account-mini"><div className="avatar-mini">{(session.displayName || "M").slice(0, 1).toUpperCase()}</div><div><b>{session.displayName}</b><small>{session.email}</small></div><button onClick={lockVault} title="Sign out"><LogOut size={15} /></button></div>
+          <div className="account-mini"><div className="avatar-mini">{(session.displayName || "M").slice(0, 1).toUpperCase()}</div><div><b>{session.displayName}</b><small>{session.email}</small></div><button type="button" onClick={lockVault} title="Sign out"><LogOut size={15} /></button></div>
         </div>
       </aside>
-      {sidebarOpen && <button className="sidebar-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && <button type="button" className="sidebar-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
       <div className="app-main">
         {!focusMode && <header className="topbar">
           <div className="breadcrumbs"><span>Archive</span><ChevronRight size={13} /><b>{activeTitle}</b></div>
-          <div className="topbar-right"><div className="vault-status"><StatusDot /><span>Encrypted archive</span></div><button className="button-secondary export-button" onClick={exportArchive}><Download size={15} /><span>Export Markdown</span></button><a className="button-primary topbar-create" href="/notes/new"><Plus size={16} /> Quick note</a><button className="topbar-lock" title="Lock vault now" onClick={lockVault}><Lock size={17} /></button></div>
+          <div className="topbar-right"><div className="vault-status"><StatusDot /><span>Encrypted archive</span></div><button type="button" className="button-secondary export-button" onClick={exportArchive}><Download size={15} /><span>Export Markdown</span></button><a className="button-primary topbar-create" href="/notes/new"><Plus size={16} /> Quick note</a><button type="button" className="topbar-lock" title="Lock vault now" onClick={lockVault}><Lock size={17} /></button></div>
         </header>}
         <main className="app-content">{page}</main>
       </div>
-      {toast && <div className="toast-message" role="status"><CheckCircle2 size={16} />{toast}<button onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div>}
+      {toast && <div className="toast-message" role="status"><CheckCircle2 size={16} />{toast}<button type="button" onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div>}
       <nav className="mobile-bottom-nav"><a href="/" className={pathname === "/" ? "active" : ""}><LayoutDashboard size={19} /><span>Home</span></a><a href="/topics" className={parts[0] === "topics" ? "active" : ""}><Folder size={19} /><span>Topics</span></a><a href="/notes/new" className="mobile-bottom-create"><Plus size={20} /><span>New</span></a><a href="/all-notes" className={parts[0] === "all-notes" ? "active" : ""}><FileText size={19} /><span>Notes</span></a><a href="/search" className={parts[0] === "search" ? "active" : ""}><Search size={19} /><span>Search</span></a></nav>
     </div>
   );
