@@ -46,6 +46,13 @@ type ToastVariant = "success" | "error";
 
 const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
 
+class ApiRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 async function apiJson<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, {
     cache: "no-store",
@@ -62,7 +69,7 @@ async function apiJson<T>(url: string, init: RequestInit = {}): Promise<T> {
     try { payload = JSON.parse(raw) as ApiResult<T>; }
     catch { throw new Error("The server returned an unreadable response. Please try again."); }
   }
-  if (!response.ok) throw new Error(payload.error || "The request could not be completed.");
+  if (!response.ok) throw new ApiRequestError(payload.error || "The request could not be completed.", response.status);
   return payload as T;
 }
 
@@ -1637,6 +1644,7 @@ export default function ArchiveApp() {
   const publicRoute = parts[0] === "login" || parts[0] === "register" || parts[0] === "verify-email";
   const [session, setSession] = useState<UserSession | null>(null);
   const [checking, setChecking] = useState(!publicRoute);
+  const [sessionCheckError, setSessionCheckError] = useState("");
   const [topics, setTopics] = useState<Topic[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1706,10 +1714,18 @@ export default function ArchiveApp() {
       .then(result => {
         if (!live) return;
         setSession({ userId: result.userId, email: result.email, displayName: result.displayName, expiresAt: result.expiresAt });
+        setSessionCheckError("");
       })
-      .catch(() => {
+      .catch(cause => {
         if (!live) return;
-        setSession(null); router.replace("/login");
+        if (cause instanceof ApiRequestError && cause.status === 401) {
+          setSession(null);
+          router.replace("/login");
+          return;
+        }
+        // A temporary server/network failure is not proof that the account
+        // session is invalid. Preserve an existing session and let the user retry.
+        setSessionCheckError(cause instanceof Error ? cause.message : "Unable to verify your session.");
       })
       .finally(() => { if (live) setChecking(false); });
     return () => { live = false; };
@@ -1782,35 +1798,6 @@ export default function ArchiveApp() {
     }
   };
 
-  useEffect(() => {
-    if (!session) return;
-
-    // pagehide runs when this document is being closed or unloaded. Unlike
-    // visibilitychange, it does not run just because the user switches tabs.
-    const lockWhenDocumentCloses = () => {
-      const queued = navigator.sendBeacon(
-        "/api/vault/lock",
-        new Blob([], { type: "text/plain" }),
-      );
-
-      // Keep a fallback for browsers that reject the beacon payload.
-      if (!queued) {
-        void fetch("/api/vault/lock", {
-          method: "POST",
-          credentials: "same-origin",
-          keepalive: true,
-          headers: { "Content-Type": "text/plain" },
-          body: "",
-        }).catch(() => {
-          // The server-side idle session timeout remains the fallback.
-        });
-      }
-    };
-
-    window.addEventListener("pagehide", lockWhenDocumentCloses);
-    return () => window.removeEventListener("pagehide", lockWhenDocumentCloses);
-  }, [session?.userId]);
-
   const exportArchive = async () => {
     try {
       const collected: Note[] = [];
@@ -1838,7 +1825,14 @@ export default function ArchiveApp() {
     if (parts[0] === "verify-email") return <VerificationPage />;
     return <AuthPage mode={parts[0] === "register" ? "register" : "login"} onAuthenticated={user => { setSession(user); router.replace("/"); }} />;
   }
-  if (checking || !session) return <div className="app-boot"><div className="boot-mark"><BookOpen size={23} /></div><span>Opening your archive…</span></div>;
+  if (checking || (!session && !sessionCheckError)) return <div className="app-boot"><div className="boot-mark"><BookOpen size={23} /></div><span>Opening your archive…</span></div>;
+  if (!session) return (
+    <div className="app-boot">
+      <div className="boot-mark"><BookOpen size={23} /></div>
+      <span role="alert">{sessionCheckError}</span>
+      <button type="button" className="button-primary" onClick={() => window.location.reload()}>Retry</button>
+    </div>
+  );
 
   const activeTitle = parts[0] === "topics" ? parts[1] ? (parts[2] === "edit" ? "Collection settings" : parts[1] === "new" ? "New collection" : topics.find(t => t.id === parts[1])?.title || "Collection") : "Topic collections"
     : parts[0] === "notes" ? parts[1] === "new" ? "New note" : parts[2] === "read" ? "Focus reader" : "Note editor"
