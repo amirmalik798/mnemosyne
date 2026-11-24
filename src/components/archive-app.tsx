@@ -23,7 +23,7 @@ import { noteToMarkdown } from "@/lib/markdown-export";
 type UserSession = { userId?: string; id?: string; email: string; displayName: string; expiresAt?: string };
 type Topic = {
   id: string; title: string; subject: string; description: string; category: string;
-  coverUrl: string | null; noteCount: number; createdAt: string; updatedAt: string;
+  coverUrl: string | null; noteCount: number; trashedNoteCount?: number; createdAt: string; updatedAt: string;
 };
 type Note = {
   id: string; topicId: string; topicTitle?: string; title: string; subject: string;
@@ -689,6 +689,7 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const coverInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -703,7 +704,11 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
 
   const uploadCover = async (file?: File) => {
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { props.notify("Topic covers must be 8 MB or smaller."); return; }
+    if (file.size > 8 * 1024 * 1024) {
+      props.notify("Topic covers must be 8 MB or smaller.");
+      if (coverInput.current) coverInput.current.value = "";
+      return;
+    }
     setUploading(true);
     const form = new FormData(); form.set("file", file);
     try {
@@ -716,13 +721,15 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
   };
 
   const removeCover = async () => {
-    if (!window.confirm("Remove this collection cover?")) return;
+    if (uploading || deleting || !window.confirm("Remove this collection cover?")) return;
+    setUploading(true);
     try {
       await apiJson("/api/topics/" + props.topicId + "/cover", { method: "DELETE" });
       setTopic(current => current ? { ...current, coverUrl: null } : current);
       props.notify("Collection cover removed.");
       props.onRefreshTopics();
     } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to remove cover."); }
+    finally { setUploading(false); }
   };
 
   const exportImages = async () => {
@@ -734,12 +741,16 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
   };
 
   const deleteTopic = async () => {
-    if (notes.length) { props.notify("A collection can only be deleted after its notes have been moved or deleted."); return; }
+    if (uploading || deleting) return;
+    if (notes.length) { props.notify("Move or delete the active notes before deleting this collection."); return; }
+    if (topic?.trashedNoteCount) { props.notify("Restore or permanently delete the notes in Trash before deleting this collection."); return; }
     if (!window.confirm("Delete this empty collection? This cannot be undone.")) return;
+    setDeleting(true);
     try {
       await apiJson("/api/topics/" + props.topicId, { method: "DELETE" });
       props.notify("Empty collection deleted."); props.onRefreshTopics(); router.push("/topics");
     } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to delete collection."); }
+    finally { setDeleting(false); }
   };
 
   if (loading) return <div className="loading-panel"><Loader2 className="spin" />Opening collection…</div>;
@@ -759,14 +770,15 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
           <div className="topic-hero-actions">
             <a className="button-primary" href={"/notes/new?topicId=" + topic.id}><Plus size={16} /> Add note</a>
             <button type="button" className="button-glass" onClick={() => router.push("/topics/" + topic.id + "/edit")}><Edit3 size={15} /> Edit collection</button>
-            <button type="button" className="button-glass" onClick={() => coverInput.current?.click()} disabled={uploading}>{uploading ? <Loader2 className="spin" size={15} /> : <Upload size={15} />} {topic.coverUrl ? "Change cover" : "Add cover"}</button>
-            {topic.coverUrl && <button type="button" className="button-glass" onClick={removeCover}>Remove cover</button>}
+            <button type="button" className="button-glass" onClick={() => coverInput.current?.click()} disabled={uploading || deleting}>{uploading ? <Loader2 className="spin" size={15} /> : <Upload size={15} />} {topic.coverUrl ? "Change cover" : "Add cover"}</button>
+            {topic.coverUrl && <button type="button" className="button-glass" onClick={removeCover} disabled={uploading || deleting}>Remove cover</button>}
             <button type="button" className="button-glass" onClick={exportImages}><FileArchive size={15} /> Export images</button>
-            {notes.length === 0 && <button type="button" className="button-glass danger-glass" onClick={deleteTopic}><Trash2 size={15} /> Delete empty collection</button>}
+            {notes.length === 0 && !topic.trashedNoteCount && <button type="button" className="button-glass danger-glass" disabled={uploading || deleting} onClick={deleteTopic}><Trash2 size={15} /> {deleting ? "Deleting…" : "Delete empty collection"}</button>}
             <input ref={coverInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e => void uploadCover(e.target.files?.[0])} />
           </div>
         </div>
       </section>
+      {Boolean(topic.trashedNoteCount) && <div className="inline-alert" role="status"><Trash2 size={16} /> This collection has {topic.trashedNoteCount} note{topic.trashedNoteCount === 1 ? "" : "s"} in Trash. Restore or permanently delete {topic.trashedNoteCount === 1 ? "it" : "them"} before deleting the collection. <a href="/trash">Open Trash</a></div>}
       <div className="section-heading"><div><div className="eyebrow">In this collection</div><h2>Notes and fragments</h2></div><span className="result-count">{notes.length} items</span></div>
       {notes.length ? <div className="note-list">{notes.map(note => <NoteRow key={note.id} note={{ ...note, topicTitle: topic.title }} topics={props.topics} onRefresh={load} onTopicsChanged={props.onRefreshTopics} notify={props.notify} />)}</div>
         : <EmptyState icon={<FileText size={24} />} title="This collection is ready for its first note" description="Start with an observation, a question, a source, or a small idea. You can connect it to other work later." action={<a className="button-primary" href={"/notes/new?topicId=" + topic.id}><Plus size={16} /> Write the first note</a>} />}

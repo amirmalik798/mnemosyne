@@ -12,7 +12,12 @@ export async function GET(_request: Request, context: Context) {
     const session = await requireVaultSession();
     const { id } = await context.params;
     const [result, notesResult] = await Promise.all([
-      queryAsUser(session.userId, "SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, created_at, updated_at FROM topics WHERE id = $1", [id]),
+      queryAsUser(session.userId,
+        `SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, created_at, updated_at,
+                (SELECT COUNT(*)::int FROM notes WHERE topic_id = $1 AND deleted_at IS NOT NULL) AS trashed_note_count
+         FROM topics WHERE id = $1`,
+        [id],
+      ),
       queryAsUser(session.userId, 
         "SELECT id, title_enc, subject_enc, content_enc, tags_enc, pinned, created_at, updated_at FROM notes WHERE topic_id = $1 AND deleted_at IS NULL ORDER BY pinned DESC, updated_at DESC, id DESC",
         [id],
@@ -39,6 +44,7 @@ export async function GET(_request: Request, context: Context) {
         description: decryptText(row.description_enc, session.key),
         category: decryptText(row.category_enc, session.key),
         coverUrl: row.cover_asset_id ? `/api/assets/${row.cover_asset_id}` : null,
+        trashedNoteCount: row.trashed_note_count,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       },

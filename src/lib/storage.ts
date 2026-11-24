@@ -362,18 +362,6 @@ export async function updateNoteAndCleanupAssets(input: {
       }
     }
 
-    if (referenced.length > 0) {
-      const ownedAssets = await client.query(
-        `SELECT id FROM assets
-         WHERE owner_type = 'note' AND owner_id = $1 AND id = ANY($2::uuid[])
-         FOR UPDATE`,
-        [input.noteId, referenced],
-      );
-      if (ownedAssets.rows.length !== referenced.length) {
-        throw new Error("VALIDATION:An image is missing or is not attached to this note.");
-      }
-    }
-
     await client.query(
       `UPDATE notes
        SET topic_id=$1, title_enc=$2, subject_enc=$3, content_enc=$4,
