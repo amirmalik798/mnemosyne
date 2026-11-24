@@ -781,6 +781,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
+  const [submittedScope, setSubmittedScope] = useState("all");
 
   useEffect(() => {
     const initial = new URLSearchParams(window.location.search).get("q") || "";
@@ -795,10 +796,10 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
       setLoading(true); setError("");
       try {
         const response = await fetch("/api/search?q=" + encodeURIComponent(normalized) + "&scope=" + scope, { cache: "no-store", signal: controller.signal });
-        if (response.status === 204) { setNotes([]); setTopics([]); setSubmittedQuery(normalized); return; }
+        if (response.status === 204) { setNotes([]); setTopics([]); setSubmittedQuery(normalized); setSubmittedScope(scope); return; }
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || "Search failed.");
-        setNotes(body.notes || []); setTopics(body.topics || []); setSubmittedQuery(normalized);
+        setNotes(body.notes || []); setTopics(body.topics || []); setSubmittedQuery(normalized); setSubmittedScope(scope);
       } catch (cause) {
         if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Search failed.");
       } finally { if (!controller.signal.aborted) setLoading(false); }
@@ -807,7 +808,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
   }, [query, scope]);
 
   const total = notes.length + topics.length;
-  const hasCurrentResults = submittedQuery === query.trim() && !loading && !error;
+  const hasCurrentResults = submittedQuery === query.trim() && submittedScope === scope && !loading && !error;
   return (
     <div className="page-stack">
       <PageHeading eyebrow="Find a connection" title="Deep search" description="Search note titles, subjects, tags, topic names, and the text inside your notes." />
@@ -822,7 +823,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
       {loading && <div className="search-progress"><Loader2 className="spin" size={16} /> Looking through your archive…</div>}
       {hasCurrentResults && submittedQuery && <div className="search-summary"><span><b>{total}</b> matching results for <strong>“{submittedQuery}”</strong></span><span>Search is performed within your authenticated archive.</span></div>}
       {!query.trim() ? <div className="search-hint"><Sparkles size={18} /><p>Try a phrase, a person, a concept, or a tag you remember.</p></div>
-        : !loading && !error && total === 0 && <EmptyState icon={<Search size={24} />} title="No matching fragments" description="Try a broader phrase, or change the search scope." />}
+        : hasCurrentResults && total === 0 && <EmptyState icon={<Search size={24} />} title="No matching fragments" description="Try a broader phrase, or change the search scope." />}
       {hasCurrentResults && topics.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Collections</h2><span>{topics.length}</span></div><div className="search-topic-results">{topics.map(topic => <button type="button" key={topic.id} onClick={() => router.push("/topics/" + topic.id)} className="search-topic-result"><Folder size={18} /><span><b>{topic.title}</b><small>{topic.category || "Collection"}{topic.subject ? " · " + topic.subject : ""}</small></span><ArrowUpRight size={16} /></button>)}</div></section>}
       {hasCurrentResults && notes.length > 0 && <section className="search-results-section"><div className="section-heading"><h2>Notes</h2><span>{notes.length}</span></div><div className="note-list">{notes.map(note => <button type="button" key={note.id} className="search-note-result" onClick={() => router.push("/notes/" + note.id + "/read")}><div className="note-row-icon"><FileText size={18} /></div><div className="note-row-copy"><div className="note-row-title-line"><h3>{note.title}</h3>{note.pinned && <Pin size={14} className="pin-mark" />}</div><p className="note-preview">{note.preview || note.subject || "Open note to see its contents."}</p><div className="note-meta"><span className="topic-chip">{note.topicTitle || "Collection"}</span><span className="match-chip">{note.matchType || "content"} match</span>{(note.tags || []).slice(0, 3).map(tag => <span className="tag-chip" key={tag}>#{tag}</span>)}</div></div><ArrowUpRight size={17} /></button>)}</div></section>}
       {hasCurrentResults && total > 0 && <div className="search-footnote">Search returns up to 25 collections and 40 notes per query.</div>}
