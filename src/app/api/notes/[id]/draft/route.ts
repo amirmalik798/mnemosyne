@@ -69,7 +69,7 @@ export async function PUT(request: Request, context: Context) {
       `INSERT INTO note_drafts
          (note_id, user_id, topic_id, title_enc, subject_enc, content_enc, tags_enc,
           pinned, base_note_updated_at, created_at, updated_at)
-       SELECT n.id, n.user_id, t.id, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+       SELECT n.id, n.user_id, t.id, $3, $4, $5, $6, $7, $8, NOW(), NOW()
        FROM notes n
        JOIN topics t ON t.id = $2 AND t.user_id = n.user_id
        WHERE n.id = $1 AND n.deleted_at IS NULL
