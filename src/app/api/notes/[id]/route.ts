@@ -52,7 +52,12 @@ export async function PATCH(request: Request, context: Context) {
       pinned,
       content: contentValue,
     });
-    return NextResponse.json({ success: true });
+    const saved = await queryAsUser(session.userId,
+      "SELECT updated_at FROM notes WHERE id = $1 AND deleted_at IS NULL",
+      [id],
+    );
+    if (!saved.rows[0]) throw new Error("NOT_FOUND");
+    return NextResponse.json({ success: true, updatedAt: saved.rows[0].updated_at });
   } catch (error) { return apiError(error); }
 }
 
