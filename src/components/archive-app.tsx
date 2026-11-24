@@ -42,6 +42,7 @@ type SearchResult = {
   preview?: string; matchType?: string; updatedAt?: string;
 };
 type ApiResult<T> = T & { error?: string; message?: string };
+type ToastVariant = "success" | "error";
 
 const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
 
@@ -328,7 +329,7 @@ function VerificationPage() {
   );
 }
 
-function TopicForm(props: { topicId: string | null; topics: Topic[]; onSaved: (topic: Topic) => void; onCancel: () => void; notify: (value: string) => void }) {
+function TopicForm(props: { topicId: string | null; topics: Topic[]; onSaved: (topic: Topic) => void; onCancel: () => void; notify: (value: string, variant?: ToastVariant) => void }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -495,7 +496,7 @@ function TopicsPage(props: { topics: Topic[]; onOpen: (id: string) => void; onCr
   );
 }
 
-function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => void; onComplete: (action: "move" | "copy", topicId: string) => void; notify: (message: string) => void }) {
+function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => void; onComplete: (action: "move" | "copy", topicId: string) => void; notify: (message: string, variant?: ToastVariant) => void }) {
   const [action, setAction] = useState<"move" | "copy">("move");
   const [topicId, setTopicId] = useState(props.topics.find(t => t.id !== props.note.topicId)?.id || "");
   const [busy, setBusy] = useState(false);
@@ -587,7 +588,7 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; on
       props.notify(props.note.pinned ? "Removed from pinned notes." : "Pinned for quick access.");
       props.onRefresh();
       props.onTopicsChanged?.();
-    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to update pin."); }
+    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to update pin.", "error"); }
     finally { setBusy(false); }
   };
   const moveToTrash = async () => {
@@ -598,7 +599,7 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; on
       props.notify("Note moved to Trash.");
       props.onRefresh();
       props.onTopicsChanged?.();
-    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to move note to Trash."); }
+    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to move note to Trash.", "error"); }
     finally { setBusy(false); }
   };
   const share = async () => {
@@ -606,7 +607,7 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; on
     try {
       await navigator.clipboard.writeText(url);
       props.notify("Reading link copied. Recipients need access to this archive.");
-    } catch { props.notify("Your browser could not copy the reading link."); }
+    } catch { props.notify("Your browser could not copy the reading link.", "error"); }
   };
   return (
     <article className="note-row">
@@ -711,7 +712,7 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
   const uploadCover = async (file?: File) => {
     if (!file) return;
     if (file.size > 8 * 1024 * 1024) {
-      props.notify("Topic covers must be 8 MB or smaller.");
+      props.notify("Topic covers must be 8 MB or smaller.", "error");
       if (coverInput.current) coverInput.current.value = "";
       return;
     }
@@ -722,7 +723,7 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
       setTopic(current => current ? { ...current, coverUrl: result.coverUrl } : current);
       props.notify("Collection cover updated.");
       props.onRefreshTopics();
-    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to upload this cover."); }
+    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to upload this cover.", "error"); }
     finally { setUploading(false); if (coverInput.current) coverInput.current.value = ""; }
   };
 
@@ -734,7 +735,7 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
       setTopic(current => current ? { ...current, coverUrl: null } : current);
       props.notify("Collection cover removed.");
       props.onRefreshTopics();
-    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to remove cover."); }
+    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to remove cover.", "error"); }
     finally { setUploading(false); }
   };
 
@@ -743,19 +744,19 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
       const response = await fetch("/api/topics/" + props.topicId + "/images", { cache: "no-store" });
       if (!response.ok) { const body = await response.json(); throw new Error(body.error || "Unable to export collection images."); }
       downloadBlob(await response.blob(), (topic?.title || "topic").replace(/[\\/:*?"<>|]+/g, "-") + "-images.zip");
-    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to export images."); }
+    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to export images.", "error"); }
   };
 
   const deleteTopic = async () => {
     if (uploading || deleting) return;
-    if (notes.length) { props.notify("Move or delete the active notes before deleting this collection."); return; }
-    if (topic?.trashedNoteCount) { props.notify("Restore or permanently delete the notes in Trash before deleting this collection."); return; }
+    if (notes.length) { props.notify("Move or delete the active notes before deleting this collection.", "error"); return; }
+    if (topic?.trashedNoteCount) { props.notify("Restore or permanently delete the notes in Trash before deleting this collection.", "error"); return; }
     if (!window.confirm("Delete this empty collection? This cannot be undone.")) return;
     setDeleting(true);
     try {
       await apiJson("/api/topics/" + props.topicId, { method: "DELETE" });
       props.notify("Empty collection deleted."); props.onRefreshTopics(); router.push("/topics");
-    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to delete collection."); }
+    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to delete collection.", "error"); }
     finally { setDeleting(false); }
   };
 
@@ -880,7 +881,7 @@ function TrashPage(props: { notify: (message: string) => void; onTopicsChanged: 
       props.notify(action === "restore" ? "Note restored to its collection." : "Note permanently deleted.");
       if (action === "restore") props.onTopicsChanged();
       await load();
-    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to update Trash."); }
+    } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to update Trash.", "error"); }
     finally { setBusyId(""); }
   };
 
@@ -1569,10 +1570,12 @@ export default function ArchiveApp() {
   const [focusMode, setFocusMode] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [toast, setToast] = useState("");
+  const [toastVariant, setToastVariant] = useState<ToastVariant>("success");
   const toastTimer = useRef<number | null>(null);
 
-  const notify = useCallback((message: string) => {
+  const notify = useCallback((message: string, variant: ToastVariant = "success") => {
     setToast(message);
+    setToastVariant(variant);
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(""), 3600);
   }, []);
@@ -1586,7 +1589,7 @@ export default function ArchiveApp() {
     if (categoryResult.status === "fulfilled") setCategories(categoryResult.value.categories || []);
     if (topicResult.status === "rejected" || categoryResult.status === "rejected") {
       const cause = topicResult.status === "rejected" ? topicResult.reason : categoryResult.status === "rejected" ? categoryResult.reason : null;
-      notify(cause instanceof Error ? cause.message : "Some collection navigation data could not be refreshed.");
+      notify(cause instanceof Error ? cause.message : "Some collection navigation data could not be refreshed.", "error");
     }
   }, [notify]);
 
@@ -1678,7 +1681,7 @@ export default function ArchiveApp() {
       setSession(null);
       router.push("/login");
     } catch (cause) {
-      notify(cause instanceof Error ? cause.message : "Unable to lock your archive. Your session is still active.");
+      notify(cause instanceof Error ? cause.message : "Unable to lock your archive. Your session is still active.", "error");
     }
   };
 
@@ -1702,7 +1705,7 @@ export default function ArchiveApp() {
       const markdown = "# Mnemosyne archive export\n\nExported " + formatDate(new Date().toISOString(), true) + "\n\nCollections: " + topics.length + "\nNotes: " + collected.length + body;
       downloadBlob(new Blob([markdown], { type: "text/markdown;charset=utf-8" }), "mnemosyne-archive.md");
       notify("Archive Markdown export is ready.");
-    } catch (cause) { notify(cause instanceof Error ? cause.message : "Unable to export the archive."); }
+    } catch (cause) { notify(cause instanceof Error ? cause.message : "Unable to export the archive.", "error"); }
   };
 
   if (publicRoute) {
@@ -1786,7 +1789,7 @@ export default function ArchiveApp() {
         </header>}
         <main className="app-content">{page}</main>
       </div>
-      {toast && <div className="toast-message" role="status"><CheckCircle2 size={16} />{toast}<button type="button" onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div>}
+      {toast && <div className={"toast-message " + toastVariant} role={toastVariant === "error" ? "alert" : "status"}><span aria-hidden="true">{toastVariant === "error" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}</span>{toast}<button type="button" onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div>}
       <nav className="mobile-bottom-nav"><a href="/" className={pathname === "/" ? "active" : ""}><LayoutDashboard size={19} /><span>Home</span></a><a href="/topics" className={parts[0] === "topics" ? "active" : ""}><Folder size={19} /><span>Topics</span></a><a href="/notes/new" className="mobile-bottom-create"><Plus size={20} /><span>New</span></a><a href="/all-notes" className={parts[0] === "all-notes" ? "active" : ""}><FileText size={19} /><span>Notes</span></a><a href="/search" className={parts[0] === "search" ? "active" : ""}><Search size={19} /><span>Search</span></a></nav>
     </div>
   );
