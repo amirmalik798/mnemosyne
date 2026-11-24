@@ -1686,7 +1686,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
           <div className="editor-side-actions">
             <button type="button" className="button-primary full-button" disabled={busyUpload || saveState === "saving" || (!dirty && !isNew)} onClick={() => void saveNote(false)}><Save size={16} /> {busyUpload ? "Finishing image upload…" : isNew ? "Create note" : "Save note"}</button>
             {props.noteId && <>
-              <button type="button" className="button-secondary full-button" onClick={() => router.push("/notes/" + props.noteId + "/read")}><BookOpen size={16} /> Read this note</button>
+              <button type="button" className="button-secondary full-button" onClick={() => props.onNavigate("/notes/" + props.noteId + "/read")}><BookOpen size={16} /> Read this note</button>
               <button type="button" className="button-secondary full-button" onClick={() => saveMarkdown(title, editor?.getJSON())}><Download size={16} /> Export Markdown</button>
               <button type="button" className="button-secondary full-button" onClick={exportImages}><FileArchive size={16} /> Download images</button>
               <button type="button" className="button-secondary full-button" disabled={busyUpload} onClick={() => {
@@ -1857,8 +1857,11 @@ export default function ArchiveApp() {
     });
     return result === true;
   }, [noteSaveAction?.unsaved, isNewNoteRoute, requestDialog]);
-  const navigateWithGuard = useCallback(async (href: string) => {
-    if (await confirmUnsavedChanges()) router.push(href);
+  const navigateWithGuard = useCallback(async (href: string, closeSidebar = false) => {
+    if (await confirmUnsavedChanges()) {
+      if (closeSidebar) setSidebarOpen(false);
+      router.push(href);
+    }
   }, [confirmUnsavedChanges, router]);
   const handleUnsavedNavigationClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!noteSaveAction?.unsaved || event.defaultPrevented || event.button !== 0 ||
@@ -2164,7 +2167,7 @@ export default function ArchiveApp() {
       <div className="mobile-topbar"><button type="button" className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button type="button" className="mobile-theme-button" onClick={toggleTheme} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><button type="button" className="mobile-add-button" onClick={() => parts[0] === "notes" && parts[1] && parts[2] !== "read" ? noteSaveActionRef.current?.() : router.push("/notes/new")} aria-label={parts[0] === "notes" && parts[1] && parts[2] !== "read" ? (noteSaveAction?.label || (parts[1] === "new" ? "Create note" : "Save note")) : "Create new note"} disabled={parts[0] === "notes" && parts[1] && parts[2] !== "read" ? noteSaveAction?.disabled ?? true : false}>{parts[0] === "notes" && parts[1] && parts[2] !== "read" ? noteSaveAction?.saving ? <Loader2 className="spin" size={19} /> : <Save size={19} /> : <Plus size={19} />}</button></div>
       <aside className="icon-rail">
         <a href="/" className="rail-brand" aria-label="Mnemosyne overview"><BookOpen size={21} /></a>
-        <button type="button" className="rail-add" title="Quick capture · N" onClick={() => router.push("/notes/new")}><Plus size={20} /></button>
+        <button type="button" className="rail-add" title="Quick capture · N" onClick={() => void navigateWithGuard("/notes/new")}><Plus size={20} /></button>
         <div className="rail-nav">
           <a href="/search" title="Deep search · Ctrl/⌘ K" aria-current={parts[0] === "search" ? "page" : undefined} className={parts[0] === "search" ? "active" : ""}><Search size={19} /></a>
           <a href="/" title="Knowledge dashboard" aria-current={pathname === "/" ? "page" : undefined} className={pathname === "/" ? "active" : ""}><LayoutDashboard size={19} /></a>
@@ -2195,7 +2198,7 @@ export default function ArchiveApp() {
           <a href="/search" aria-current={parts[0] === "search" ? "page" : undefined} className={parts[0] === "search" ? "selected" : ""}><Search size={17} /><span>Deep search</span></a>
         </div>
         <div className="sidebar-section collection-nav">
-          <div className="sidebar-section-heading"><span className="sidebar-section-label">Topic collections</span><button type="button" title="Create a collection" onClick={() => { router.push("/topics/new"); setSidebarOpen(false); }}><Plus size={15} /></button></div>
+          <div className="sidebar-section-heading"><span className="sidebar-section-label">Topic collections</span><button type="button" title="Create a collection" onClick={() => void navigateWithGuard("/topics/new", true)}><Plus size={15} /></button></div>
           {topics.slice(0, 10).map(topic => <a key={topic.id} href={"/topics/" + topic.id} className={parts[0] === "topics" && parts[1] === topic.id ? "selected" : ""}><Folder size={16} /><span>{topic.title}</span><small>{topic.noteCount}</small></a>)}
           <a href="/topics" className="sidebar-see-all">Explore all collections <ArrowRight size={13} /></a>
         </div>
