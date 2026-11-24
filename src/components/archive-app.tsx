@@ -29,7 +29,7 @@ type Note = {
   id: string; topicId: string; topicTitle?: string; title: string; subject: string;
   content: any; tags: string[]; pinned: boolean; createdAt: string; updatedAt: string;
 };
-type Pagination = { total: number; offset: number; limit: number; hasMore: boolean };
+type Pagination = { total: number; pinnedCount?: number; offset: number; limit: number; hasMore: boolean };
 type SearchResult = {
   id: string; topicId?: string; title: string; subject?: string; topicTitle?: string;
   category?: string; coverUrl?: string | null; tags?: string[]; pinned?: boolean;
@@ -943,26 +943,31 @@ function SettingsPage(props: { session: UserSession; onLogout: () => void; notif
 function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (message: string) => void; onTopicsChanged: () => void }) {
   const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [totalNotes, setTotalNotes] = useState(0);
+  const [pinnedCount, setPinnedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const result = await apiJson<{ notes: Note[]; pagination: Pagination }>("/api/notes?limit=100&offset=0");
-      setNotes(result.notes); setTotalNotes(result.pagination?.total ?? result.notes.length);
+      const result = await apiJson<{ notes: Note[]; recentNotes?: Note[]; pagination: Pagination }>("/api/notes?limit=100&offset=0&summary=dashboard");
+      setNotes(result.notes);
+      setRecentNotes(result.recentNotes || []);
+      setTotalNotes(result.pagination?.total ?? result.notes.length);
+      setPinnedCount(result.pagination?.pinnedCount ?? result.notes.filter(note => note.pinned).length);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load your archive."); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  const sorted = useMemo(() => [...notes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [notes]);
+  const sorted = useMemo(() => [...recentNotes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [recentNotes]);
   const latest = sorted[0];
   const pinned = notes.filter(n => n.pinned).slice(0, 3);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = props.session.displayName?.trim().split(/\s+/)[0] || "there";
-  const pinCountLabel = notes.length === 100 && totalNotes > 100 && notes.every(n => n.pinned) ? "100+" : String(notes.filter(n => n.pinned).length);
+  const pinCountLabel = String(pinnedCount);
 
   return (
     <div className="page-stack dashboard-page">
@@ -985,7 +990,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
       <section className="metric-grid">
         <div className="metric-card"><div className="metric-label"><span>Collections</span><Folder size={17} /></div><strong>{props.topics.length}</strong><small>Personal topic spaces</small></div>
         <div className="metric-card"><div className="metric-label"><span>Notes in archive</span><FileText size={17} /></div><strong>{totalNotes}</strong><small>Saved manuscripts and fragments</small></div>
-        <div className="metric-card"><div className="metric-label"><span>Pinned notes</span><Pin size={17} /></div><strong>{pinCountLabel}</strong><small>{notes.length === 100 && totalNotes > 100 && notes.every(n => n.pinned) ? "At least 100 in the current page" : "Quick-access anchors"}</small></div>
+        <div className="metric-card"><div className="metric-label"><span>Pinned notes</span><Pin size={17} /></div><strong>{pinCountLabel}</strong><small>{pinnedCount > 100 ? "Across your archive" : "Quick-access anchors"}</small></div>
         <div className="metric-card"><div className="metric-label"><span>Latest activity</span><Clock3 size={17} /></div><strong className="metric-date">{latest ? relativeDate(latest.updatedAt) : "—"}</strong><small>{latest ? "Most recently updated note" : "Your archive is ready"}</small></div>
       </section>
       {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={load}>Retry</button></div>}

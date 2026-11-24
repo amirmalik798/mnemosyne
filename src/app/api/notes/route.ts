@@ -45,9 +45,22 @@ export async function GET(request: Request) {
 
     const limit = parseBoundedInteger(params.get("limit"), 50, 1, 100);
     const offset = parseBoundedInteger(params.get("offset"), 0, 0, 1_000_000);
-    const [countResult, pageResult] = await Promise.all([
-      queryAsUser(session.userId, "SELECT COUNT(*)::int AS total FROM notes WHERE deleted_at IS NULL"),
-      queryAsUser(session.userId, 
+    const includeDashboardSummary = params.get("summary") === "dashboard";
+    const recentPromise = includeDashboardSummary
+      ? queryAsUser(session.userId,
+          `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc,
+                  n.pinned, n.created_at, n.updated_at, t.title_enc AS topic_title_enc
+           FROM notes n JOIN topics t ON t.id = n.topic_id
+           WHERE n.deleted_at IS NULL
+           ORDER BY n.updated_at DESC, n.id DESC
+           LIMIT 5`,
+        )
+      : Promise.resolve({ rows: [] as Record<string, unknown>[] });
+    const [countResult, pageResult, recentResult] = await Promise.all([
+      queryAsUser(session.userId,
+        "SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE pinned)::int AS pinned_count FROM notes WHERE deleted_at IS NULL",
+      ),
+      queryAsUser(session.userId,
         `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc,
                 n.pinned, n.created_at, n.updated_at, t.title_enc AS topic_title_enc
          FROM notes n JOIN topics t ON t.id = n.topic_id
@@ -56,12 +69,20 @@ export async function GET(request: Request) {
          LIMIT $1 OFFSET $2`,
         [limit, offset],
       ),
+      recentPromise,
     ]);
     const notes = pageResult.rows.map((row) => serializeNote(row, session.key));
     const total = Number(countResult.rows[0]?.total ?? 0);
     return NextResponse.json({
       notes,
-      pagination: { total, offset, limit, hasMore: offset + notes.length < total },
+      pagination: {
+        total,
+        pinnedCount: Number(countResult.rows[0]?.pinned_count ?? 0),
+        offset,
+        limit,
+        hasMore: offset + notes.length < total,
+      },
+      ...(includeDashboardSummary ? { recentNotes: recentResult.rows.map((row) => serializeNote(row, session.key)) } : {}),
     });
   } catch (error) {
     return apiError(error);
