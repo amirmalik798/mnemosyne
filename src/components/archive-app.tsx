@@ -1396,29 +1396,29 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
           </div>
           <div className="editor-toolbar" role="toolbar" aria-label="Text formatting">
             <div className="toolbar-group">
-              <button type="button" title="Paragraph" aria-label="Paragraph" className={editor?.isActive("paragraph") ? "tool-active" : ""} onClick={() => editor?.chain().focus().setParagraph().run()} disabled={creating}><Type size={16} /></button>
-              <button type="button" title="Heading 1" aria-label="Heading 1" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} disabled={creating}>H1</button>
-              <button type="button" title="Heading 2" aria-label="Heading 2" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} disabled={creating}>H2</button>
-              <button type="button" title="Heading 3" aria-label="Heading 3" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} disabled={creating}>H3</button>
+              <button type="button" title="Paragraph" aria-label="Paragraph" className={editor?.isActive("paragraph") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("paragraph"))} onClick={() => editor?.chain().focus().setParagraph().run()} disabled={creating}><Type size={16} /></button>
+              <button type="button" title="Heading 1" aria-label="Heading 1" className={editor?.isActive("heading", { level: 1 }) ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("heading", { level: 1 }))} onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} disabled={creating}>H1</button>
+              <button type="button" title="Heading 2" aria-label="Heading 2" className={editor?.isActive("heading", { level: 2 }) ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("heading", { level: 2 }))} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} disabled={creating}>H2</button>
+              <button type="button" title="Heading 3" aria-label="Heading 3" className={editor?.isActive("heading", { level: 3 }) ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("heading", { level: 3 }))} onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} disabled={creating}>H3</button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">
-              <button type="button" title="Bold" aria-label="Bold" className={editor?.isActive("bold") ? "tool-active" : ""} onClick={() => editor?.chain().focus().toggleBold().run()} disabled={creating}><Bold size={16} /></button>
-              <button type="button" title="Italic" aria-label="Italic" className={editor?.isActive("italic") ? "tool-active" : ""} onClick={() => editor?.chain().focus().toggleItalic().run()} disabled={creating}><Italic size={16} /></button>
-              <button type="button" title="Strikethrough" aria-label="Strikethrough" onClick={() => editor?.chain().focus().toggleStrike().run()} disabled={creating}><Strikethrough size={16} /></button>
-              <button type="button" title="Inline code" aria-label="Inline code" onClick={() => editor?.chain().focus().toggleCode().run()} disabled={creating}><Code size={16} /></button>
+              <button type="button" title="Bold" aria-label="Bold" className={editor?.isActive("bold") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("bold"))} onClick={() => editor?.chain().focus().toggleBold().run()} disabled={creating}><Bold size={16} /></button>
+              <button type="button" title="Italic" aria-label="Italic" className={editor?.isActive("italic") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("italic"))} onClick={() => editor?.chain().focus().toggleItalic().run()} disabled={creating}><Italic size={16} /></button>
+              <button type="button" title="Strikethrough" aria-label="Strikethrough" className={editor?.isActive("strike") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("strike"))} onClick={() => editor?.chain().focus().toggleStrike().run()} disabled={creating}><Strikethrough size={16} /></button>
+              <button type="button" title="Inline code" aria-label="Inline code" className={editor?.isActive("code") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("code"))} onClick={() => editor?.chain().focus().toggleCode().run()} disabled={creating}><Code size={16} /></button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">
-              <button type="button" title="Bulleted list" aria-label="Bulleted list" onClick={() => editor?.chain().focus().toggleBulletList().run()} disabled={creating}><List size={16} /></button>
-              <button type="button" title="Numbered list" aria-label="Numbered list" onClick={() => editor?.chain().focus().toggleOrderedList().run()} disabled={creating}><ListOrdered size={16} /></button>
-              <button type="button" title="Quote" aria-label="Quote" onClick={() => editor?.chain().focus().toggleBlockquote().run()} disabled={creating}><Quote size={16} /></button>
-              <button type="button" title="Code block" aria-label="Code block" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} disabled={creating}><Code size={16} /></button>
+              <button type="button" title="Bulleted list" aria-label="Bulleted list" className={editor?.isActive("bulletList") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("bulletList"))} onClick={() => editor?.chain().focus().toggleBulletList().run()} disabled={creating}><List size={16} /></button>
+              <button type="button" title="Numbered list" aria-label="Numbered list" className={editor?.isActive("orderedList") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("orderedList"))} onClick={() => editor?.chain().focus().toggleOrderedList().run()} disabled={creating}><ListOrdered size={16} /></button>
+              <button type="button" title="Quote" aria-label="Quote" className={editor?.isActive("blockquote") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("blockquote"))} onClick={() => editor?.chain().focus().toggleBlockquote().run()} disabled={creating}><Quote size={16} /></button>
+              <button type="button" title="Code block" aria-label="Code block" className={editor?.isActive("codeBlock") ? "tool-active" : ""} aria-pressed={Boolean(editor?.isActive("codeBlock"))} onClick={() => editor?.chain().focus().toggleCodeBlock().run()} disabled={creating}><Code size={16} /></button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">
               <button type="button" title="Insert image" aria-label="Insert image" disabled={creating || !props.noteId || busyUpload} onClick={() => uploadRef.current?.click()}>{busyUpload ? <Loader2 size={16} className="spin" /> : <ImagePlus size={16} />}</button>
-              <button type="button" title="Toggle right-to-left writing" aria-label="Toggle right-to-left writing" className={rtl ? "tool-active" : ""} onClick={() => updateDirection(!rtl)} disabled={creating}>{rtl ? <AlignLeft size={16} /> : <AlignRight size={16} />}</button>
+              <button type="button" title="Toggle right-to-left writing" aria-label="Toggle right-to-left writing" className={rtl ? "tool-active" : ""} aria-pressed={rtl} onClick={() => updateDirection(!rtl)} disabled={creating}>{rtl ? <AlignLeft size={16} /> : <AlignRight size={16} />}</button>
               <button type="button" title="Undo" aria-label="Undo" disabled={creating || !editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={16} /></button>
               <button type="button" title="Redo" aria-label="Redo" disabled={creating || !editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={16} /></button>
             </div>
