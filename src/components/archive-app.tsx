@@ -1569,6 +1569,7 @@ export default function ArchiveApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [themeReady, setThemeReady] = useState(false);
   const [toast, setToast] = useState("");
   const [toastVariant, setToastVariant] = useState<ToastVariant>("success");
   const toastTimer = useRef<number | null>(null);
@@ -1594,11 +1595,34 @@ export default function ArchiveApp() {
   }, [notify]);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("mnemosyne-theme");
-    if (saved === "light" || saved === "dark") setTheme(saved);
+    try {
+      const saved = window.localStorage.getItem("mnemosyne-theme");
+      if (saved === "light" || saved === "dark") setTheme(saved);
+    } catch {
+      // Keep the default theme when browser storage is unavailable.
+    } finally {
+      setThemeReady(true);
+    }
   }, []);
   useEffect(() => {
-    window.localStorage.setItem("mnemosyne-theme", theme);
+    // Do not persist the initial dark default before the saved preference loads.
+    if (!themeReady) return;
+    try {
+      window.localStorage.setItem("mnemosyne-theme", theme);
+    } catch {
+      // The selected theme remains active for this session if storage is unavailable.
+    }
+  }, [theme, themeReady]);
+
+  const toggleTheme = useCallback(() => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    // Persist in the click handler too, so an immediate refresh cannot lose the change.
+    try {
+      window.localStorage.setItem("mnemosyne-theme", nextTheme);
+    } catch {
+      // Theme switching still works for the current session.
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -1736,7 +1760,7 @@ export default function ArchiveApp() {
 
   return (
     <div className={"mnemosyne-app theme-" + theme + (focusMode ? " focus-mode" : "")}>
-      <div className="mobile-topbar"><button type="button" className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button type="button" className="mobile-theme-button" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><button type="button" className="mobile-add-button" onClick={() => router.push("/notes/new")} aria-label="Create new note"><Plus size={19} /></button></div>
+      <div className="mobile-topbar"><button type="button" className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button type="button" className="mobile-theme-button" onClick={toggleTheme} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><button type="button" className="mobile-add-button" onClick={() => router.push("/notes/new")} aria-label="Create new note"><Plus size={19} /></button></div>
       <aside className="icon-rail">
         <a href="/" className="rail-brand" aria-label="Mnemosyne overview"><BookOpen size={21} /></a>
         <button type="button" className="rail-add" title="Quick capture · N" onClick={() => router.push("/notes/new")}><Plus size={20} /></button>
@@ -1749,7 +1773,7 @@ export default function ArchiveApp() {
         </div>
         <div className="rail-bottom">
           <button type="button" title="Lock archive" onClick={lockVault}><Lock size={17} /></button>
-          <button type="button" title="Toggle theme" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
+          <button type="button" title="Toggle theme" onClick={toggleTheme}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
           <a href="/settings" title="Account settings"><Settings size={17} /></a>
           <div className="avatar-mark" title={session.displayName}>{(session.displayName || "M").slice(0, 1).toUpperCase()}</div>
         </div>
