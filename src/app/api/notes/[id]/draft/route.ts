@@ -9,6 +9,10 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
 
+function timestampIso(value: unknown): string {
+  return value instanceof Date ? value.toISOString() : new Date(String(value)).toISOString();
+}
+
 function serializeDraft(row: Record<string, unknown>, key: Buffer) {
   return {
     topicId: row.topic_id,
@@ -17,9 +21,9 @@ function serializeDraft(row: Record<string, unknown>, key: Buffer) {
     content: JSON.parse(decryptText(row.content_enc as Buffer, key)),
     tags: JSON.parse(decryptText(row.tags_enc as Buffer, key)),
     pinned: Boolean(row.pinned),
-    baseNoteUpdatedAt: new Date(row.base_note_updated_at as string | Date).toISOString(),
-    updatedAt: new Date(row.updated_at as string | Date).toISOString(),
-    noteUpdatedAt: new Date(row.note_updated_at as string | Date).toISOString(),
+    baseNoteUpdatedAt: timestampIso(row.base_note_updated_at),
+    updatedAt: timestampIso(row.updated_at),
+    noteUpdatedAt: timestampIso(row.note_updated_at),
   };
 }
 
