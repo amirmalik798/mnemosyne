@@ -96,6 +96,11 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const session = await requireVaultSession();
     const body = await readJsonObject(request, 8_500_000);
+    const requestedId = stringField(body, "id", 64);
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (requestedId && !uuidPattern.test(requestedId)) {
+      throw new Error("VALIDATION:Note creation identifier is invalid.");
+    }
     const topicId = stringField(body, "topicId", 64, true);
     const title = stringField(body, "title", 180, true);
     const subject = stringField(body, "subject", 180);
@@ -107,23 +112,34 @@ export async function POST(request: Request) {
     const pinned = typeof body.pinned === "boolean" ? body.pinned : false;
     const result = await queryAsUser(session.userId,
       `WITH inserted AS (
-         INSERT INTO notes (topic_id, title_enc, subject_enc, content_enc, tags_enc, pinned)
-         SELECT t.id, $2, $3, $4, $5, $6
+         INSERT INTO notes (id, topic_id, title_enc, subject_enc, content_enc, tags_enc, pinned)
+         SELECT COALESCE($1::uuid, gen_random_uuid()), t.id, $3, $4, $5, $6, $7
          FROM topics t
-         WHERE t.id = $1
+         WHERE t.id = $2
+         ON CONFLICT (id) DO NOTHING
          RETURNING id, topic_id, created_at, updated_at
+       ),
+       resolved AS (
+         SELECT id, topic_id, created_at, updated_at FROM inserted
+         UNION ALL
+         SELECT n.id, n.topic_id, n.created_at, n.updated_at
+         FROM notes n
+         WHERE $1 IS NOT NULL
+           AND n.id = $1::uuid
+           AND n.deleted_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM inserted)
        ),
        touched_topic AS (
          UPDATE topics t
          SET updated_at = NOW()
-         FROM inserted i
+         FROM resolved i
          WHERE t.id = i.topic_id
          RETURNING t.id
        )
        SELECT i.id, i.created_at, i.updated_at
-       FROM inserted i
+       FROM resolved i
        JOIN touched_topic t ON t.id = i.topic_id`,
-      [topicId, encryptText(title, session.key), encryptText(subject, session.key), encryptText(content, session.key), encryptText(JSON.stringify(tags), session.key), pinned],
+      [requestedId || null, topicId, encryptText(title, session.key), encryptText(subject, session.key), encryptText(content, session.key), encryptText(JSON.stringify(tags), session.key), pinned],
     );
     if (!result.rows[0]) throw new Error("VALIDATION:Choose a valid topic.");
     return NextResponse.json({ note: { id: result.rows[0].id, topicId, title, subject, content: JSON.parse(content), tags, pinned, createdAt: result.rows[0].created_at, updatedAt: result.rows[0].updated_at } }, { status: 201 });

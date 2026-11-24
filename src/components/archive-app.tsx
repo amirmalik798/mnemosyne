@@ -1063,6 +1063,9 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   const revisionRef = useRef(0);
   const persistedTopicId = useRef("");
   const baseNoteUpdatedAt = useRef("");
+  // Reuse one ID when a create request is retried after an ambiguous network
+  // failure, so a committed request cannot create a duplicate note.
+  const createRequestId = useRef<string | null>(null);
   const isNew = !props.noteId;
 
   const editor = useEditor({
@@ -1155,7 +1158,11 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
         // editor remounts on the newly-created note route.
         setCreating(true);
         editor?.setEditable(false);
-        const result = await apiJson<{ note: Note }>("/api/notes", { method: "POST", body: JSON.stringify(payload) });
+        if (!createRequestId.current) createRequestId.current = crypto.randomUUID();
+        const result = await apiJson<{ note: Note }>("/api/notes", {
+          method: "POST",
+          body: JSON.stringify({ ...payload, id: createRequestId.current }),
+        });
         persistedTopicId.current = topicId;
         props.onTopicsChanged();
         props.notify("Your note has been created.");

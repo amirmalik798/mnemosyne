@@ -91,25 +91,38 @@ async function main() {
       );
     };
 
-    const createdLifecycleNote = await client.query(
+    // A client-generated note ID makes create retries idempotent if the
+    // server commits but the response is lost before reaching the browser.
+    const createWithStableId = () => client.query(
       `WITH inserted AS (
          INSERT INTO notes (id, topic_id, title_enc, subject_enc, content_enc, tags_enc)
-         SELECT $2, t.id, $3, $3, $3, $3
+         SELECT $1, t.id, $3, $3, $3, $3
          FROM topics t
-         WHERE t.id=$1
-         RETURNING id, topic_id
+         WHERE t.id=$2
+         ON CONFLICT (id) DO NOTHING
+         RETURNING id, topic_id, created_at, updated_at
+       ),
+       resolved AS (
+         SELECT id, topic_id, created_at, updated_at FROM inserted
+         UNION ALL
+         SELECT n.id, n.topic_id, n.created_at, n.updated_at
+         FROM notes n
+         WHERE n.id=$1 AND n.deleted_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM inserted)
        ),
        touched_topic AS (
-         UPDATE topics t
-         SET updated_at=NOW()
-         FROM inserted i
-         WHERE t.id=i.topic_id
+         UPDATE topics t SET updated_at=NOW()
+         FROM resolved i WHERE t.id=i.topic_id
          RETURNING t.id
        )
-       SELECT i.id FROM inserted i JOIN touched_topic t ON t.id=i.topic_id`,
-      [topicA, lifecycleNote, randomBytes(48)],
+       SELECT i.id FROM resolved i JOIN touched_topic t ON t.id=i.topic_id`,
+      [lifecycleNote, topicA, randomBytes(48)],
     );
+    const createdLifecycleNote = await createWithStableId();
+    const retriedLifecycleNote = await createWithStableId();
     assert.equal(createdLifecycleNote.rowCount, 1, "note creation should also touch its topic");
+    assert.equal(retriedLifecycleNote.rowCount, 1, "retrying the same note creation should return the existing note");
+    assert.equal(retriedLifecycleNote.rows[0].id, createdLifecycleNote.rows[0].id, "an ambiguous create retry must not duplicate a note");
     await assertTopicTimestampTouched("creation");
 
     await resetTopicTimestamp();
