@@ -40,7 +40,7 @@ Copy `.env.example` to `.env.local`.
 - `DATABASE_URL`: privileged migration/administration connection. Do not use it for the app runtime.
 - `APP_DATABASE_URL`: dedicated restricted application role. Required by the app and `npm run db:check`.
 - `SESSION_ENCRYPTION_SECRET`: 64 hexadecimal characters. Keep it stable and backed up; it protects vault keys in server-side sessions.
-- `APP_BASE_URL`: canonical app origin, for example `https://archive.example.com`.
+- `APP_BASE_URL`: base address used in account-verification emails. Use `http://localhost:3000` for local testing on your computer, your computer's LAN address when opening verification links on a phone, and an HTTPS origin in production.
 - `GOOGLE_APPS_SCRIPT_URL`: deployed Apps Script Web App URL ending in `/exec`.
 - `GOOGLE_APPS_SCRIPT_SECRET`: high-entropy shared secret known only to the app server and Apps Script.
 - `MNEMOSYNE_LEGACY_OWNER_EMAIL`: existing single-user installations only; see migration section.
@@ -84,7 +84,7 @@ If your migration role is not named `postgres`, use its actual name in both `ALT
 4. Choose **Deploy → New deployment → Web app**.
 5. Set **Execute as** to your Google account and **Who has access** to **Anyone**. The endpoint must be reachable by the server; the shared secret is checked on every request.
 6. Copy the Web App URL ending in `/exec` into `GOOGLE_APPS_SCRIPT_URL`.
-7. Set `APP_BASE_URL` to the public app origin and restart/redeploy Mnemosyne.
+7. For local testing on the same computer, set `APP_BASE_URL=http://localhost:3000`. Verification emails will contain a localhost link; open that link on the computer running Mnemosyne. If you need to open the email link on your phone, use the computer's LAN address instead. Use an HTTPS origin only for a deployed production app. Restart Mnemosyne after changing `.env.local`.
 
 The script sends mail through Google's `MailApp` and is subject to Google account quotas and policies. It is suitable for initial use; a transactional email provider may be preferable at scale. Rotate both copies of the secret together if exposed.
 
@@ -92,10 +92,10 @@ The verification token is placed in a URL fragment, not a query string. The brow
 
 ## Fresh local installation
 
-1. Start PostgreSQL and create an empty database named `mnemosyne`.
-2. Copy `.env.example` to `.env.local`. Generate `SESSION_ENCRYPTION_SECRET` and `GOOGLE_APPS_SCRIPT_SECRET`, and configure the Apps Script gateway.
-3. Set `DATABASE_URL` to your privileged migration connection.
-4. Install and migrate:
+1. Start PostgreSQL with `docker compose up -d postgres`. This creates the local `mnemosyne` database and keeps its data in a Docker volume.
+2. Copy `.env.example` to `.env.local` if you do not already have a local environment file. Generate `SESSION_ENCRYPTION_SECRET` and `GOOGLE_APPS_SCRIPT_SECRET`, and configure the Apps Script gateway.
+3. Set `APP_BASE_URL=http://localhost:3000` for local computer use, and set `DATABASE_URL` to your privileged migration connection. Do not replace existing secrets when updating an existing installation.
+4. Install dependencies and apply the schema:
 
    ```bash
    npm install
@@ -109,7 +109,7 @@ The verification token is placed in a URL fragment, not a query string. The brow
    npm run db:check
    ```
 
-7. Start Next.js with `npm run dev`, open `http://localhost:3000/register`, create an account, confirm the email and sign in.
+7. Start Next.js with `npm run dev` and open `http://localhost:3000/register`. Create an account and open the verification email on the same computer. Local computer use does not require a public app hostname.
 
 ## Use on your computer and phone without cloud storage
 
