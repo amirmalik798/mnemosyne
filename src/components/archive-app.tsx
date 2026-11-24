@@ -43,6 +43,7 @@ type SearchResult = {
 };
 type ApiResult<T> = T & { error?: string; message?: string };
 type ToastVariant = "success" | "error";
+type NoteSaveActionState = { label: "Create note" | "Save note"; disabled: boolean; saving: boolean };
 
 const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
 
@@ -1071,7 +1072,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
   );
 }
 
-function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void }) {
+function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void; onSaveActionChange: (action: (() => void) | null, state?: NoteSaveActionState) => void }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -1250,6 +1251,15 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
 
   const saveRef = useRef(saveNote);
   useEffect(() => { saveRef.current = saveNote; }, [saveNote]);
+  const triggerManualSave = useCallback(() => { void saveRef.current(false); }, []);
+  useEffect(() => {
+    props.onSaveActionChange(triggerManualSave, {
+      label: isNew ? "Create note" : "Save note",
+      disabled: loading || busyUpload || saveState === "saving" || (!dirty && !isNew),
+      saving: saveState === "saving",
+    });
+  }, [props.onSaveActionChange, triggerManualSave, isNew, loading, busyUpload, saveState, dirty]);
+  useEffect(() => () => props.onSaveActionChange(null), [props.onSaveActionChange]);
   useEffect(() => {
     if (isNew || !dirty || loading || busyUpload) return;
     // Retry indefinitely with bounded exponential backoff. A failed save must
@@ -1525,7 +1535,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
             <div className="side-info"><span>Saved state</span><b className={saveState}>{saveState === "saved" ? "Saved" : saveState === "saving" ? "Saving" : "Changes pending"}</b></div>
           </div>
           <div className="editor-side-actions">
-            <button type="button" className="button-primary full-button" disabled={busyUpload || saveState === "saving" || (!dirty && !isNew)} onClick={() => void saveNote(false)}><Save size={16} /> {busyUpload ? "Finishing image upload…" : isNew ? "Create note" : "Save changes"}</button>
+            <button type="button" className="button-primary full-button" disabled={busyUpload || saveState === "saving" || (!dirty && !isNew)} onClick={() => void saveNote(false)}><Save size={16} /> {busyUpload ? "Finishing image upload…" : isNew ? "Create note" : "Save note"}</button>
             {props.noteId && <>
               <button type="button" className="button-secondary full-button" onClick={() => router.push("/notes/" + props.noteId + "/read")}><BookOpen size={16} /> Read this note</button>
               <button type="button" className="button-secondary full-button" onClick={() => saveMarkdown(title, editor?.getJSON())}><Download size={16} /> Export Markdown</button>
@@ -1654,6 +1664,12 @@ export default function ArchiveApp() {
   const [toast, setToast] = useState("");
   const [toastVariant, setToastVariant] = useState<ToastVariant>("success");
   const toastTimer = useRef<number | null>(null);
+  const noteSaveActionRef = useRef<(() => void) | null>(null);
+  const [noteSaveAction, setNoteSaveAction] = useState<NoteSaveActionState | null>(null);
+  const registerNoteSaveAction = useCallback((action: (() => void) | null, state?: NoteSaveActionState) => {
+    noteSaveActionRef.current = action;
+    setNoteSaveAction(action ? state || null : null);
+  }, []);
 
   const notify = useCallback((message: string, variant: ToastVariant = "success") => {
     setToast(message);
@@ -1843,9 +1859,9 @@ export default function ArchiveApp() {
   else if (parts[0] === "topics" && parts[1] && parts[2] === "edit") page = <TopicForm topicId={parts[1]} topics={topics} onSaved={refreshTopics} onCancel={() => router.push("/topics/" + parts[1])} notify={notify} />;
   else if (parts[0] === "topics" && parts[1]) page = <TopicPage key={parts[1]} topicId={parts[1]} topics={topics} onRefreshTopics={refreshTopics} notify={notify} />;
   else if (parts[0] === "topics") page = <TopicsPage topics={topics} onOpen={id => router.push("/topics/" + id)} onCreate={() => router.push("/topics/new")} />;
-  else if (parts[0] === "notes" && parts[1] === "new") page = <NoteEditorPage key={pathname} noteId={null} topics={topics} notify={notify} onTopicsChanged={refreshTopics} />;
+  else if (parts[0] === "notes" && parts[1] === "new") page = <NoteEditorPage key={pathname} noteId={null} topics={topics} notify={notify} onTopicsChanged={refreshTopics} onSaveActionChange={registerNoteSaveAction} />;
   else if (parts[0] === "notes" && parts[1] && parts[2] === "read") page = <ReaderPage key={pathname} noteId={parts[1]} onFocusMode={setFocusMode} notify={notify} />;
-  else if (parts[0] === "notes" && parts[1]) page = <NoteEditorPage key={pathname} noteId={parts[1]} topics={topics} notify={notify} onTopicsChanged={refreshTopics} />;
+  else if (parts[0] === "notes" && parts[1]) page = <NoteEditorPage key={pathname} noteId={parts[1]} topics={topics} notify={notify} onTopicsChanged={refreshTopics} onSaveActionChange={registerNoteSaveAction} />;
   else if (parts[0] === "all-notes") page = <NotesPage key="all" topics={topics} pinnedOnly={false} notify={notify} onTopicsChanged={refreshTopics} />;
   else if (parts[0] === "pinned") page = <NotesPage key="pinned" topics={topics} pinnedOnly notify={notify} onTopicsChanged={refreshTopics} />;
   else if (parts[0] === "search") page = <SearchPage topics={topics} notify={notify} />;
@@ -1856,7 +1872,7 @@ export default function ArchiveApp() {
 
   return (
     <div className={"mnemosyne-app theme-" + theme + (focusMode ? " focus-mode" : "")}>
-      <div className="mobile-topbar"><button type="button" className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button type="button" className="mobile-theme-button" onClick={toggleTheme} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><button type="button" className="mobile-add-button" onClick={() => router.push("/notes/new")} aria-label="Create new note"><Plus size={19} /></button></div>
+      <div className="mobile-topbar"><button type="button" className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button type="button" className="mobile-theme-button" onClick={toggleTheme} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><button type="button" className="mobile-add-button" onClick={() => parts[0] === "notes" && parts[1] && parts[2] !== "read" ? noteSaveActionRef.current?.() : router.push("/notes/new")} aria-label={parts[0] === "notes" && parts[1] && parts[2] !== "read" ? (noteSaveAction?.label || (parts[1] === "new" ? "Create note" : "Save note")) : "Create new note"} disabled={parts[0] === "notes" && parts[1] && parts[2] !== "read" ? noteSaveAction?.disabled ?? true : false}>{parts[0] === "notes" && parts[1] && parts[2] !== "read" ? noteSaveAction?.saving ? <Loader2 className="spin" size={19} /> : <Save size={19} /> : <Plus size={19} />}</button></div>
       <aside className="icon-rail">
         <a href="/" className="rail-brand" aria-label="Mnemosyne overview"><BookOpen size={21} /></a>
         <button type="button" className="rail-add" title="Quick capture · N" onClick={() => router.push("/notes/new")}><Plus size={20} /></button>
@@ -1905,7 +1921,12 @@ export default function ArchiveApp() {
       <div className="app-main">
         {!focusMode && <header className="topbar">
           <div className="breadcrumbs"><span>Archive</span><ChevronRight size={13} /><b>{activeTitle}</b></div>
-          <div className="topbar-right"><div className="vault-status"><StatusDot /><span>Encrypted archive</span></div><button type="button" className="button-secondary export-button" onClick={exportArchive}><Download size={15} /><span>Export Markdown</span></button><a className="button-primary topbar-create" href="/notes/new"><Plus size={16} /> Quick note</a><button type="button" className="topbar-lock" title="Lock vault now" onClick={lockVault}><Lock size={17} /></button></div>
+          <div className="topbar-right"><div className="vault-status"><StatusDot /><span>Encrypted archive</span></div><button type="button" className="button-secondary export-button" onClick={exportArchive}><Download size={15} /><span>Export Markdown</span></button>{parts[0] === "notes" && parts[1] && parts[2] !== "read" ? (
+            <button type="button" className="button-primary topbar-create" disabled={noteSaveAction?.disabled ?? true} onClick={() => noteSaveActionRef.current?.()}>
+              {noteSaveAction?.saving ? <Loader2 className="spin" size={16} /> : parts[1] === "new" ? <Plus size={16} /> : <Save size={16} />}
+              {noteSaveAction?.label || (parts[1] === "new" ? "Create note" : "Save note")}
+            </button>
+          ) : <a className="button-primary topbar-create" href="/notes/new"><Plus size={16} /> Quick note</a>}<button type="button" className="topbar-lock" title="Lock vault now" onClick={lockVault}><Lock size={17} /></button></div>
         </header>}
         <main className="app-content">{page}</main>
       </div>
