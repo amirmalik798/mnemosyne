@@ -754,7 +754,7 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
   };
 
   if (loading) return <div className="loading-panel"><Loader2 className="spin" />Opening collection…</div>;
-  if (error || !topic) return <div className="page-stack"><div className="inline-alert error"><AlertCircle size={16} />{error || "Collection not found."}</div><button type="button" className="button-secondary" onClick={() => router.push("/topics")}><ArrowLeft size={16} /> Back to collections</button></div>;
+  if (error || !topic) return <div className="page-stack"><div className="inline-alert error" role="alert"><AlertCircle size={16} />{error || "Collection not found."}</div><div className="form-footer"><button type="button" className="button-secondary" onClick={() => router.push("/topics")}><ArrowLeft size={16} /> Back to collections</button><button type="button" className="button-primary" onClick={() => void load()}><RefreshCw size={15} /> Retry loading</button></div></div>;
 
   return (
     <div className="page-stack">
@@ -796,6 +796,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
   const [topics, setTopics] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [submittedScope, setSubmittedScope] = useState("all");
 
@@ -820,7 +821,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
       } finally { if (!controller.signal.aborted) setLoading(false); }
     }, 260);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [query, scope]);
+  }, [query, scope, retryAttempt]);
 
   const total = notes.length + topics.length;
   const hasCurrentResults = submittedQuery === query.trim() && submittedScope === scope && !loading && !error;
@@ -834,7 +835,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
             <button type="button" key={value} className={scope === value ? "scope-pill active" : "scope-pill"} onClick={() => setScope(value)}>{label}</button>)}
         </div>
       </section>
-      {error && <div className="inline-alert error"><AlertCircle size={16} />{error}</div>}
+      {error && <div className="inline-alert error" role="alert"><AlertCircle size={16} />{error}<button type="button" onClick={() => setRetryAttempt(value => value + 1)}><RefreshCw size={14} /> Retry search</button></div>}
       {loading && <div className="search-progress"><Loader2 className="spin" size={16} /> Looking through your archive…</div>}
       {hasCurrentResults && submittedQuery && <div className="search-summary"><span><b>{total}</b> matching results for <strong>“{submittedQuery}”</strong></span><span>Search is performed within your authenticated archive.</span></div>}
       {!query.trim() ? <div className="search-hint"><Sparkles size={18} /><p>Try a phrase, a person, a concept, or a tag you remember.</p></div>
@@ -1357,6 +1358,7 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [fontSize, setFontSize] = useState(18);
   const [toc, setToc] = useState<Array<{ id: string; title: string; level: number }>>([]);
   const [focus, setFocus] = useState(false);
@@ -1364,6 +1366,8 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
 
   useEffect(() => {
     let live = true;
+    setLoading(true);
+    setError("");
     apiJson<{ note: Note }>("/api/notes/" + props.noteId).then(result => {
       if (!live) return;
       setNote(result.note);
@@ -1378,7 +1382,7 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
     }).catch(cause => { if (live) setError(cause instanceof Error ? cause.message : "Unable to open note."); })
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [props.noteId, editor]);
+  }, [props.noteId, editor, loadAttempt]);
 
   useEffect(() => {
     if (!editor || !toc.length) return;
@@ -1399,7 +1403,7 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
     return () => window.removeEventListener("keydown", handleEscape);
   }, [focus, props.onFocusMode]);
   if (loading) return <div className="loading-panel"><Loader2 className="spin" />Preparing reader…</div>;
-  if (error || !note) return <div className="page-stack"><div className="inline-alert error"><AlertCircle size={16} />{error || "Note not found."}</div><button type="button" className="button-secondary" onClick={() => router.push("/all-notes")}><ArrowLeft size={16} /> Back to notes</button></div>;
+  if (error || !note) return <div className="page-stack"><div className="inline-alert error" role="alert"><AlertCircle size={16} />{error || "Note not found."}</div><div className="form-footer"><button type="button" className="button-secondary" onClick={() => router.push("/all-notes")}><ArrowLeft size={16} /> Back to notes</button><button type="button" className="button-primary" onClick={() => setLoadAttempt(value => value + 1)}><RefreshCw size={15} /> Retry loading</button></div></div>;
 
   return (
     <div className={"reader-page " + (focus ? "reader-is-focused" : "")}>
