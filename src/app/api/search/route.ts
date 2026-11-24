@@ -44,9 +44,9 @@ type SearchNote = {
 };
 
 /**
- * Read note rows through a server-side cursor. At most 25 encrypted note
- * documents are held by the Node process at once, rather than loading 2,000
- * potentially large documents before searching them.
+ * Search the complete live-note archive through a server-side cursor. Only
+ * one small batch of encrypted documents is materialized at a time; the
+ * result cap limits response size, not how far back the search can look.
  */
 async function searchNotesInBatches(
   userId: string,
@@ -61,6 +61,7 @@ async function searchNotesInBatches(
   const contentExpression = scope === "all" || scope === "pinned"
     ? "n.content_enc"
     : "NULL::bytea";
+  let scanned = 0;
 
   try {
     await client.query("BEGIN");
@@ -73,12 +74,12 @@ async function searchNotesInBatches(
        FROM notes n
        JOIN topics t ON t.id = n.topic_id
        WHERE n.deleted_at IS NULL
-       ORDER BY n.updated_at DESC, n.id DESC
-       LIMIT 2000`,
+         AND ($1::text <> 'pinned' OR n.pinned = TRUE)
+       ORDER BY n.updated_at DESC, n.id DESC`,
+      [scope],
     );
 
-    let scanned = 0;
-    while (scanned < 2000 && notes.length < 40) {
+    while (notes.length < 40) {
       if (signal.aborted) {
         await client.query("ROLLBACK");
         transactionOpen = false;
@@ -107,9 +108,7 @@ async function searchNotesInBatches(
           ? titleMatch
           : scope === "tags"
             ? tagMatch
-            : scope === "pinned"
-              ? Boolean(row.pinned) && searchable.includes(needle)
-              : searchable.includes(needle);
+            : searchable.includes(needle);
         if (!matches) continue;
 
         const matchIndex = contentText.toLocaleLowerCase().indexOf(needle);
