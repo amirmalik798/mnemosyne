@@ -1800,6 +1800,7 @@ export default function ArchiveApp() {
   const pathname = usePathname() || "/";
   const router = useRouter();
   const parts = pathname.split("/").filter(Boolean);
+  const routeSearch = useSearchParams().toString();
   const publicRoute = parts[0] === "login" || parts[0] === "register" || parts[0] === "verify-email";
   const [session, setSession] = useState<UserSession | null>(null);
   const [checking, setChecking] = useState(!publicRoute);
@@ -1816,6 +1817,13 @@ export default function ArchiveApp() {
   const [activeDialog, setActiveDialog] = useState<PendingAppDialog | null>(null);
   const dialogSequence = useRef(0);
   const dialogResolverRef = useRef<((result: AppDialogResult) => void) | null>(null);
+  const routeHistoryRef = useRef<string[]>([]);
+  const routeHistoryIndexRef = useRef(-1);
+  const routeLocationRef = useRef("");
+  const pendingPopNavigationRef = useRef<{ url: string; index: number | null } | null>(null);
+  const pendingPopTraversalRef = useRef<{ direction: "back" | "forward"; destination: string; targetIndex: number | null } | null>(null);
+  const replayingPopRef = useRef<"back" | "forward" | null>(null);
+  const allowPopRef = useRef(false);
   const requestDialog = useCallback((options: AppDialogOptions) => new Promise<AppDialogResult>(resolve => {
     dialogResolverRef.current?.(null);
     dialogResolverRef.current = resolve;
@@ -1867,6 +1875,80 @@ export default function ArchiveApp() {
     event.stopPropagation();
     void navigateWithGuard(destination.pathname + destination.search + destination.hash);
   }, [noteSaveAction?.unsaved, navigateWithGuard]);
+  useEffect(() => {
+    const currentUrl = pathname + (routeSearch ? "?" + routeSearch : "") + window.location.hash;
+    const pendingPop = pendingPopNavigationRef.current;
+    if (pendingPop?.url === currentUrl) {
+      if (pendingPop.index !== null) routeHistoryIndexRef.current = pendingPop.index;
+      pendingPopNavigationRef.current = null;
+    } else if (!routeHistoryRef.current.length) {
+      routeHistoryRef.current = [currentUrl];
+      routeHistoryIndexRef.current = 0;
+    } else if (routeLocationRef.current !== currentUrl) {
+      const entries = routeHistoryRef.current.slice(0, routeHistoryIndexRef.current + 1);
+      entries.push(currentUrl);
+      routeHistoryRef.current = entries;
+      routeHistoryIndexRef.current = entries.length - 1;
+    }
+    routeLocationRef.current = currentUrl;
+  }, [pathname, routeSearch]);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const targetUrl = window.location.pathname + window.location.search + window.location.hash;
+      const entries = routeHistoryRef.current;
+      const currentIndex = routeHistoryIndexRef.current;
+      const matchingIndexes = entries.map((url, index) => url === targetUrl ? index : -1).filter(index => index >= 0);
+      const previousMatches = matchingIndexes.filter(index => index < currentIndex);
+      const nextMatches = matchingIndexes.filter(index => index > currentIndex);
+      const targetIndex = previousMatches.length
+        ? Math.max(...previousMatches)
+        : nextMatches.length ? Math.min(...nextMatches) : null;
+
+      if (allowPopRef.current) {
+        allowPopRef.current = false;
+        return;
+      }
+
+      if (replayingPopRef.current) {
+        const pending = pendingPopTraversalRef.current;
+        replayingPopRef.current = null;
+        pendingPopTraversalRef.current = null;
+        event.stopImmediatePropagation();
+        if (!pending) return;
+        void confirmUnsavedChanges().then(leave => {
+          if (!leave) return;
+          pendingPopNavigationRef.current = { url: pending.destination, index: pending.targetIndex };
+          allowPopRef.current = true;
+          if (pending.direction === "back") window.history.back();
+          else window.history.forward();
+        });
+        return;
+      }
+
+      if (!noteSaveAction?.unsaved) {
+        pendingPopNavigationRef.current = { url: targetUrl, index: targetIndex };
+        if (targetUrl === routeLocationRef.current && targetIndex !== null) {
+          routeHistoryIndexRef.current = targetIndex;
+          pendingPopNavigationRef.current = null;
+        }
+        return;
+      }
+
+      const direction: "back" | "forward" = targetIndex !== null && targetIndex > currentIndex ? "forward" : "back";
+      pendingPopTraversalRef.current = { direction, destination: targetUrl, targetIndex };
+      replayingPopRef.current = direction;
+      event.stopImmediatePropagation();
+      if (direction === "back") window.history.forward();
+      else window.history.back();
+    };
+
+    // Capture before the App Router's own popstate listener so it cannot
+    // change routes until the user has answered the in-app confirmation.
+    window.addEventListener("popstate", handlePopState, true);
+    return () => window.removeEventListener("popstate", handlePopState, true);
+  }, [noteSaveAction?.unsaved, confirmUnsavedChanges]);
+
   useEffect(() => {
     if (!noteSaveAction?.unsaved) return;
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
