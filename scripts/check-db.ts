@@ -15,6 +15,8 @@ const requiredColumns: Array<[string, string]> = [
   ["notes", "deleted_at"], ["assets", "user_id"], ["assets", "owner_type"],
   ["assets", "owner_id"], ["assets", "storage_key"], ["assets", "original_name_enc"],
   ["asset_blobs", "user_id"], ["asset_blobs", "asset_id"], ["asset_blobs", "encrypted_bytes"],
+  ["note_drafts", "note_id"], ["note_drafts", "user_id"], ["note_drafts", "topic_id"],
+  ["note_drafts", "content_enc"], ["note_drafts", "base_note_updated_at"],
 ];
 
 const runtimeTables = [
@@ -26,9 +28,10 @@ const runtimeTables = [
   "notes",
   "assets",
   "asset_blobs",
+  "note_drafts",
 ];
 
-const protectedTables = ["topics", "notes", "assets", "asset_blobs"];
+const protectedTables = ["topics", "notes", "assets", "asset_blobs", "note_drafts"];
 
 async function main() {
   const appUrl = process.env.APP_DATABASE_URL;
@@ -141,7 +144,7 @@ async function main() {
       throw new Error("APP_DATABASE_URL must not have CREATE privilege on the application schema.");
     }
 
-    const requiredConstraints = ["notes_user_topic_fk", "asset_blobs_user_asset_fk"];
+    const requiredConstraints = ["notes_user_topic_fk", "asset_blobs_user_asset_fk", "note_drafts_user_note_fk", "note_drafts_user_topic_fk"];
     const constraintResult = await pool.query(
       "SELECT conname FROM pg_constraint " +
       "WHERE connamespace=current_schema()::regnamespace AND conname=ANY($1::text[])",
