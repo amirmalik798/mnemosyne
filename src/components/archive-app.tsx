@@ -1073,7 +1073,10 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   }, [props.noteId, editor, loadAttempt]);
 
   const saveNote = useCallback(async (automatic = false) => {
-    if (saving.current || loading) return;
+    if (saving.current || loading || busyUpload) {
+      if (!automatic && busyUpload) setError("Wait for the image upload to finish before saving.");
+      return;
+    }
     if (!topicId || !title.trim()) {
       if (!automatic) setError(!topicId ? "Choose a collection before saving this note." : "Give your note a title before saving.");
       return;
@@ -1115,7 +1118,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
         setRevision(revisionRef.current);
       }
     }
-  }, [loading, topicId, title, subject, tags, pinned, editor, props.noteId, props.notify, props.onTopicsChanged, router, isNew]);
+  }, [loading, busyUpload, topicId, title, subject, tags, pinned, editor, props.noteId, props.notify, props.onTopicsChanged, router, isNew]);
 
   const saveRef = useRef(saveNote);
   useEffect(() => { saveRef.current = saveNote; }, [saveNote]);
@@ -1290,7 +1293,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
             <div className="side-info"><span>Saved state</span><b className={saveState}>{saveState === "saved" ? "Saved" : saveState === "saving" ? "Saving" : "Changes pending"}</b></div>
           </div>
           <div className="editor-side-actions">
-            <button type="button" className="button-primary full-button" disabled={saveState === "saving" || (!dirty && !isNew)} onClick={() => void saveNote(false)}><Save size={16} /> {isNew ? "Create note" : "Save changes"}</button>
+            <button type="button" className="button-primary full-button" disabled={busyUpload || saveState === "saving" || (!dirty && !isNew)} onClick={() => void saveNote(false)}><Save size={16} /> {busyUpload ? "Finishing image upload…" : isNew ? "Create note" : "Save changes"}</button>
             {props.noteId && <>
               <button type="button" className="button-secondary full-button" onClick={() => router.push("/notes/" + props.noteId + "/read")}><BookOpen size={16} /> Read this note</button>
               <button type="button" className="button-secondary full-button" onClick={() => saveMarkdown(title, editor?.getJSON())}><Download size={16} /> Export Markdown</button>
