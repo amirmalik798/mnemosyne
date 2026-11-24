@@ -1158,7 +1158,16 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
         // editor remounts on the newly-created note route.
         setCreating(true);
         editor?.setEditable(false);
-        if (!createRequestId.current) createRequestId.current = crypto.randomUUID();
+        if (!createRequestId.current) {
+          // getRandomValues also works when this personal app is opened from a
+          // phone over a local-network HTTP address, where randomUUID may not.
+          const bytes = crypto.getRandomValues(new Uint8Array(16));
+          bytes[6] = (bytes[6] & 0x0f) | 0x40;
+          bytes[8] = (bytes[8] & 0x3f) | 0x80;
+          const hex = Array.from(bytes, value => value.toString(16).padStart(2, "0")).join("");
+          createRequestId.current = hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-" +
+            hex.slice(12, 16) + "-" + hex.slice(16, 20) + "-" + hex.slice(20);
+        }
         const result = await apiJson<{ note: Note }>("/api/notes", {
           method: "POST",
           body: JSON.stringify({ ...payload, id: createRequestId.current }),
