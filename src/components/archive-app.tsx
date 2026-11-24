@@ -335,18 +335,34 @@ function TopicForm(props: { topicId: string | null; topics: Topic[]; onSaved: (t
 
   useEffect(() => {
     let live = true;
-    Promise.all([
-      apiJson<{ categories: string[] }>("/api/topics/categories"),
-      props.topicId ? apiJson<{ topic: Topic }>("/api/topics/" + props.topicId) : Promise.resolve(null)
-    ]).then(([list, result]) => {
+    setLoading(true);
+    setError("");
+    setTitle("");
+    setSubject("");
+    setDescription("");
+    setCategory("");
+    setCategories([]);
+
+    const categoriesRequest = apiJson<{ categories: string[] }>("/api/topics/categories")
+      .catch(() => ({ categories: [] as string[] }));
+    const topicRequest = props.topicId
+      ? apiJson<{ topic: Topic }>("/api/topics/" + props.topicId)
+      : Promise.resolve(null);
+
+    Promise.all([categoriesRequest, topicRequest]).then(([list, result]) => {
       if (!live) return;
       setCategories(list.categories || []);
       if (result?.topic) {
-        setTitle(result.topic.title); setSubject(result.topic.subject || "");
-        setDescription(result.topic.description || ""); setCategory(result.topic.category || "");
+        setTitle(result.topic.title);
+        setSubject(result.topic.subject || "");
+        setDescription(result.topic.description || "");
+        setCategory(result.topic.category || "");
       }
-    }).catch(cause => { if (live) setError(cause instanceof Error ? cause.message : "Unable to load topic details."); })
-      .finally(() => { if (live) setLoading(false); });
+    }).catch(cause => {
+      if (live) setError(cause instanceof Error ? cause.message : "Unable to load topic details.");
+    }).finally(() => {
+      if (live) setLoading(false);
+    });
     return () => { live = false; };
   }, [props.topicId]);
 
@@ -520,18 +536,18 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget && !busy) props.onClose(); }}>
       <section ref={dialogRef} tabIndex={-1} className="modal-card" role="dialog" aria-modal="true" aria-labelledby="transfer-title" aria-describedby="transfer-description">
-        <div className="modal-header"><div><div className="eyebrow">Organize note</div><h2 id="transfer-title">Move or make a copy</h2></div><ActionButton title="Close dialog" onClick={props.onClose}><X size={18} /></ActionButton></div>
+        <div className="modal-header"><div><div className="eyebrow">Organize note</div><h2 id="transfer-title">Move or make a copy</h2></div><ActionButton title="Close dialog" onClick={props.onClose} disabled={busy}><X size={18} /></ActionButton></div>
         <p className="modal-note" id="transfer-description">“{props.note.title || "Untitled note"}”</p>
         <div className="choice-row">
-          <button type="button" className={action === "move" ? "choice-card selected" : "choice-card"} onClick={() => setAction("move")}><ArrowRight size={18} /><b>Move</b><small>Keep one note and change its collection.</small></button>
-          <button type="button" className={action === "copy" ? "choice-card selected" : "choice-card"} onClick={() => setAction("copy")}><Copy size={18} /><b>Copy</b><small>Create an independent duplicate with its images.</small></button>
+          <button type="button" disabled={busy} className={action === "move" ? "choice-card selected" : "choice-card"} onClick={() => setAction("move")}><ArrowRight size={18} /><b>Move</b><small>Keep one note and change its collection.</small></button>
+          <button type="button" disabled={busy} className={action === "copy" ? "choice-card selected" : "choice-card"} onClick={() => setAction("copy")}><Copy size={18} /><b>Copy</b><small>Create an independent duplicate with its images.</small></button>
         </div>
-        <label className="field"><span>Destination collection</span><select value={topicId} onChange={e => setTopicId(e.target.value)}>
+        <label className="field"><span>Destination collection</span><select value={topicId} disabled={busy} onChange={e => setTopicId(e.target.value)}>
           <option value="">Choose a collection</option>{destinations.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
         </select></label>
         {destinations.length === 0 && <div className="inline-alert">Create another collection before moving or copying this note.</div>}
         {error && <div className="inline-alert error"><AlertCircle size={16} />{error}</div>}
-        <div className="form-footer"><button className="button-secondary" onClick={props.onClose} type="button">Cancel</button><button className="button-primary" disabled={busy || !topicId} onClick={submit} type="button">{busy ? <Loader2 size={16} className="spin" /> : <Check size={16} />}{action === "move" ? "Move note" : "Create copy"}</button></div>
+        <div className="form-footer"><button className="button-secondary" onClick={props.onClose} disabled={busy} type="button">Cancel</button><button className="button-primary" disabled={busy || !topicId} onClick={submit} type="button">{busy ? <Loader2 size={16} className="spin" /> : <Check size={16} />}{action === "move" ? "Move note" : "Create copy"}</button></div>
       </section>
     </div>
   );
