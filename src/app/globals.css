@@ -415,8 +415,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .reader-outline button span:hover { color: var(--ink); }
 .reader-outline button.outline-subitem { padding-left: 12px; }
 .reader-outline button.outline-subitem span { color: var(--quiet); }
-.reader-is-focused .reader-toolbar { opacity: .14; transition: opacity .2s; }
-.reader-is-focused .reader-toolbar:hover { opacity: 1; }
+.reader-is-focused .reader-toolbar { opacity: 1; }
 .focus-mode .icon-rail, .focus-mode .workspace-sidebar, .focus-mode .mobile-topbar, .focus-mode .mobile-bottom-nav { display: none !important; }
 .focus-mode .app-main { margin-left: 0 !important; }
 .focus-mode .reader-page { width: 100%; max-width: 1180px; }
@@ -549,8 +548,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .sidebar-scrim { display: block; position: fixed; z-index: 80; inset: 0; border: 0; background: rgba(2,4,10,.6); }
   .app-main { margin-left: 0; padding-top: 58px; }
   .mobile-topbar { position: fixed; display: flex; align-items: center; justify-content: space-between; inset: 0 0 auto; z-index: 70; height: 58px; padding: 0 15px; background: color-mix(in srgb,var(--canvas) 92%,transparent); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line-soft); }
-  .mobile-menu-button, .mobile-add-button { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
-  .mobile-menu-button:hover, .mobile-add-button:hover { background: var(--panel-3); }
+  .mobile-menu-button, .mobile-theme-button, .mobile-add-button { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+  .mobile-menu-button:hover, .mobile-theme-button:hover, .mobile-add-button:hover { background: var(--panel-3); }
+  .mobile-theme-button { height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
   .mobile-add-button { color: var(--lime); }
   .mobile-brand { display: inline-flex; align-items: center; gap: 8px; font: 500 20px var(--serif); }
   .mobile-brand .brand-mark { width: 29px; height: 29px; border-radius: 8px; }

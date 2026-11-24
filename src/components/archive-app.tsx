@@ -1309,12 +1309,19 @@ export default function ArchiveApp() {
       const now = Date.now();
       if (now - lastActivity < 60_000) return;
       lastActivity = now;
-      fetch("/api/vault/activity", { method: "POST", credentials: "same-origin", cache: "no-store" }).catch(() => undefined);
+      fetch("/api/vault/activity", { method: "POST", credentials: "same-origin", cache: "no-store" })
+        .then(response => {
+          if (response.status === 401) {
+            setSession(null);
+            router.replace("/login");
+          }
+        })
+        .catch(() => undefined);
     };
     document.addEventListener("pointerdown", onActivity, { passive: true });
     document.addEventListener("keydown", onActivity);
     return () => { document.removeEventListener("pointerdown", onActivity); document.removeEventListener("keydown", onActivity); };
-  }, [session, publicRoute]);
+  }, [session, publicRoute, router]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -1326,16 +1333,20 @@ export default function ArchiveApp() {
       if (editing || event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.key.toLowerCase() === "n") { event.preventDefault(); router.push("/notes/new"); }
       if (event.key.toLowerCase() === "t") { event.preventDefault(); router.push("/topics/new"); }
-      if (event.key === "Escape") setSidebarOpen(false);
+      if (event.key === "Escape") { setSidebarOpen(false); if (focusMode) setFocusMode(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, [router, focusMode]);
 
   const lockVault = async () => {
-    try { await apiJson("/api/vault/lock", { method: "POST" }); }
-    catch (cause) { notify(cause instanceof Error ? cause.message : "Unable to lock your archive."); }
-    setSession(null); router.push("/login");
+    try {
+      await apiJson("/api/vault/lock", { method: "POST" });
+      setSession(null);
+      router.push("/login");
+    } catch (cause) {
+      notify(cause instanceof Error ? cause.message : "Unable to lock your archive. Your session is still active.");
+    }
   };
 
   const exportArchive = async () => {
@@ -1389,7 +1400,7 @@ export default function ArchiveApp() {
 
   return (
     <div className={"mnemosyne-app theme-" + theme + (focusMode ? " focus-mode" : "")}>
-      <div className="mobile-topbar"><button className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button className="mobile-add-button" onClick={() => router.push("/notes/new")} aria-label="Create new note"><Plus size={19} /></button></div>
+      <div className="mobile-topbar"><button className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button className="mobile-theme-button" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><button className="mobile-add-button" onClick={() => router.push("/notes/new")} aria-label="Create new note"><Plus size={19} /></button></div>
       <aside className="icon-rail">
         <a href="/" className="rail-brand" aria-label="Mnemosyne overview"><BookOpen size={21} /></a>
         <button className="rail-add" title="Quick capture · N" onClick={() => router.push("/notes/new")}><Plus size={20} /></button>
