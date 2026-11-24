@@ -77,6 +77,13 @@ export async function POST(request: Request, context: Context) {
         "UPDATE notes SET topic_id=$1, updated_at=NOW() WHERE id=$2",
         [destinationTopicId, id],
       );
+      // Keep an unsaved recovery snapshot attached to the note's new topic.
+      // Its original base timestamp is deliberately preserved so the editor
+      // still warns if the canonical note changed while the draft was pending.
+      await client.query(
+        "UPDATE note_drafts SET topic_id=$1, updated_at=NOW() WHERE note_id=$2",
+        [destinationTopicId, id],
+      );
       await client.query("UPDATE topics SET updated_at=NOW() WHERE id=ANY($1::uuid[])", [[source.topic_id, destinationTopicId]]);
       commitAttempted = true;
       await client.query("COMMIT");

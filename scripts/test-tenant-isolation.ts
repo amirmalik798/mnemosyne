@@ -26,6 +26,7 @@ async function main() {
     const userA = randomUUID();
     const userB = randomUUID();
     const topicA = randomUUID();
+    const topicA2 = randomUUID();
     const topicB = randomUUID();
     const noteA = randomUUID();
     const noteForDraft = randomUUID();
@@ -44,6 +45,10 @@ async function main() {
     await client.query(
       "INSERT INTO topics (id,title_enc,subject_enc,description_enc,category_enc) VALUES ($1,$2,$2,$2,$2)",
       [topicA, randomBytes(48)],
+    );
+    await client.query(
+      "INSERT INTO topics (id,title_enc,subject_enc,description_enc,category_enc) VALUES ($1,$2,$2,$2,$2)",
+      [topicA2, randomBytes(48)],
     );
     await client.query(
       "INSERT INTO notes (id,topic_id,title_enc,subject_enc,content_enc,tags_enc) VALUES ($1,$2,$3,$3,$3,$3)",
@@ -74,6 +79,27 @@ async function main() {
       "INSERT INTO assets (id,owner_type,owner_id,original_name_enc,mime_type,byte_size) VALUES ($1,'topic',$2,$3,'image/png',1)",
       [assetAWithoutBlob, topicA, randomBytes(48)],
     );
+
+    // Moving a note must move its recovery snapshot's topic reference too,
+    // without discarding the unsaved content or resetting its conflict baseline.
+    const transferNote = randomUUID();
+    await client.query(
+      "INSERT INTO notes (id,topic_id,title_enc,subject_enc,content_enc,tags_enc) VALUES ($1,$2,$3,$3,$3,$3)",
+      [transferNote, topicA, randomBytes(48)],
+    );
+    await client.query(
+      `INSERT INTO note_drafts
+       (note_id,user_id,topic_id,title_enc,subject_enc,content_enc,tags_enc,base_note_updated_at)
+       VALUES ($1,$2,$3,$4,$4,$4,$4,NOW())`,
+      [transferNote, userA, topicA, randomBytes(48)],
+    );
+    await client.query("UPDATE notes SET topic_id=$1, updated_at=NOW() WHERE id=$2", [topicA2, transferNote]);
+    await client.query("UPDATE note_drafts SET topic_id=$1, updated_at=NOW() WHERE note_id=$2", [topicA2, transferNote]);
+    const movedDraft = await client.query(
+      "SELECT topic_id FROM note_drafts WHERE note_id=$1",
+      [transferNote],
+    );
+    assert.equal(movedDraft.rows[0]?.topic_id, topicA2, "a recovery draft must follow its note when the note is moved");
 
     // Note lifecycle mutations must keep the parent topic's modified date in
     // sync with the note, so the topic archive's modified sort is reliable.
