@@ -42,6 +42,99 @@ type SearchNote = {
   matchType: "title" | "tag" | "content";
   updatedAt: unknown;
 };
+/** Search every topic without loading or decrypting the entire collection at once. */
+async function searchTopicsInBatches(
+  userId: string,
+  key: Buffer,
+  needle: string,
+  scope: "all" | "titles",
+  signal: AbortSignal,
+): Promise<Array<{
+  id: string;
+  title: string;
+  subject: string;
+  description: string;
+  category: string;
+  coverUrl: string | null;
+  updatedAt: unknown;
+}> | null> {
+  const client = await db.connect();
+  let transactionOpen = false;
+  const topics: Array<{
+    id: string;
+    title: string;
+    subject: string;
+    description: string;
+    category: string;
+    coverUrl: string | null;
+    updatedAt: unknown;
+  }> = [];
+
+  try {
+    await client.query("BEGIN");
+    transactionOpen = true;
+    await setUserContext(client, userId);
+    await client.query(
+      `DECLARE topics_search_cursor NO SCROLL CURSOR FOR
+       SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, updated_at
+       FROM topics
+       ORDER BY updated_at DESC, id DESC`,
+    );
+
+    let scanned = 0;
+    while (topics.length < 25) {
+      if (signal.aborted) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return null;
+      }
+      const batch = await client.query("FETCH FORWARD 25 FROM topics_search_cursor");
+      if (batch.rows.length === 0) break;
+      scanned += batch.rows.length;
+
+      for (const row of batch.rows) {
+        const title = decryptText(row.title_enc, key);
+        const subject = decryptText(row.subject_enc, key);
+        const description = decryptText(row.description_enc, key);
+        const category = decryptText(row.category_enc, key);
+        const matches = scope === "titles"
+          ? title.toLocaleLowerCase().includes(needle)
+          : [title, subject, description, category].join(" ").toLocaleLowerCase().includes(needle);
+        if (!matches) continue;
+        topics.push({
+          id: row.id,
+          title,
+          subject,
+          description,
+          category,
+          coverUrl: row.cover_asset_id ? `/api/assets/${row.cover_asset_id}` : null,
+          updatedAt: row.updated_at,
+        });
+        if (topics.length === 25) break;
+      }
+
+      if (scanned % 100 === 0) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        if (signal.aborted) {
+          await client.query("ROLLBACK");
+          transactionOpen = false;
+          return null;
+        }
+      }
+    }
+
+    await client.query("CLOSE topics_search_cursor");
+    await client.query("COMMIT");
+    transactionOpen = false;
+    return topics;
+  } catch (error) {
+    if (transactionOpen) await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 
 /**
  * Search the complete live-note archive through a server-side cursor. Only
@@ -173,50 +266,13 @@ export async function GET(request: Request) {
     if (!query) return NextResponse.json({ topics: [], notes: [] });
     const needle = query.toLocaleLowerCase();
 
-    const [topicRows, notes] = await Promise.all([
-      queryAsUser(session.userId,
-        `SELECT id, title_enc, subject_enc, description_enc, category_enc, cover_asset_id, updated_at
-         FROM topics
-         ORDER BY updated_at DESC, id DESC
-         LIMIT 500`,
-      ),
-      searchNotesInBatches(
-        session.userId,
-        session.key,
-        needle,
-        scope,
-        request.signal,
-      ),
+    const [topics, notes] = await Promise.all([
+      scope === "all" || scope === "titles"
+        ? searchTopicsInBatches(session.userId, session.key, needle, scope, request.signal)
+        : Promise.resolve([]),
+      searchNotesInBatches(session.userId, session.key, needle, scope, request.signal),
     ]);
-    if (notes === null) return new Response(null, { status: 204 });
-
-    const topics = [];
-    for (let index = 0; (scope === "all" || scope === "titles") && index < topicRows.rows.length; index += 1) {
-      if (index > 0 && index % 100 === 0) {
-        await new Promise<void>((resolve) => setImmediate(resolve));
-        if (request.signal.aborted) return new Response(null, { status: 204 });
-      }
-
-      const row = topicRows.rows[index];
-      const title = decryptText(row.title_enc, session.key);
-      const subject = decryptText(row.subject_enc, session.key);
-      const description = decryptText(row.description_enc, session.key);
-      const category = decryptText(row.category_enc, session.key);
-      if (!(scope === "titles" ? title.toLocaleLowerCase().includes(needle) : [title, subject, description, category].join(" ").toLocaleLowerCase().includes(needle))) continue;
-
-      topics.push({
-        id: row.id,
-        title,
-        subject,
-        description,
-        category,
-        coverUrl: row.cover_asset_id ? `/api/assets/${row.cover_asset_id}` : null,
-        updatedAt: row.updated_at,
-      });
-      // The rows are newest-first, so later matches cannot enter the first
-      // 25 results. Stop instead of decrypting the rest of the topic archive.
-      if (topics.length === 25) break;
-    }
+    if (topics === null || notes === null) return new Response(null, { status: 204 });
 
     return NextResponse.json({ topics, notes });
   } catch (error) {
