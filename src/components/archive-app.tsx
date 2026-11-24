@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { Extension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -456,13 +456,15 @@ function TopicCard(props: { topic: Topic; onOpen: (id: string) => void }) {
 }
 
 function TopicsPage(props: { topics: Topic[]; onOpen: (id: string) => void; onCreate: () => void }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedCategory = searchParams.get("category") || "";
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const categories = useMemo(() => Array.from(new Set(props.topics.map(t => t.category).filter(Boolean))).sort(), [props.topics]);
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get("category");
-    if (requested && categories.includes(requested)) setCategory(requested);
-  }, [categories]);
+    setCategory(requestedCategory && categories.includes(requestedCategory) ? requestedCategory : "all");
+  }, [requestedCategory, categories]);
   const filtered = useMemo(() => props.topics.filter(t =>
     (category === "all" || t.category === category) &&
     [t.title, t.subject, t.description, t.category].join(" ").toLowerCase().includes(query.toLowerCase())
@@ -474,7 +476,7 @@ function TopicsPage(props: { topics: Topic[]; onOpen: (id: string) => void; onCr
         action={<button type="button" className="button-primary" onClick={props.onCreate}><Plus size={16} /> New collection</button>} />
       <div className="toolbar-row">
         <label className="search-field"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a collection…" /></label>
-        <label className="select-field"><Filter size={15} /><select value={category} onChange={e => setCategory(e.target.value)}>
+        <label className="select-field"><Filter size={15} /><select value={category} onChange={e => { const value = e.target.value; setCategory(value); router.replace(value === "all" ? "/topics" : "/topics?category=" + encodeURIComponent(value), { scroll: false }); }}>
           <option value="all">All categories</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select><ChevronDown size={14} /></label>
         <span className="result-count">{filtered.length} collections</span>
