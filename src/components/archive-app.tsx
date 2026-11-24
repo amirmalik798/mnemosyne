@@ -1141,7 +1141,6 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
           "/api/notes/" + props.noteId, { method: "PATCH", body: JSON.stringify(payload) },
         );
         baseNoteUpdatedAt.current = new Date(saved.updatedAt).toISOString();
-        await apiJson("/api/notes/" + props.noteId + "/draft", { method: "DELETE" }).catch(() => undefined);
         if (revisionRef.current === snapshotRevision) {
           setDirty(false); setSaveState("saved"); setRetryAttempt(0);
         } else { setSaveState("unsaved"); }
