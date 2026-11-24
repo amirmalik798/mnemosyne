@@ -330,6 +330,8 @@ function TopicForm(props: { topicId: string | null; topics: Topic[]; onSaved: (t
   const [category, setCategory] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(Boolean(props.topicId));
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -337,6 +339,7 @@ function TopicForm(props: { topicId: string | null; topics: Topic[]; onSaved: (t
     let live = true;
     setLoading(true);
     setError("");
+    setLoadError("");
     setTitle("");
     setSubject("");
     setDescription("");
@@ -359,12 +362,12 @@ function TopicForm(props: { topicId: string | null; topics: Topic[]; onSaved: (t
         setCategory(result.topic.category || "");
       }
     }).catch(cause => {
-      if (live) setError(cause instanceof Error ? cause.message : "Unable to load topic details.");
+      if (live) setLoadError(cause instanceof Error ? cause.message : "Unable to load topic details.");
     }).finally(() => {
       if (live) setLoading(false);
     });
     return () => { live = false; };
-  }, [props.topicId]);
+  }, [props.topicId, loadAttempt]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setError("");
@@ -390,6 +393,15 @@ function TopicForm(props: { topicId: string | null; topics: Topic[]; onSaved: (t
   };
 
   if (loading) return <div className="loading-panel"><Loader2 className="spin" />Loading collection…</div>;
+  if (loadError) return (
+    <div className="page-stack">
+      <div className="inline-alert error" role="alert"><AlertCircle size={16} />{loadError}</div>
+      <div className="form-footer">
+        <button className="button-secondary" type="button" onClick={props.onCancel}>Back</button>
+        <button className="button-primary" type="button" onClick={() => setLoadAttempt(value => value + 1)}><RefreshCw size={15} /> Retry loading</button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="form-page">
@@ -999,6 +1011,8 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   const [tagInput, setTagInput] = useState("");
   const [pinned, setPinned] = useState(false);
   const [loading, setLoading] = useState(Boolean(props.noteId));
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [error, setError] = useState("");
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving">("saved");
@@ -1026,6 +1040,8 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   useEffect(() => {
     let live = true;
     if (props.noteId) {
+      setLoading(true);
+      setLoadError("");
       apiJson<{ note: Note }>("/api/notes/" + props.noteId).then(result => {
         if (!live) return;
         setTitle(result.note.title || ""); setSubject(result.note.subject || "");
@@ -1035,14 +1051,15 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
           editor.commands.setContent(result.note.content || EMPTY_DOC);
           hydrating.current = false;
         }
-      }).catch(cause => { if (live) setError(cause instanceof Error ? cause.message : "Unable to open this note."); })
-        .finally(() => { if (live) setLoading(false); });
+      }).catch(cause => {
+        if (live) setLoadError(cause instanceof Error ? cause.message : "Unable to open this note.");
+      }).finally(() => { if (live) setLoading(false); });
     } else {
       const requestedTopic = new URLSearchParams(window.location.search).get("topicId") || "";
       setTopicId(requestedTopic); setLoading(false);
     }
     return () => { live = false; };
-  }, [props.noteId, editor]);
+  }, [props.noteId, editor, loadAttempt]);
 
   const saveNote = useCallback(async (automatic = false) => {
     if (saving.current || loading) return;
@@ -1147,6 +1164,15 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   };
 
   if (loading) return <div className="loading-panel"><Loader2 className="spin" />Opening your note…</div>;
+  if (loadError) return (
+    <div className="page-stack">
+      <div className="inline-alert error" role="alert"><AlertCircle size={16} />{loadError}</div>
+      <div className="form-footer">
+        <button className="button-secondary" type="button" onClick={() => router.push("/all-notes")}>Back to notes</button>
+        <button className="button-primary" type="button" onClick={() => setLoadAttempt(value => value + 1)}><RefreshCw size={15} /> Retry loading</button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="editor-page">
