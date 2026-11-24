@@ -323,10 +323,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .editor-layout { display: grid; grid-template-columns: minmax(0,1fr) 225px; gap: 28px; align-items: start; }
 .editor-main { min-width: 0; border: 1px solid var(--line-soft); background: var(--panel); border-radius: 14px; padding: clamp(22px,3vw,42px); }
 .editor-context-row { display: flex; align-items: center; gap: 9px; }
-.editor-title-input { display: block; width: 100%; margin-top: 13px; border: 0; outline: 0; padding: 0; background: transparent; color: var(--ink); font: 400 clamp(32px,4vw,48px)/1.08 var(--serif); letter-spacing: -.035em; resize: none; }
+.editor-title-input { display: block; width: 100%; margin-top: 13px; border: 0; border-bottom: 1px solid transparent; outline: 0; padding: 0 0 4px; background: transparent; color: var(--ink); font: 400 clamp(32px,4vw,48px)/1.08 var(--serif); letter-spacing: -.035em; resize: none; }
 .editor-title-input::placeholder { color: var(--quiet); }
-.editor-subtitle-input { width: 100%; border: 0; outline: 0; padding: 8px 0 2px; background: transparent; color: var(--muted); font: italic 17px/1.45 var(--serif); }
+input.editor-title-input:focus, input.editor-title-input:focus-visible { border-bottom-color: var(--lime); outline: 0; box-shadow: none; }
+.editor-subtitle-input { width: 100%; border: 0; border-bottom: 1px solid transparent; outline: 0; padding: 8px 0 3px; background: transparent; color: var(--muted); font: italic 17px/1.45 var(--serif); }
 .editor-subtitle-input::placeholder { color: var(--quiet); }
+input.editor-subtitle-input:focus, input.editor-subtitle-input:focus-visible { border-bottom-color: var(--lime); outline: 0; box-shadow: none; }
 .editor-metadata-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 15px 0; margin-top: 9px; border-top: 1px solid var(--line-soft); }
 .editor-topic-select { display: inline-flex; align-items: center; gap: 7px; position: relative; color: var(--lime); background: var(--panel-3); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; }
 .editor-topic-select select { appearance: none; background: transparent; color: var(--ink); border: 0; outline: 0; padding-right: 12px; max-width: 190px; font-size: 10px; }
@@ -336,9 +338,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .editor-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-width: 0; flex: 1; }
 .editor-tags > button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; color: var(--blue); background: rgba(150,172,229,.09); border: 0; border-radius: 5px; font-size: 9px; }
 .tag-entry { display: flex; align-items: center; }
-.tag-entry input { width: 85px; background: transparent; color: var(--ink); border: 0; outline: 0; font-size: 10px; padding: 5px 4px; }
+.tag-entry input { width: 85px; background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid transparent; outline: 0; box-shadow: none; font-size: 10px; padding: 5px 4px; }
 .tag-entry input::placeholder { color: var(--quiet); }
-.tag-entry button { width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 5px; color: var(--lime); background: var(--panel-3); }
+.tag-entry input:focus, .tag-entry input:focus-visible { border-bottom-color: var(--lime); outline: 0; box-shadow: none; }
+.tag-entry button { width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 0; color: var(--lime); background: transparent; }
+.tag-entry button:hover { color: var(--lime-strong); background: transparent; }
+.tag-entry button:focus-visible { outline: 0; box-shadow: 0 2px 0 var(--lime); }
 .editor-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; position: sticky; top: 68px; z-index: 15; padding: 7px; border: 1px solid var(--line); background: color-mix(in srgb,var(--panel-2) 94%,transparent); backdrop-filter: blur(14px); border-radius: 9px; }
 .toolbar-group { display: flex; align-items: center; gap: 2px; }
 .toolbar-group button { min-width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 10px; font-weight: 700; }
