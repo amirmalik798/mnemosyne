@@ -16,7 +16,9 @@ const requiredColumns: Array<[string, string]> = [
   ["assets", "owner_id"], ["assets", "storage_key"], ["assets", "original_name_enc"],
   ["asset_blobs", "user_id"], ["asset_blobs", "asset_id"], ["asset_blobs", "encrypted_bytes"],
   ["note_drafts", "note_id"], ["note_drafts", "user_id"], ["note_drafts", "topic_id"],
-  ["note_drafts", "content_enc"], ["note_drafts", "base_note_updated_at"],
+  ["note_drafts", "title_enc"], ["note_drafts", "subject_enc"], ["note_drafts", "content_enc"],
+  ["note_drafts", "tags_enc"], ["note_drafts", "pinned"], ["note_drafts", "base_note_updated_at"],
+  ["note_drafts", "created_at"], ["note_drafts", "updated_at"],
 ];
 
 const runtimeTables = [
