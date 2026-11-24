@@ -356,8 +356,10 @@ END $$;
 -- Encrypted recovery snapshots for in-progress note edits. Draft ciphertext uses
 -- the same per-account vault key as canonical notes; no plaintext content is
 -- stored in this table. One recoverable snapshot is retained per note.
+CREATE UNIQUE INDEX IF NOT EXISTS notes_user_id_id_uidx ON notes(user_id, id);
+
 CREATE TABLE IF NOT EXISTS note_drafts (
-  note_id UUID PRIMARY KEY REFERENCES notes(id) ON DELETE CASCADE,
+  note_id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   topic_id UUID NOT NULL,
   title_enc BYTEA NOT NULL,
@@ -368,6 +370,8 @@ CREATE TABLE IF NOT EXISTS note_drafts (
   base_note_updated_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT note_drafts_user_note_fk
+    FOREIGN KEY (user_id, note_id) REFERENCES notes(user_id, id) ON DELETE CASCADE,
   CONSTRAINT note_drafts_user_topic_fk
     FOREIGN KEY (user_id, topic_id) REFERENCES topics(user_id, id) ON DELETE CASCADE
 );
