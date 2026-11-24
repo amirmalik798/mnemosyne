@@ -774,6 +774,8 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
 
 function SearchPage(props: { notify: (message: string) => void; topics: Topic[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState("all");
   const [notes, setNotes] = useState<SearchResult[]>([]);
@@ -784,9 +786,8 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
   const [submittedScope, setSubmittedScope] = useState("all");
 
   useEffect(() => {
-    const initial = new URLSearchParams(window.location.search).get("q") || "";
-    if (initial) setQuery(initial);
-  }, []);
+    setQuery(requestedQuery);
+  }, [requestedQuery]);
 
   useEffect(() => {
     const normalized = query.trim();
