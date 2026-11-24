@@ -1393,9 +1393,9 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
       label: isNew ? "Create note" : "Save note",
       disabled: loading || busyUpload || saveState === "saving" || (!dirty && !isNew),
       saving: saveState === "saving",
-      unsaved: dirty || saveState !== "saved",
+      unsaved: dirty || saveState !== "saved" || Boolean(tagInput.trim()),
     });
-  }, [props.onSaveActionChange, triggerManualSave, isNew, loading, busyUpload, saveState, dirty]);
+  }, [props.onSaveActionChange, triggerManualSave, isNew, loading, busyUpload, saveState, dirty, tagInput]);
   useEffect(() => () => props.onSaveActionChange(null), [props.onSaveActionChange]);
   useEffect(() => {
     if (isNew || !dirty || loading || busyUpload) return;
