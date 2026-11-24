@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { noteToMarkdown } from "@/lib/markdown-export";
 import { readVerificationToken } from "@/lib/verification-token";
+import { getNoteTextDirection } from "@/lib/text-direction";
 
 type UserSession = { userId?: string; id?: string; email: string; displayName: string; expiresAt?: string };
 type Topic = {
@@ -1077,6 +1078,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
         if (!live) return;
         setTitle(result.note.title || ""); setSubject(result.note.subject || "");
         setTopicId(result.note.topicId); persistedTopicId.current = result.note.topicId; setTags(result.note.tags || []); setPinned(Boolean(result.note.pinned));
+        setRtl(getNoteTextDirection(result.note.content) === "rtl");
         if (editor) {
           hydrating.current = true;
           editor.commands.setContent(result.note.content || EMPTY_DOC);

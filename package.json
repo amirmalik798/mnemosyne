@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx --test scripts/db-config.test.ts scripts/storage-path.test.ts scripts/archive-date.test.ts scripts/markdown-export.test.ts scripts/note-preview.test.ts scripts/verification-token.test.ts scripts/asset-references.test.ts",
+    "test:unit": "tsx --test scripts/db-config.test.ts scripts/storage-path.test.ts scripts/archive-date.test.ts scripts/markdown-export.test.ts scripts/note-preview.test.ts scripts/verification-token.test.ts scripts/asset-references.test.ts scripts/text-direction.test.ts",
     "test:tenant-isolation": "tsx scripts/test-tenant-isolation.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:check": "tsx scripts/check-db.ts",
