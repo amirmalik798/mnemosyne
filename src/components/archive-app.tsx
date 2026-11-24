@@ -839,7 +839,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
         <div className="search-stage-input"><Search size={22} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="What are you trying to remember?" aria-label="Search your archive" /><kbd>LIVE SEARCH</kbd></div>
         <div className="search-scopes" role="group" aria-label="Search scope">
           {[["all", "Everything"], ["titles", "Titles"], ["tags", "Tags"], ["pinned", "Pinned"]].map(([value, label]) =>
-            <button type="button" key={value} className={scope === value ? "scope-pill active" : "scope-pill"} onClick={() => setScope(value)}>{label}</button>)}
+            <button type="button" key={value} className={scope === value ? "scope-pill active" : "scope-pill"} aria-pressed={scope === value} onClick={() => setScope(value)}>{label}</button>)}
         </div>
       </section>
       {error && <div className="inline-alert error" role="alert"><AlertCircle size={16} />{error}<button type="button" onClick={() => setRetryAttempt(value => value + 1)}><RefreshCw size={14} /> Retry search</button></div>}
@@ -1389,7 +1389,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
             <label className="editor-topic-select"><Folder size={15} /><select disabled={creating} value={topicId} onChange={e => { setTopicId(e.target.value); touchForm(); }} aria-label="Collection">
               <option value="">Choose collection…</option>{props.topics.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
             </select><ChevronDown size={14} /></label>
-            <button type="button" disabled={creating} className={pinned ? "pin-toggle active" : "pin-toggle"} onClick={() => { setPinned(v => !v); touchForm(); }}><Pin size={14} /> {pinned ? "Pinned" : "Pin note"}</button>
+            <button type="button" disabled={creating} className={pinned ? "pin-toggle active" : "pin-toggle"} aria-pressed={pinned} onClick={() => { setPinned(v => !v); touchForm(); }}><Pin size={14} /> {pinned ? "Pinned" : "Pin note"}</button>
             <div className="editor-tags">{tags.map(tag => <button type="button" key={tag} disabled={creating} onClick={() => { setTags(current => current.filter(t => t !== tag)); touchForm(); }} title={"Remove tag " + tag}>#{tag}<X size={11} /></button>)}
               <form className="tag-entry" onSubmit={e => { e.preventDefault(); addTag(); }}><input disabled={creating} value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="+ Add tag" aria-label="Add a tag" /><button type="submit" disabled={creating} aria-label="Add tag"><Plus size={14} /></button></form>
             </div>
@@ -1741,11 +1741,11 @@ export default function ArchiveApp() {
         <a href="/" className="rail-brand" aria-label="Mnemosyne overview"><BookOpen size={21} /></a>
         <button type="button" className="rail-add" title="Quick capture · N" onClick={() => router.push("/notes/new")}><Plus size={20} /></button>
         <div className="rail-nav">
-          <a href="/search" title="Deep search · Ctrl/⌘ K" className={parts[0] === "search" ? "active" : ""}><Search size={19} /></a>
-          <a href="/" title="Knowledge dashboard" className={pathname === "/" ? "active" : ""}><LayoutDashboard size={19} /></a>
-          <a href="/topics" title="Topic collections" className={parts[0] === "topics" ? "active" : ""}><Folder size={19} /></a>
-          <a href="/all-notes" title="All notes" className={parts[0] === "all-notes" ? "active" : ""}><FileText size={19} /></a>
-          <a href="/pinned" title="Pinned notes" className={parts[0] === "pinned" ? "active" : ""}><Pin size={19} /></a>
+          <a href="/search" title="Deep search · Ctrl/⌘ K" aria-current={parts[0] === "search" ? "page" : undefined} className={parts[0] === "search" ? "active" : ""}><Search size={19} /></a>
+          <a href="/" title="Knowledge dashboard" aria-current={pathname === "/" ? "page" : undefined} className={pathname === "/" ? "active" : ""}><LayoutDashboard size={19} /></a>
+          <a href="/topics" title="Topic collections" aria-current={parts[0] === "topics" ? "page" : undefined} className={parts[0] === "topics" ? "active" : ""}><Folder size={19} /></a>
+          <a href="/all-notes" title="All notes" aria-current={parts[0] === "all-notes" ? "page" : undefined} className={parts[0] === "all-notes" ? "active" : ""}><FileText size={19} /></a>
+          <a href="/pinned" title="Pinned notes" aria-current={parts[0] === "pinned" ? "page" : undefined} className={parts[0] === "pinned" ? "active" : ""}><Pin size={19} /></a>
         </div>
         <div className="rail-bottom">
           <button type="button" title="Lock archive" onClick={lockVault}><Lock size={17} /></button>
@@ -1764,10 +1764,10 @@ export default function ArchiveApp() {
         </form>
         <div className="sidebar-section">
           <div className="sidebar-section-label">Workspace</div>
-          <a href="/" className={pathname === "/" ? "selected" : ""}><LayoutDashboard size={17} /><span>Overview</span></a>
-          <a href="/all-notes" className={parts[0] === "all-notes" ? "selected" : ""}><FileText size={17} /><span>All notes</span><small>{topics.reduce((total, t) => total + Number(t.noteCount || 0), 0)}</small></a>
-          <a href="/pinned" className={parts[0] === "pinned" ? "selected" : ""}><Pin size={17} /><span>Pinned notes</span></a>
-          <a href="/search" className={parts[0] === "search" ? "selected" : ""}><Search size={17} /><span>Deep search</span></a>
+          <a href="/" aria-current={pathname === "/" ? "page" : undefined} className={pathname === "/" ? "selected" : ""}><LayoutDashboard size={17} /><span>Overview</span></a>
+          <a href="/all-notes" aria-current={parts[0] === "all-notes" ? "page" : undefined} className={parts[0] === "all-notes" ? "selected" : ""}><FileText size={17} /><span>All notes</span><small>{topics.reduce((total, t) => total + Number(t.noteCount || 0), 0)}</small></a>
+          <a href="/pinned" aria-current={parts[0] === "pinned" ? "page" : undefined} className={parts[0] === "pinned" ? "selected" : ""}><Pin size={17} /><span>Pinned notes</span></a>
+          <a href="/search" aria-current={parts[0] === "search" ? "page" : undefined} className={parts[0] === "search" ? "selected" : ""}><Search size={17} /><span>Deep search</span></a>
         </div>
         <div className="sidebar-section collection-nav">
           <div className="sidebar-section-heading"><span className="sidebar-section-label">Topic collections</span><button type="button" title="Create a collection" onClick={() => { router.push("/topics/new"); setSidebarOpen(false); }}><Plus size={15} /></button></div>
@@ -1776,8 +1776,8 @@ export default function ArchiveApp() {
         </div>
         {categories.length > 0 && <div className="sidebar-section tag-nav"><div className="sidebar-section-label">Categories</div><div className="sidebar-tags">{categories.slice(0, 7).map(category => <button type="button" key={category} onClick={() => { router.push("/topics?category=" + encodeURIComponent(category)); setSidebarOpen(false); }}><Tag size={11} />{category}</button>)}</div></div>}
         <div className="sidebar-footer">
-          <a href="/trash" className={parts[0] === "trash" ? "selected" : ""}><Trash2 size={17} /><span>Trash</span></a>
-          <a href="/settings" className={parts[0] === "settings" ? "selected" : ""}><KeyRound size={17} /><span>Account & security</span><ShieldCheck size={14} className="green-icon" /></a>
+          <a href="/trash" aria-current={parts[0] === "trash" ? "page" : undefined} className={parts[0] === "trash" ? "selected" : ""}><Trash2 size={17} /><span>Trash</span></a>
+          <a href="/settings" aria-current={parts[0] === "settings" ? "page" : undefined} className={parts[0] === "settings" ? "selected" : ""}><KeyRound size={17} /><span>Account & security</span><ShieldCheck size={14} className="green-icon" /></a>
           <div className="account-mini"><div className="avatar-mini">{(session.displayName || "M").slice(0, 1).toUpperCase()}</div><div><b>{session.displayName}</b><small>{session.email}</small></div><button type="button" onClick={lockVault} title="Sign out"><LogOut size={15} /></button></div>
         </div>
       </aside>
@@ -1790,7 +1790,7 @@ export default function ArchiveApp() {
         <main className="app-content">{page}</main>
       </div>
       {toast && <div className={"toast-message " + toastVariant} role={toastVariant === "error" ? "alert" : "status"}><span aria-hidden="true">{toastVariant === "error" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}</span>{toast}<button type="button" onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div>}
-      <nav className="mobile-bottom-nav"><a href="/" className={pathname === "/" ? "active" : ""}><LayoutDashboard size={19} /><span>Home</span></a><a href="/topics" className={parts[0] === "topics" ? "active" : ""}><Folder size={19} /><span>Topics</span></a><a href="/notes/new" className="mobile-bottom-create"><Plus size={20} /><span>New</span></a><a href="/all-notes" className={parts[0] === "all-notes" ? "active" : ""}><FileText size={19} /><span>Notes</span></a><a href="/search" className={parts[0] === "search" ? "active" : ""}><Search size={19} /><span>Search</span></a></nav>
+      <nav className="mobile-bottom-nav"><a href="/" aria-current={pathname === "/" ? "page" : undefined} className={pathname === "/" ? "active" : ""}><LayoutDashboard size={19} /><span>Home</span></a><a href="/topics" aria-current={parts[0] === "topics" ? "page" : undefined} className={parts[0] === "topics" ? "active" : ""}><Folder size={19} /><span>Topics</span></a><a href="/notes/new" className="mobile-bottom-create"><Plus size={20} /><span>New</span></a><a href="/all-notes" aria-current={parts[0] === "all-notes" ? "page" : undefined} className={parts[0] === "all-notes" ? "active" : ""}><FileText size={19} /><span>Notes</span></a><a href="/search" aria-current={parts[0] === "search" ? "page" : undefined} className={parts[0] === "search" ? "active" : ""}><Search size={19} /><span>Search</span></a></nav>
     </div>
   );
 }
