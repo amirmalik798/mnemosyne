@@ -17,7 +17,7 @@ function renderText(node: MarkdownNode): string {
     else if (mark.type === "textHighlight") value = `<mark>${value}</mark>`;
     else if (mark.type === "link") {
       const href = String(mark.attrs?.href ?? "");
-      if (/^(https?:\/\/|mailto:|tel:|\/(?!\/)|[?#])/i.test(href)) value = `[${value}](${href.replace(/\)/g, "\\\\)")})`;
+      if (/^(https?:\/\/|mailto:|tel:|\/(?!\/)|[?#])/i.test(href)) value = `[${value}](${href.replace(/\)/g, "\\)")})`;
     }
   }
   return value;

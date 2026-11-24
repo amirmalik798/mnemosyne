@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EditorContent, useEditor } from "@tiptap/react";
-import { Extension, Mark } from "@tiptap/core";
+import { Extension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -128,73 +128,39 @@ const DirectionExtension = Extension.create({
   }
 });
 
-function safeNoteLinkHref(value: unknown): string | null {
-  if (typeof value !== "string") return null;
+function normalizeNoteLinkHref(value: string): string | null {
   const href = value.trim();
   if (!href) return null;
 
-  // Permit local paths and fragments, but reject protocol-relative URLs.
+  // Allow safe same-origin paths and fragments as well as standard link protocols.
   if (/^\/(?!\/)/.test(href) || href.startsWith("#") || href.startsWith("?")) return href;
-
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(href) ? href : "https://" + href;
   try {
-    const parsed = new URL(href);
+    const parsed = new URL(candidate);
     return ["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol) ? parsed.toString() : null;
   } catch {
     return null;
   }
 }
 
-function normalizeNoteLinkHref(value: string): string | null {
-  const href = value.trim();
-  if (!href) return null;
-  if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("/") || href.startsWith("#") || href.startsWith("?")) {
-    return safeNoteLinkHref(href);
-  }
-  return safeNoteLinkHref("https://" + href);
-}
-
-const LinkMark = Mark.create({
-  name: "link",
-  inclusive: false,
-  addAttributes() {
-    return {
-      href: {
-        default: null,
-        parseHTML: (element: HTMLElement) => safeNoteLinkHref(element.getAttribute("href")),
-      },
-      title: {
-        default: null,
-        parseHTML: (element: HTMLElement) => element.getAttribute("title"),
-      },
-    };
-  },
-  parseHTML() {
-    return [{
-      tag: "a[href]",
-      getAttrs: (element) => safeNoteLinkHref((element as HTMLElement).getAttribute("href")) ? null : false,
-    }];
-  },
-  renderHTML({ HTMLAttributes }) {
-    const href = safeNoteLinkHref(HTMLAttributes.href);
-    if (!href) return ["span", {}, 0];
-    const title = typeof HTMLAttributes.title === "string" ? HTMLAttributes.title : undefined;
-    return ["a", {
-      href,
-      class: "note-link",
-      target: "_blank",
-      rel: "noopener noreferrer nofollow",
-      ...(title ? { title } : {}),
-    }, 0];
-  },
-});
-
-function editorExtensions() {
+function editorExtensions(openLinksOnClick = false) {
   return [
-    StarterKit,
+    StarterKit.configure({
+      link: {
+        openOnClick: openLinksOnClick,
+        autolink: true,
+        linkOnPaste: true,
+        defaultProtocol: "https",
+        HTMLAttributes: {
+          class: "note-link",
+          target: "_blank",
+          rel: "noopener noreferrer nofollow",
+        },
+      },
+    }),
     ImageExtension.configure({ inline: false, allowBase64: false }),
     Placeholder.configure({ placeholder: "Begin with a thought. Let the connections emerge…" }),
-    DirectionExtension,
-    LinkMark
+    DirectionExtension
   ];
 }
 
@@ -1401,7 +1367,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
     if (enteredHref === null) return;
 
     if (!enteredHref.trim()) {
-      if (isExistingLink) editor.chain().focus().extendMarkRange("link").unsetMark("link").run();
+      if (isExistingLink) editor.chain().focus().extendMarkRange("link").unsetLink().run();
       return;
     }
 
@@ -1424,7 +1390,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
 
     const chain = editor.chain().focus();
     if (isExistingLink) chain.extendMarkRange("link");
-    chain.setMark("link", { href }).run();
+    chain.setLink({ href }).run();
   };
 
   const removeNote = async () => {
@@ -1593,7 +1559,7 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
   const [fontSize, setFontSize] = useState(18);
   const [toc, setToc] = useState<Array<{ id: string; title: string; level: number }>>([]);
   const [focus, setFocus] = useState(false);
-  const editor = useEditor({ extensions: editorExtensions(), editable: false, content: EMPTY_DOC, immediatelyRender: false, editorProps: { attributes: { class: "tiptap-content reader-content" } } });
+  const editor = useEditor({ extensions: editorExtensions(true), editable: false, content: EMPTY_DOC, immediatelyRender: false, editorProps: { attributes: { class: "tiptap-content reader-content" } } });
 
   useEffect(() => {
     let live = true;
