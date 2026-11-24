@@ -1361,7 +1361,9 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
         persistedTopicId.current = topicId;
         props.onTopicsChanged();
         props.notify("Your note has been created.");
-        router.replace("/notes/" + result.note.id);
+        // Do not pull the user back into the editor if they confirmed leaving
+        // while the create request was still in flight.
+        if (window.location.pathname === "/notes/new") router.replace("/notes/" + result.note.id);
       }
     } catch (cause) {
       if (isNew) {
