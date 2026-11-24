@@ -650,7 +650,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .reader-article > h1 { font-size: 38px; }
   .reader-abstract { font-size: 17px; }
   .reader-aside { display: none; }
-  .reader-prose .tiptap-content { font-size: 17px !important; }
   .reader-endnote { margin-top: 28px; }
   .toast-message { bottom: 78px; right: 10px; }
   .choice-row { grid-template-columns: 1fr; }

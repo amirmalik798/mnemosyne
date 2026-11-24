@@ -1228,7 +1228,7 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
           {note.subject && <p className="reader-abstract">{note.subject}</p>}
           <div className="reader-meta"><span>Created {formatDate(note.createdAt)}</span><span>Updated {relativeDate(note.updatedAt)}</span>{(note.tags || []).map(tag => <span key={tag} className="tag-chip">#{tag}</span>)}</div>
           <div className="reader-rule" />
-          <article className="reader-prose" style={{ fontSize: fontSize + "px" }}><EditorContent editor={editor} /></article>
+          <article className="reader-prose" style={{ fontSize: fontSize + "px" }}><EditorContent editor={editor} style={{ fontSize: fontSize + "px" }} /></article>
           <div className="reader-endnote"><BookOpen size={17} /><span>End of note · <button onClick={() => router.push("/notes/" + note.id)}>Continue editing</button></span></div>
         </main>
         <aside className="reader-aside">
