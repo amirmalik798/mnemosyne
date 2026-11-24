@@ -82,7 +82,7 @@ export async function PUT(request: Request, context: Context) {
          pinned = EXCLUDED.pinned,
          updated_at = NOW()
        RETURNING note_id`,
-      [id, topicId, session.userId, encryptText(title, session.key), encryptText(subject, session.key),
+      [id, topicId, encryptText(title, session.key), encryptText(subject, session.key),
        encryptText(content, session.key), encryptText(JSON.stringify(tags), session.key), pinned, baseDate],
     );
     if (!result.rows[0]) throw new Error("NOT_FOUND");
