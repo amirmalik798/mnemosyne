@@ -32,6 +32,42 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const searchKey = searchParams.toString();
   const router = useRouter();
   const [showTopic, setShowTopic] = useState(false);
+  const [sidebarTopics, setSidebarTopics] = useState<Array<{ id: string; title: string; category: string; noteCount: number }>>([]);
+  const [sidebarTopicsVersion, setSidebarTopicsVersion] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    void fetch("/api/topics?limit=8&offset=0", {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null) as { topics?: unknown } | null;
+        if (!response.ok) throw new Error("Topics could not be loaded.");
+        if (!active) return;
+        const items = Array.isArray(payload?.topics) ? payload.topics : [];
+        setSidebarTopics(items.filter((item): item is { id: string; title: string; category: string; noteCount: number } =>
+          Boolean(item) &&
+          typeof item === "object" &&
+          typeof (item as { id?: unknown }).id === "string" &&
+          typeof (item as { title?: unknown }).title === "string"
+        ).map((item) => ({
+          id: item.id,
+          title: item.title,
+          category: typeof item.category === "string" ? item.category : "",
+          noteCount: typeof item.noteCount === "number" ? item.noteCount : 0,
+        })));
+      })
+      .catch(() => {
+        // Keep the last successfully loaded sidebar list during transient errors.
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [pathname, sidebarTopicsVersion]);
   const [moreNavigationOpen, setMoreNavigationOpen] = useState(false);
   const mobileMorePanelRef = useRef<HTMLElement>(null);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -532,30 +568,150 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       : pathname.startsWith("/topics/")
         ? pathname.endsWith("/edit") ? "Edit topic" : "Topic"
         : current?.label ?? "Overview";
-  return <div className="app-shell">
+  return <div className="app-shell memory-studio-shell">
     <a className="skip-link" href="#main-content">Skip to main content</a>
-    <aside className="sidebar">
-      <Link href="/library" className="brand brand-with-wordmark" aria-label="Mnemosyne library" title="Mnemosyne library"><span className="brand-mark">M</span><span className="brand-name">Mnemosyne</span></Link>
-      <nav className="sidebar-navigation" aria-label="Archive navigation">
-      {nav.map((group) => <div key={group.label}><div className="nav-label">{group.label}</div>{group.items.map((item) => { const Icon = item.icon; const active = current?.href === item.href; return <Link href={item.href} key={item.href} className={`nav-link ${active ? "active" : ""}`} aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label}><Icon /><span>{item.label}</span></Link>; })}</div>)}
+
+    <aside className="studio-rail" aria-label="Primary navigation">
+      <Link href="/library" className="studio-brand" aria-label="Mnemosyne home" title="Mnemosyne">
+        <span className="studio-brand-mark" aria-hidden="true">M</span>
+      </Link>
+      <nav className="studio-rail-nav" aria-label="Quick navigation">
+        <button type="button" className="studio-rail-create" onClick={() => router.push("/notes/new")} aria-label="Create a new note" title="New note">
+          <FilePlus size={20} aria-hidden="true" />
+        </button>
+        <Link href="/search" className={pathname.startsWith("/search") ? "studio-rail-link active" : "studio-rail-link"} aria-label="Search archive" aria-current={pathname.startsWith("/search") ? "page" : undefined} title="Search archive">
+          <Search size={19} aria-hidden="true" />
+        </Link>
+        <Link href="/library" className={pathname === "/library" ? "studio-rail-link active" : "studio-rail-link"} aria-label="Overview" aria-current={pathname === "/library" ? "page" : undefined} title="Overview">
+          <Boxes size={19} aria-hidden="true" />
+        </Link>
+        <Link href="/topics" className={pathname === "/topics" || pathname.startsWith("/topics/") ? "studio-rail-link active" : "studio-rail-link"} aria-label="Topics" aria-current={pathname === "/topics" || pathname.startsWith("/topics/") ? "page" : undefined} title="Topics">
+          <FolderOpen size={19} aria-hidden="true" />
+        </Link>
+        <Link href="/notes" className={pathname === "/notes" || pathname.startsWith("/notes/") ? "studio-rail-link active" : "studio-rail-link"} aria-label="All notes" aria-current={pathname === "/notes" || pathname.startsWith("/notes/") ? "page" : undefined} title="All notes">
+          <FileText size={19} aria-hidden="true" />
+        </Link>
+        <Link href="/pinned" className={pathname === "/pinned" ? "studio-rail-link active" : "studio-rail-link"} aria-label="Pinned notes" aria-current={pathname === "/pinned" ? "page" : undefined} title="Pinned notes">
+          <Pin size={19} aria-hidden="true" />
+        </Link>
       </nav>
-      <div className="sidebar-spacer" />
-      <div className="vault-status"><div className="status-row"><span className="dot" /> Vault encrypted</div><div className="vault-caption">Your personal archive is unlocked for this session.</div></div>
-      <div className="sidebar-bottom"><div className="profile"><div className="avatar">{(user.displayName.trim().charAt(0) || user.email.charAt(0)).toUpperCase()}</div><div className="profile-copy"><div className="profile-name">{user.displayName}</div><div className="profile-sub">{user.email}</div></div></div></div>
+      <div className="studio-rail-bottom">
+        <span className="studio-rail-security" title="Your vault is protected by account-level encryption" aria-label="Encrypted archive">
+          <ShieldCheck size={18} aria-hidden="true" />
+        </span>
+        <ThemeToggle />
+        <Link href="/settings" className="studio-rail-link" aria-label="Settings" title="Settings">
+          <Settings size={18} aria-hidden="true" />
+        </Link>
+        <button type="button" className="studio-avatar" onClick={() => setMoreNavigationOpen(true)} aria-label={`Account menu for ${user.displayName || user.email}`} title={user.email}>
+          {(user.displayName.trim().charAt(0) || user.email.charAt(0)).toUpperCase()}
+        </button>
+      </div>
     </aside>
-    <div className="main-area">
-      <header className="topbar"><div className="breadcrumb"><span>MNEMOSYNE</span><span>/</span><span>{breadcrumbLabel}</span></div>
-        <div className="top-actions" role="group" aria-label="Workspace actions">
-          <button type="button" className="search-trigger top-action-button" onClick={() => router.push("/search")} aria-label="Search your archive" title="Search your archive · /" aria-keyshortcuts="/"><Search size={17} aria-hidden="true" /><span>Search</span></button>
-          <button type="button" className="primary-btn top-action-button" onClick={() => router.push("/notes/new")} aria-label="New note" title="New note"><FilePlus size={17} aria-hidden="true" /><span>New note</span></button>
-          <button type="button" className="lock-vault-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault · Ctrl/⌘+L"} aria-label={locking ? "Locking vault" : "Lock vault"} aria-keyshortcuts="Control+L Meta+L">{locking ? <LoaderCircle className="operation-spinner" size={15} aria-hidden="true" /> : <LockKeyhole size={15} aria-hidden="true" />}<span>{locking ? "Locking…" : "Lock vault"}</span></button>
+
+    <aside className="studio-sidebar" aria-label="Archive explorer">
+      <div className="studio-sidebar-top">
+        <div className="studio-workspace-heading">
+          <div>
+            <span className="studio-overline">PERSONAL WORKSPACE</span>
+            <h2>My archive</h2>
+          </div>
+          <span className="studio-session-state"><span aria-hidden="true" />Unlocked</span>
+        </div>
+        <button type="button" className="studio-search-trigger" onClick={openCommandPalette} aria-label="Search notes and topics. Press Control or Command K.">
+          <Search size={16} aria-hidden="true" />
+          <span>Filter your archive…</span>
+          <kbd>⌘ K</kbd>
+        </button>
+
+        <section className="studio-sidebar-group" aria-label="Workspace destinations">
+          <div className="studio-sidebar-label">WORKSPACE</div>
+          <nav className="studio-sidebar-nav">
+            {nav[0].items.map((item) => {
+              const Icon = item.icon;
+              const active = pathname === item.href || (item.href !== "/library" && pathname.startsWith(item.href + "/"));
+              return <Link key={item.href} href={item.href} className={active ? "studio-sidebar-link active" : "studio-sidebar-link"} aria-current={active ? "page" : undefined}>
+                <Icon size={17} aria-hidden="true" />
+                <span>{item.label}</span>
+                {item.href === "/library" && <span className="studio-sidebar-link-cue" aria-hidden="true">↗</span>}
+              </Link>;
+            })}
+          </nav>
+        </section>
+
+        <section className="studio-sidebar-group studio-topic-group" aria-label="Topic collections">
+          <div className="studio-sidebar-group-heading">
+            <span className="studio-sidebar-label">TOPIC COLLECTIONS</span>
+            <button type="button" className="studio-sidebar-add" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic">
+              <FolderPlus size={16} aria-hidden="true" />
+            </button>
+          </div>
+          {sidebarTopics.length > 0 ? (
+            <nav className="studio-topic-links">
+              {sidebarTopics.map((topic) => {
+                const active = pathname === `/topics/${topic.id}` || pathname.startsWith(`/topics/${topic.id}/`);
+                return <Link key={topic.id} href={`/topics/${topic.id}`} className={active ? "studio-topic-link active" : "studio-topic-link"} aria-current={active ? "page" : undefined} title={topic.title}>
+                  <span className="studio-topic-dot" aria-hidden="true" />
+                  <span className="studio-topic-name">{topic.title}</span>
+                  <span className="studio-topic-count">{topic.noteCount}</span>
+                </Link>;
+              })}
+            </nav>
+          ) : (
+            <div className="studio-topic-empty">
+              <span>Your collections will appear here.</span>
+              <button type="button" onClick={() => setShowTopic(true)}>Create a topic</button>
+            </div>
+          )}
+          <Link href="/topics" className="studio-all-topics">Explore all topics <span aria-hidden="true">→</span></Link>
+        </section>
+      </div>
+
+      <div className="studio-sidebar-bottom">
+        <Link href="/trash" className={pathname === "/trash" ? "studio-sidebar-link active" : "studio-sidebar-link"} aria-current={pathname === "/trash" ? "page" : undefined}>
+          <Trash2 size={17} aria-hidden="true" /><span>Recently deleted</span>
+        </Link>
+        <div className="studio-profile">
+          <div className="studio-profile-avatar" aria-hidden="true">{(user.displayName.trim().charAt(0) || user.email.charAt(0)).toUpperCase()}</div>
+          <div className="studio-profile-copy">
+            <strong>{user.displayName || "Your archive"}</strong>
+            <span>{user.email}</span>
+          </div>
+          <button type="button" className="studio-profile-menu" onClick={() => setMoreNavigationOpen(true)} aria-label="Open account options" title="Account options">
+            <MoreHorizontal size={17} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <div className="main-area studio-main-area">
+      <header className="topbar studio-topbar">
+        <div className="studio-topbar-context">
+          <div className="studio-breadcrumb" aria-label="Breadcrumb">
+            <span>ARCHIVE</span><span aria-hidden="true">/</span><strong>{breadcrumbLabel}</strong>
+          </div>
+          <div className="studio-encryption-status"><span aria-hidden="true" /><LockKeyhole size={13} aria-hidden="true" /> Private vault session</div>
+        </div>
+        <div className="top-actions studio-top-actions" role="group" aria-label="Workspace actions">
+          <button type="button" className="search-trigger top-action-button" onClick={openCommandPalette} aria-label="Search your archive" title="Search your archive · Ctrl/⌘ K" aria-keyshortcuts="Control+K Meta+K">
+            <Search size={17} aria-hidden="true" /><span>Search</span>
+          </button>
+          <Link href="/notes/new" className="primary-btn top-action-button" aria-label="Create a new note" title="Create a new note">
+            <FilePlus size={17} aria-hidden="true" /><span>New note</span>
+          </Link>
+          <button type="button" className="lock-vault-btn" onClick={lockVault} disabled={locking} title={locking ? "Locking vault…" : "Lock vault · Ctrl/⌘+L"} aria-label={locking ? "Locking vault" : "Lock vault"} aria-keyshortcuts="Control+L Meta+L">
+            {locking ? <LoaderCircle className="operation-spinner" size={15} aria-hidden="true" /> : <LockKeyhole size={15} aria-hidden="true" />}
+            <span>{locking ? "Locking…" : "Lock vault"}</span>
+          </button>
           <ActionOverflowMenu label="More workspace actions" className="topbar-overflow">
             <ThemeToggle />
-            <button type="button" className="secondary-btn top-action-button" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic"><FolderPlus size={17} aria-hidden="true" /><span>New topic</span></button>
+            <button type="button" className="secondary-btn top-action-button" onClick={() => setShowTopic(true)} aria-label="Create a topic" title="Create a topic">
+              <FolderPlus size={17} aria-hidden="true" /><span>New topic</span>
+            </button>
           </ActionOverflowMenu>
         </div>
       </header>
-      <div className="main-content" id="main-content" tabIndex={-1}>{children}</div>
+      <div className="main-content studio-content" id="main-content" tabIndex={-1}>{children}</div>
     </div>
     {moreNavigationOpen && (
       <>
@@ -728,7 +884,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         </section>
       </div>
     )}
-    {showTopic && <TopicDialog onClose={() => setShowTopic(false)} />}
+    {showTopic && <TopicDialog onClose={() => { setShowTopic(false); setSidebarTopicsVersion((value) => value + 1); }} />}
     {operationNotice && (
       <div className="operation-toast">
         <OperationStatus kind={operationNotice.kind} message={operationNotice.message} />
