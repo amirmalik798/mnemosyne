@@ -422,7 +422,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .focus-mode .reader-layout { grid-template-columns: minmax(0,850px); }
 .focus-mode .reader-aside { display: none; }
 .toast-message { position: fixed; z-index: 120; right: 24px; bottom: 24px; max-width: min(420px,calc(100vw - 36px)); display: flex; align-items: center; gap: 9px; padding: 12px 14px; border-radius: 10px; background: var(--panel-3); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--ink); font-size: 11px; }
-.toast-message > svg { color: var(--lime); flex: 0 0 auto; }
+.toast-message > span { color: var(--lime); display: inline-flex; flex: 0 0 auto; }
+.toast-message.error > span { color: var(--danger); }
 .toast-message button { display: grid; place-items: center; margin-left: 5px; background: transparent; border: 0; color: var(--quiet); }
 .icon-rail { position: fixed; z-index: 50; inset: 0 auto 0 0; width: 66px; display: flex; flex-direction: column; align-items: center; gap: 17px; padding: 14px 8px 12px; background: var(--panel-deep); border-right: 1px solid var(--line-soft); }
 .rail-brand { width: 40px; height: 40px; border-radius: 12px; color: var(--lime); display: grid; place-items: center; background: var(--panel-3); }
