@@ -179,6 +179,19 @@ button:focus-visible, a:focus-visible, summary:focus-visible {
 .modal-card { width: min(100%,500px); max-height: min(90vh,760px); overflow: auto; padding: 22px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 17px; }
 .modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
 .modal-header h2 { margin: 4px 0 0; font: 500 28px/1.12 var(--serif); }
+.app-dialog-card { width: min(100%, 470px); padding: 24px; color: var(--ink); }
+.app-dialog-form { display: flex; flex-direction: column; gap: 17px; }
+.app-dialog-description { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.app-dialog-field { margin-top: 2px; }
+.app-dialog-field input { min-height: 45px; }
+.app-dialog-error { color: var(--danger) !important; font-size: 11px !important; }
+.app-dialog-footer { padding-top: 2px; }
+@media (max-width: 560px) {
+  .app-dialog-backdrop { padding: 12px; }
+  .app-dialog-card { padding: 18px; }
+  .app-dialog-card .modal-header h2 { font-size: 25px; }
+  .app-dialog-footer { flex-wrap: wrap; }
+}
 .modal-note { margin: 0; padding: 11px 12px; background: var(--panel-2); border-radius: 8px; color: var(--muted); font-size: 12px; }
 .choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .choice-card { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; text-align: left; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); color: var(--muted); }

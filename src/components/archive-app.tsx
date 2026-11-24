@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useId, type FormEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { Extension } from "@tiptap/core";
@@ -43,7 +43,13 @@ type SearchResult = {
 };
 type ApiResult<T> = T & { error?: string; message?: string };
 type ToastVariant = "success" | "error";
-type NoteSaveActionState = { label: "Create note" | "Save note"; disabled: boolean; saving: boolean };
+type AppDialogOptions =
+  | { kind: "confirm"; eyebrow?: string; title: string; description: string; confirmLabel?: string; cancelLabel?: string; destructive?: boolean }
+  | { kind: "prompt"; eyebrow?: string; title: string; description?: string; inputLabel: string; initialValue?: string; placeholder?: string; confirmLabel?: string; cancelLabel?: string; required?: boolean };
+type AppDialogResult = boolean | string | null;
+type PendingAppDialog = AppDialogOptions & { id: number };
+type RequestAppDialog = (options: AppDialogOptions) => Promise<AppDialogResult>;
+type NoteSaveActionState = { label: "Create note" | "Save note"; disabled: boolean; saving: boolean; unsaved: boolean };
 
 const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
 
@@ -181,6 +187,113 @@ function ActionButton(props: {
       title={props.title} aria-label={props.title} onClick={props.onClick} disabled={props.disabled}>
       {props.children}
     </button>
+  );
+}
+
+
+function AppDialog(props: { request: PendingAppDialog | null; onResolve: (result: AppDialogResult) => void }) {
+  const titleId = useId();
+  const descriptionId = useId();
+  const dialogRef = useRef<HTMLElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const [value, setValue] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const request = props.request;
+    if (!request) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setValue(request.kind === "prompt" ? request.initialValue || "" : "");
+    setError("");
+    const frame = window.requestAnimationFrame(() => {
+      if (request.kind === "prompt") inputRef.current?.focus();
+      else cancelRef.current?.focus();
+    });
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        props.onResolve(request.kind === "confirm" ? false : null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+      ));
+      if (!focusable.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, [props.request, props.onResolve]);
+
+  if (!props.request) return null;
+  const request = props.request;
+  const cancel = () => props.onResolve(request.kind === "confirm" ? false : null);
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (request.kind === "confirm") {
+      props.onResolve(true);
+      return;
+    }
+    if (request.required !== false && !value.trim()) {
+      setError("Enter a value to continue.");
+      inputRef.current?.focus();
+      return;
+    }
+    props.onResolve(value);
+  };
+
+  return (
+    <div className="modal-backdrop app-dialog-backdrop" role="presentation" onMouseDown={event => {
+      if (event.target === event.currentTarget) cancel();
+    }}>
+      <section ref={dialogRef} tabIndex={-1} className="modal-card app-dialog-card" role="dialog" aria-modal="true"
+        aria-labelledby={titleId} aria-describedby={request.description ? descriptionId : undefined}>
+        <form className="app-dialog-form" onSubmit={submit}>
+          <div className="modal-header">
+            <div>
+              <div className="eyebrow">{request.eyebrow || (request.kind === "confirm" ? "Confirm action" : "Edit details")}</div>
+              <h2 id={titleId}>{request.title}</h2>
+            </div>
+            <ActionButton title={request.cancelLabel || "Close dialog"} onClick={cancel}><X size={18} /></ActionButton>
+          </div>
+          {request.description && <p className="app-dialog-description" id={descriptionId}>{request.description}</p>}
+          {request.kind === "prompt" && (
+            <label className="field app-dialog-field">
+              <span>{request.inputLabel}</span>
+              <input ref={inputRef} value={value} onChange={event => { setValue(event.target.value); setError(""); }}
+                placeholder={request.placeholder || ""} />
+              {error && <small className="app-dialog-error" role="alert">{error}</small>}
+            </label>
+          )}
+          <div className="form-footer app-dialog-footer">
+            <button ref={cancelRef} type="button" className="button-secondary" onClick={cancel}>{request.cancelLabel || "Cancel"}</button>
+            <button type="submit" className={request.kind === "confirm" && request.destructive ? "button-danger" : "button-primary"}>
+              {request.confirmLabel || (request.kind === "confirm" ? "Continue" : "Use value")}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 
@@ -609,7 +722,7 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
   );
 }
 
-function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; onTopicsChanged?: () => void; notify: (message: string, variant?: ToastVariant) => void }) {
+function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; onTopicsChanged?: () => void; notify: (message: string, variant?: ToastVariant) => void; requestDialog: RequestAppDialog }) {
   const router = useRouter();
   const [transferOpen, setTransferOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -627,7 +740,11 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; on
     finally { setBusy(false); }
   };
   const moveToTrash = async () => {
-    if (!window.confirm("Move this note to Trash? You can restore it later.")) return;
+    const confirmed = await props.requestDialog({
+      kind: "confirm", eyebrow: "Remove note", title: "Move this note to Trash?",
+      description: "You can restore it later from Trash.", confirmLabel: "Move to Trash", destructive: true,
+    });
+    if (confirmed !== true) return;
     setBusy(true);
     try {
       await apiJson("/api/notes/" + props.note.id, { method: "DELETE" });
@@ -673,7 +790,7 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; on
   );
 }
 
-function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void }) {
+function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void; requestDialog: RequestAppDialog }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -714,7 +831,7 @@ function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (messa
       </div>
       {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load(0, false)}>Retry</button></div>}
       {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading your notes…</div>
-        : visible.length ? <div className="note-list">{visible.map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={() => load(0, false)} onTopicsChanged={props.onTopicsChanged} notify={props.notify} />)}</div>
+        : visible.length ? <div className="note-list">{visible.map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={() => load(0, false)} onTopicsChanged={props.onTopicsChanged} notify={props.notify} requestDialog={props.requestDialog} />)}</div>
           : !error ? <EmptyState icon={props.pinnedOnly ? <Pin size={24} /> : <FileText size={24} />}
             title={query ? "No notes match that search" : props.pinnedOnly ? "Nothing pinned yet" : "A page waiting for a first thought"}
             description={query ? "Try another word or clear your search." : props.pinnedOnly ? "Pin useful notes and they will collect here." : "Create a note to capture an idea, question, or useful reference."}
@@ -724,7 +841,7 @@ function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (messa
   );
 }
 
-function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: () => void; notify: (message: string, variant?: ToastVariant) => void }) {
+function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: () => void; notify: (message: string, variant?: ToastVariant) => void; requestDialog: RequestAppDialog }) {
   const router = useRouter();
   const [topic, setTopic] = useState<Topic | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -763,7 +880,13 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
   };
 
   const removeCover = async () => {
-    if (uploading || deleting || !window.confirm("Remove this collection cover?")) return;
+    if (uploading || deleting) return;
+    const confirmed = await props.requestDialog({
+      kind: "confirm", eyebrow: "Collection cover", title: "Remove this collection cover?",
+      description: "The cover image will be removed from this collection. Your notes will not be affected.",
+      confirmLabel: "Remove cover", destructive: true,
+    });
+    if (confirmed !== true) return;
     setUploading(true);
     try {
       await apiJson("/api/topics/" + props.topicId + "/cover", { method: "DELETE" });
@@ -786,7 +909,11 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
     if (uploading || deleting) return;
     if (notes.length) { props.notify("Move or delete the active notes before deleting this collection.", "error"); return; }
     if (topic?.trashedNoteCount) { props.notify("Restore or permanently delete the notes in Trash before deleting this collection.", "error"); return; }
-    if (!window.confirm("Delete this empty collection? This cannot be undone.")) return;
+    const confirmed = await props.requestDialog({
+      kind: "confirm", eyebrow: "Delete collection", title: "Delete this empty collection?",
+      description: "This action cannot be undone.", confirmLabel: "Delete collection", destructive: true,
+    });
+    if (confirmed !== true) return;
     setDeleting(true);
     try {
       await apiJson("/api/topics/" + props.topicId, { method: "DELETE" });
@@ -822,7 +949,7 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
       </section>
       {Boolean(topic.trashedNoteCount) && <div className="inline-alert" role="status"><Trash2 size={16} /> This collection has {topic.trashedNoteCount} note{topic.trashedNoteCount === 1 ? "" : "s"} in Trash. Restore or permanently delete {topic.trashedNoteCount === 1 ? "it" : "them"} before deleting the collection. <a href="/trash">Open Trash</a></div>}
       <div className="section-heading"><div><div className="eyebrow">In this collection</div><h2>Notes and fragments</h2></div><span className="result-count">{notes.length} items</span></div>
-      {notes.length ? <div className="note-list">{notes.map(note => <NoteRow key={note.id} note={{ ...note, topicTitle: topic.title }} topics={props.topics} onRefresh={load} onTopicsChanged={props.onRefreshTopics} notify={props.notify} />)}</div>
+      {notes.length ? <div className="note-list">{notes.map(note => <NoteRow key={note.id} note={{ ...note, topicTitle: topic.title }} topics={props.topics} onRefresh={load} onTopicsChanged={props.onRefreshTopics} notify={props.notify} requestDialog={props.requestDialog} />)}</div>
         : <EmptyState icon={<FileText size={24} />} title="This collection is ready for its first note" description="Start with an observation, a question, a source, or a small idea. You can connect it to other work later." action={<a className="button-primary" href={"/notes/new?topicId=" + topic.id}><Plus size={16} /> Write the first note</a>} />}
     </div>
   );
@@ -889,7 +1016,7 @@ function SearchPage(props: { notify: (message: string, variant?: ToastVariant) =
   );
 }
 
-function TrashPage(props: { notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void }) {
+function TrashPage(props: { notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void; requestDialog: RequestAppDialog }) {
   const [notes, setNotes] = useState<any[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -909,7 +1036,14 @@ function TrashPage(props: { notify: (message: string, variant?: ToastVariant) =>
   useEffect(() => { void load(); }, [load]);
 
   const act = async (note: any, action: "restore" | "delete") => {
-    if (action === "delete" && !window.confirm("Permanently delete this note and its attached images? This cannot be undone.")) return;
+    if (action === "delete") {
+      const confirmed = await props.requestDialog({
+        kind: "confirm", eyebrow: "Permanent deletion", title: "Permanently delete this note?",
+        description: "The note and its attached images will be permanently deleted. This cannot be undone.",
+        confirmLabel: "Delete permanently", destructive: true,
+      });
+      if (confirmed !== true) return;
+    }
     setBusyId(note.id);
     try {
       await apiJson("/api/trash", { method: "POST", body: JSON.stringify({ id: note.id, action }) });
@@ -983,7 +1117,7 @@ function SettingsPage(props: { session: UserSession; onLogout: () => void; notif
   );
 }
 
-function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void }) {
+function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void; requestDialog: RequestAppDialog }) {
   const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
@@ -1053,7 +1187,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
         <div className="dashboard-column">
           <div className="section-heading"><div><div className="eyebrow">Your recent thinking</div><h2>Recently updated notes</h2></div><a className="subtle-link" href="/all-notes">View all <ArrowRight size={14} /></a></div>
           {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading notes…</div>
-            : sorted.length ? <div className="note-list compact-list">{sorted.slice(0, 5).map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={load} onTopicsChanged={props.onTopicsChanged} notify={props.notify} />)}</div>
+            : sorted.length ? <div className="note-list compact-list">{sorted.slice(0, 5).map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={load} onTopicsChanged={props.onTopicsChanged} notify={props.notify} requestDialog={props.requestDialog} />)}</div>
               : !error ? <EmptyState icon={<FileText size={22} />} title="No notes yet" description="Start with one thought. You can organize it into a collection." action={<a href="/notes/new" className="button-primary"><Plus size={16} /> New note</a>} /> : null}
         </div>
         <aside className="dashboard-column pinned-column">
@@ -1072,7 +1206,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
   );
 }
 
-function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void; onSaveActionChange: (action: (() => void) | null, state?: NoteSaveActionState) => void }) {
+function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify: (message: string, variant?: ToastVariant) => void; onTopicsChanged: () => void; onSaveActionChange: (action: (() => void) | null, state?: NoteSaveActionState) => void; requestDialog: RequestAppDialog; onNavigate: (href: string) => void }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -1257,6 +1391,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
       label: isNew ? "Create note" : "Save note",
       disabled: loading || busyUpload || saveState === "saving" || (!dirty && !isNew),
       saving: saveState === "saving",
+      unsaved: dirty || saveState !== "saved",
     });
   }, [props.onSaveActionChange, triggerManualSave, isNew, loading, busyUpload, saveState, dirty]);
   useEffect(() => () => props.onSaveActionChange(null), [props.onSaveActionChange]);
@@ -1373,15 +1508,20 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
     }
   };
 
-  const addOrEditLink = () => {
+  const addOrEditLink = async () => {
     if (!editor) return;
     const isExistingLink = editor.isActive("link");
     const selection = editor.state.selection;
     const selectedText = editor.state.doc.textBetween(selection.from, selection.to, " ");
     const currentHref = String(editor.getAttributes("link").href || "");
     const initialHref = currentHref || (/^(https?:\/\/|www\.|[\w.-]+\.[a-z]{2,})/i.test(selectedText) ? selectedText : "https://");
-    const enteredHref = window.prompt(isExistingLink ? "Update hyperlink address" : "Enter hyperlink address", initialHref);
-    if (enteredHref === null) return;
+    const enteredHref = await props.requestDialog({
+      kind: "prompt", eyebrow: "Hyperlink", title: isExistingLink ? "Update hyperlink address" : "Add a hyperlink",
+      description: "Enter a web address, email address, telephone link, or local path.",
+      inputLabel: "Link address", initialValue: initialHref, placeholder: "https://example.com",
+      confirmLabel: "Continue", required: false,
+    });
+    if (typeof enteredHref !== "string") return;
 
     if (!enteredHref.trim()) {
       if (isExistingLink) editor.chain().focus().extendMarkRange("link").unsetLink().run();
@@ -1395,8 +1535,13 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
     }
 
     if (selection.empty && !isExistingLink) {
-      const label = window.prompt("Text to display for this hyperlink", enteredHref.trim());
-      if (label === null || !label.trim()) return;
+      const label = await props.requestDialog({
+        kind: "prompt", eyebrow: "Hyperlink", title: "Choose link text",
+        description: "This is the text readers will see in the note.",
+        inputLabel: "Display text", initialValue: enteredHref.trim(), placeholder: "Read more",
+        confirmLabel: "Insert link", required: true,
+      });
+      if (typeof label !== "string" || !label.trim()) return;
       editor.chain().focus().insertContent({
         type: "text",
         text: label.trim(),
@@ -1416,7 +1561,11 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
       setError("Save your changes before moving this note to Trash.");
       return;
     }
-    if (!window.confirm("Move this note to Trash? You can restore it later.")) return;
+    const confirmed = await props.requestDialog({
+      kind: "confirm", eyebrow: "Remove note", title: "Move this note to Trash?",
+      description: "You can restore it later from Trash.", confirmLabel: "Move to Trash", destructive: true,
+    });
+    if (confirmed !== true) return;
     try {
       await apiJson("/api/notes/" + props.noteId, { method: "DELETE" });
       props.notify("Note moved to Trash.");
@@ -1452,7 +1601,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
 
   return (
     <div className="editor-page">
-      <div className="editor-topline"><button type="button" className="back-link" onClick={() => router.push(topicId ? "/topics/" + topicId : "/all-notes")}><ArrowLeft size={15} /> Back</button>
+      <div className="editor-topline"><button type="button" className="back-link" onClick={() => props.onNavigate(topicId ? "/topics/" + topicId : "/all-notes")}><ArrowLeft size={15} /> Back</button>
         <div className={"save-indicator " + saveState}>{saveState === "saved" ? <CheckCircle2 size={14} /> : saveState === "saving" ? <Loader2 className="spin" size={14} /> : <Clock3 size={14} />}{saveState === "saved" ? "All changes saved" : saveState === "saving" ? "Saving…" : isNew ? "Not saved yet" : "Unsaved changes"}</div>
       </div>
       {recovery && (
@@ -1664,12 +1813,69 @@ export default function ArchiveApp() {
   const [toast, setToast] = useState("");
   const [toastVariant, setToastVariant] = useState<ToastVariant>("success");
   const toastTimer = useRef<number | null>(null);
+  const [activeDialog, setActiveDialog] = useState<PendingAppDialog | null>(null);
+  const dialogSequence = useRef(0);
+  const dialogResolverRef = useRef<((result: AppDialogResult) => void) | null>(null);
+  const requestDialog = useCallback((options: AppDialogOptions) => new Promise<AppDialogResult>(resolve => {
+    dialogResolverRef.current?.(null);
+    dialogResolverRef.current = resolve;
+    setActiveDialog({ ...options, id: ++dialogSequence.current });
+  }), []);
+  const resolveDialog = useCallback((result: AppDialogResult) => {
+    const resolve = dialogResolverRef.current;
+    dialogResolverRef.current = null;
+    setActiveDialog(null);
+    resolve?.(result);
+  }, []);
   const noteSaveActionRef = useRef<(() => void) | null>(null);
   const [noteSaveAction, setNoteSaveAction] = useState<NoteSaveActionState | null>(null);
   const registerNoteSaveAction = useCallback((action: (() => void) | null, state?: NoteSaveActionState) => {
     noteSaveActionRef.current = action;
     setNoteSaveAction(action ? state || null : null);
   }, []);
+  const isNewNoteRoute = parts[0] === "notes" && parts[1] === "new";
+  const confirmUnsavedChanges = useCallback(async () => {
+    if (!noteSaveAction?.unsaved) return true;
+    const result = await requestDialog({
+      kind: "confirm",
+      eyebrow: "Unsaved note",
+      title: isNewNoteRoute ? "Leave this new note?" : "Leave without saving?",
+      description: isNewNoteRoute
+        ? "This new note has changes that have not been saved. Leaving now will discard them."
+        : "This note has changes that have not finished saving. Leaving now may discard those changes.",
+      confirmLabel: "Leave without saving",
+      cancelLabel: "Keep editing",
+      destructive: true,
+    });
+    return result === true;
+  }, [noteSaveAction?.unsaved, isNewNoteRoute, requestDialog]);
+  const navigateWithGuard = useCallback(async (href: string) => {
+    if (await confirmUnsavedChanges()) router.push(href);
+  }, [confirmUnsavedChanges, router]);
+  const handleUnsavedNavigationClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!noteSaveAction?.unsaved || event.defaultPrevented || event.button !== 0 ||
+      event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const anchor = target.closest("a[href]") as HTMLAnchorElement | null;
+    if (!anchor || anchor.hasAttribute("download") || (anchor.target && anchor.target !== "_self")) return;
+    const destination = new URL(anchor.href, window.location.href);
+    if (destination.origin !== window.location.origin) return;
+    const current = new URL(window.location.href);
+    if (destination.pathname === current.pathname && destination.search === current.search && destination.hash === current.hash) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void navigateWithGuard(destination.pathname + destination.search + destination.hash);
+  }, [noteSaveAction?.unsaved, navigateWithGuard]);
+  useEffect(() => {
+    if (!noteSaveAction?.unsaved) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [noteSaveAction?.unsaved]);
 
   const notify = useCallback((message: string, variant: ToastVariant = "success") => {
     setToast(message);
@@ -1797,14 +2003,15 @@ export default function ArchiveApp() {
         return;
       }
       if (editing || event.altKey || event.ctrlKey || event.metaKey) return;
-      if (event.key.toLowerCase() === "n") { event.preventDefault(); router.push("/notes/new"); }
-      if (event.key.toLowerCase() === "t") { event.preventDefault(); router.push("/topics/new"); }
+      if (event.key.toLowerCase() === "n") { event.preventDefault(); void navigateWithGuard("/notes/new"); }
+      if (event.key.toLowerCase() === "t") { event.preventDefault(); void navigateWithGuard("/topics/new"); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router, focusMode]);
+  }, [router, focusMode, navigateWithGuard]);
 
   const lockVault = async () => {
+    if (!(await confirmUnsavedChanges())) return;
     try {
       await apiJson("/api/vault/lock", { method: "POST" });
       setSession(null);
@@ -1857,21 +2064,21 @@ export default function ArchiveApp() {
   let page: React.ReactNode;
   if (parts[0] === "topics" && parts[1] === "new") page = <TopicForm topicId={null} topics={topics} onSaved={refreshTopics} onCancel={() => router.push("/topics")} notify={notify} />;
   else if (parts[0] === "topics" && parts[1] && parts[2] === "edit") page = <TopicForm topicId={parts[1]} topics={topics} onSaved={refreshTopics} onCancel={() => router.push("/topics/" + parts[1])} notify={notify} />;
-  else if (parts[0] === "topics" && parts[1]) page = <TopicPage key={parts[1]} topicId={parts[1]} topics={topics} onRefreshTopics={refreshTopics} notify={notify} />;
+  else if (parts[0] === "topics" && parts[1]) page = <TopicPage key={parts[1]} topicId={parts[1]} topics={topics} onRefreshTopics={refreshTopics} notify={notify} requestDialog={requestDialog} />;
   else if (parts[0] === "topics") page = <TopicsPage topics={topics} onOpen={id => router.push("/topics/" + id)} onCreate={() => router.push("/topics/new")} />;
-  else if (parts[0] === "notes" && parts[1] === "new") page = <NoteEditorPage key={pathname} noteId={null} topics={topics} notify={notify} onTopicsChanged={refreshTopics} onSaveActionChange={registerNoteSaveAction} />;
+  else if (parts[0] === "notes" && parts[1] === "new") page = <NoteEditorPage key={pathname} noteId={null} topics={topics} notify={notify} onTopicsChanged={refreshTopics} onSaveActionChange={registerNoteSaveAction} requestDialog={requestDialog} onNavigate={href => { void navigateWithGuard(href); }} />;
   else if (parts[0] === "notes" && parts[1] && parts[2] === "read") page = <ReaderPage key={pathname} noteId={parts[1]} onFocusMode={setFocusMode} notify={notify} />;
-  else if (parts[0] === "notes" && parts[1]) page = <NoteEditorPage key={pathname} noteId={parts[1]} topics={topics} notify={notify} onTopicsChanged={refreshTopics} onSaveActionChange={registerNoteSaveAction} />;
-  else if (parts[0] === "all-notes") page = <NotesPage key="all" topics={topics} pinnedOnly={false} notify={notify} onTopicsChanged={refreshTopics} />;
-  else if (parts[0] === "pinned") page = <NotesPage key="pinned" topics={topics} pinnedOnly notify={notify} onTopicsChanged={refreshTopics} />;
+  else if (parts[0] === "notes" && parts[1]) page = <NoteEditorPage key={pathname} noteId={parts[1]} topics={topics} notify={notify} onTopicsChanged={refreshTopics} onSaveActionChange={registerNoteSaveAction} requestDialog={requestDialog} onNavigate={href => { void navigateWithGuard(href); }} />;
+  else if (parts[0] === "all-notes") page = <NotesPage key="all" topics={topics} pinnedOnly={false} notify={notify} onTopicsChanged={refreshTopics} requestDialog={requestDialog} />;
+  else if (parts[0] === "pinned") page = <NotesPage key="pinned" topics={topics} pinnedOnly notify={notify} onTopicsChanged={refreshTopics} requestDialog={requestDialog} />;
   else if (parts[0] === "search") page = <SearchPage topics={topics} notify={notify} />;
-  else if (parts[0] === "trash") page = <TrashPage notify={notify} onTopicsChanged={refreshTopics} />;
+  else if (parts[0] === "trash") page = <TrashPage notify={notify} onTopicsChanged={refreshTopics} requestDialog={requestDialog} />;
   else if (parts[0] === "settings") page = <SettingsPage session={session} onLogout={lockVault} notify={notify} />;
-  else if (parts.length === 0) page = <DashboardPage topics={topics} session={session} notify={notify} onTopicsChanged={refreshTopics} />;
+  else if (parts.length === 0) page = <DashboardPage topics={topics} session={session} notify={notify} onTopicsChanged={refreshTopics} requestDialog={requestDialog} />;
   else page = <div className="page-stack"><EmptyState icon={<Search size={24} />} title="We couldn't find that page" description="The address may have changed, or the page may no longer exist." action={<button type="button" className="button-secondary" onClick={() => router.push("/")}>Return to overview</button>} /></div>;
 
   return (
-    <div className={"mnemosyne-app theme-" + theme + (focusMode ? " focus-mode" : "")}>
+    <div className={"mnemosyne-app theme-" + theme + (focusMode ? " focus-mode" : "")} onClickCapture={handleUnsavedNavigationClick}>
       <div className="mobile-topbar"><button type="button" className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><a href="/" className="mobile-brand"><span className="brand-mark"><BookOpen size={17} /></span>mnemosyne</a><button type="button" className="mobile-theme-button" onClick={toggleTheme} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><button type="button" className="mobile-add-button" onClick={() => parts[0] === "notes" && parts[1] && parts[2] !== "read" ? noteSaveActionRef.current?.() : router.push("/notes/new")} aria-label={parts[0] === "notes" && parts[1] && parts[2] !== "read" ? (noteSaveAction?.label || (parts[1] === "new" ? "Create note" : "Save note")) : "Create new note"} disabled={parts[0] === "notes" && parts[1] && parts[2] !== "read" ? noteSaveAction?.disabled ?? true : false}>{parts[0] === "notes" && parts[1] && parts[2] !== "read" ? noteSaveAction?.saving ? <Loader2 className="spin" size={19} /> : <Save size={19} /> : <Plus size={19} />}</button></div>
       <aside className="icon-rail">
         <a href="/" className="rail-brand" aria-label="Mnemosyne overview"><BookOpen size={21} /></a>
@@ -1930,6 +2137,7 @@ export default function ArchiveApp() {
         </header>}
         <main className="app-content">{page}</main>
       </div>
+      <AppDialog request={activeDialog} onResolve={resolveDialog} />
       {toast && <div className={"toast-message " + toastVariant} role={toastVariant === "error" ? "alert" : "status"}><span aria-hidden="true">{toastVariant === "error" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}</span>{toast}<button type="button" onClick={() => setToast("")} aria-label="Dismiss notification"><X size={14} /></button></div>}
       <nav className="mobile-bottom-nav"><a href="/" aria-current={pathname === "/" ? "page" : undefined} className={pathname === "/" ? "active" : ""}><LayoutDashboard size={19} /><span>Home</span></a><a href="/topics" aria-current={parts[0] === "topics" ? "page" : undefined} className={parts[0] === "topics" ? "active" : ""}><Folder size={19} /><span>Topics</span></a><a href="/notes/new" className="mobile-bottom-create"><Plus size={20} /><span>New</span></a><a href="/all-notes" aria-current={parts[0] === "all-notes" ? "page" : undefined} className={parts[0] === "all-notes" ? "active" : ""}><FileText size={19} /><span>Notes</span></a><a href="/search" aria-current={parts[0] === "search" ? "page" : undefined} className={parts[0] === "search" ? "active" : ""}><Search size={19} /><span>Search</span></a></nav>
     </div>
