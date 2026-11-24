@@ -523,8 +523,8 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
         <div className="modal-header"><div><div className="eyebrow">Organize note</div><h2 id="transfer-title">Move or make a copy</h2></div><ActionButton title="Close dialog" onClick={props.onClose}><X size={18} /></ActionButton></div>
         <p className="modal-note" id="transfer-description">“{props.note.title || "Untitled note"}”</p>
         <div className="choice-row">
-          <button type="button" className={action === "move" ? "choice-card selected" : "choice-card"} onClick={() => setAction("move")} type="button"><ArrowRight size={18} /><b>Move</b><small>Keep one note and change its collection.</small></button>
-          <button type="button" className={action === "copy" ? "choice-card selected" : "choice-card"} onClick={() => setAction("copy")} type="button"><Copy size={18} /><b>Copy</b><small>Create an independent duplicate with its images.</small></button>
+          <button type="button" className={action === "move" ? "choice-card selected" : "choice-card"} onClick={() => setAction("move")}><ArrowRight size={18} /><b>Move</b><small>Keep one note and change its collection.</small></button>
+          <button type="button" className={action === "copy" ? "choice-card selected" : "choice-card"} onClick={() => setAction("copy")}><Copy size={18} /><b>Copy</b><small>Create an independent duplicate with its images.</small></button>
         </div>
         <label className="field"><span>Destination collection</span><select value={topicId} onChange={e => setTopicId(e.target.value)}>
           <option value="">Choose a collection</option>{destinations.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
@@ -572,7 +572,7 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; no
   };
   return (
     <article className="note-row">
-      <button type="button" className="note-row-main" onClick={() => router.push("/notes/" + props.note.id + "/read")} type="button">
+      <button type="button" className="note-row-main" onClick={() => router.push("/notes/" + props.note.id + "/read")}>
         <div className="note-row-icon"><FileText size={18} /></div>
         <div className="note-row-copy">
           <div className="note-row-title-line"><h3>{props.note.title || "Untitled note"}</h3>{props.note.pinned && <Pin size={14} className="pin-mark" />}</div>
@@ -638,7 +638,7 @@ function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (messa
         <label className="select-field"><ArrowDownUp size={15} /><select value={sort} onChange={e => setSort(e.target.value)}><option value="recent">Recently updated</option><option value="oldest">Oldest updated</option><option value="title">Title A–Z</option></select><ChevronDown size={14} /></label>
         <span className="result-count">{visible.length}{pagination ? " shown" : ""}</span>
       </div>
-      {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load(0, false)} type="button">Retry</button></div>}
+      {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load(0, false)}>Retry</button></div>}
       {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading your notes…</div>
         : visible.length ? <div className="note-list">{visible.map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={() => load(0, false)} notify={props.notify} />)}</div>
           : <EmptyState icon={props.pinnedOnly ? <Pin size={24} /> : <FileText size={24} />}
@@ -759,7 +759,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
 
   useEffect(() => {
     const normalized = query.trim();
-    if (!normalized) { setNotes([]); setTopics([]); setSubmittedQuery(""); setLoading(false); return; }
+    if (!normalized) { setNotes([]); setTopics([]); setSubmittedQuery(""); setError(""); setLoading(false); return; }
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setLoading(true); setError("");
@@ -784,7 +784,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
         <div className="search-stage-input"><Search size={22} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="What are you trying to remember?" aria-label="Search your archive" /><kbd>LIVE SEARCH</kbd></div>
         <div className="search-scopes" role="group" aria-label="Search scope">
           {[["all", "Everything"], ["titles", "Titles"], ["tags", "Tags"], ["pinned", "Pinned"]].map(([value, label]) =>
-            <button type="button" key={value} className={scope === value ? "scope-pill active" : "scope-pill"} onClick={() => setScope(value)} type="button">{label}</button>)}
+            <button type="button" key={value} className={scope === value ? "scope-pill active" : "scope-pill"} onClick={() => setScope(value)}>{label}</button>)}
         </div>
       </section>
       {error && <div className="inline-alert error"><AlertCircle size={16} />{error}</div>}
@@ -830,7 +830,7 @@ function TrashPage(props: { notify: (message: string) => void }) {
   return (
     <div className="page-stack">
       <PageHeading eyebrow="Recover or remove" title="Trash" description="Notes stay here until you restore them or permanently delete them. Their attached images are kept with them." />
-      {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load()} type="button">Retry</button></div>}
+      {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load()}>Retry</button></div>}
       {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading Trash…</div>
         : notes.length ? <div className="note-list">{notes.map(note => <article key={note.id} className="trash-row"><div className="note-row-icon"><Trash2 size={18} /></div><div className="note-row-copy"><h3>{note.title || "Untitled note"}</h3><p className="note-subject">{note.subject || "No description"}</p><div className="note-meta"><span className="topic-chip">{note.topicTitle}</span><span>Deleted {formatDate(note.deletedAt, true)}</span></div></div><div className="trash-actions"><button type="button" className="button-secondary small" disabled={busyId === note.id} onClick={() => act(note, "restore")}><RotateCcw size={15} /> Restore</button><button type="button" className="button-danger small" disabled={busyId === note.id} onClick={() => act(note, "delete")}><Trash2 size={15} /> Delete permanently</button></div></article>)}</div>
           : <EmptyState icon={<Trash2 size={24} />} title="Trash is empty" description="When you remove a note, it will appear here so you can recover it." />}
@@ -1146,8 +1146,8 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
             <label className="editor-topic-select"><Folder size={15} /><select value={topicId} onChange={e => { setTopicId(e.target.value); touchForm(); }} aria-label="Collection">
               <option value="">Choose collection…</option>{props.topics.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
             </select><ChevronDown size={14} /></label>
-            <button type="button" className={pinned ? "pin-toggle active" : "pin-toggle"} onClick={() => { setPinned(v => !v); touchForm(); }} type="button"><Pin size={14} /> {pinned ? "Pinned" : "Pin note"}</button>
-            <div className="editor-tags">{tags.map(tag => <button type="button" key={tag} onClick={() => { setTags(current => current.filter(t => t !== tag)); touchForm(); }} type="button" title={"Remove tag " + tag}>#{tag}<X size={11} /></button>)}
+            <button type="button" className={pinned ? "pin-toggle active" : "pin-toggle"} onClick={() => { setPinned(v => !v); touchForm(); }}><Pin size={14} /> {pinned ? "Pinned" : "Pin note"}</button>
+            <div className="editor-tags">{tags.map(tag => <button type="button" key={tag} onClick={() => { setTags(current => current.filter(t => t !== tag)); touchForm(); }} title={"Remove tag " + tag}>#{tag}<X size={11} /></button>)}
               <form className="tag-entry" onSubmit={e => { e.preventDefault(); addTag(); }}><input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="+ Add tag" aria-label="Add a tag" /><button type="submit" aria-label="Add tag"><Plus size={14} /></button></form>
             </div>
           </div>
@@ -1389,10 +1389,14 @@ export default function ArchiveApp() {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault(); router.push("/search"); return;
       }
+      if (event.key === "Escape") {
+        setSidebarOpen(false);
+        if (focusMode) setFocusMode(false);
+        return;
+      }
       if (editing || event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.key.toLowerCase() === "n") { event.preventDefault(); router.push("/notes/new"); }
       if (event.key.toLowerCase() === "t") { event.preventDefault(); router.push("/topics/new"); }
-      if (event.key === "Escape") { setSidebarOpen(false); if (focusMode) setFocusMode(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
