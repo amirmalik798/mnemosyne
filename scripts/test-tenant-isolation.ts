@@ -49,6 +49,12 @@ async function main() {
       [noteA, topicA, randomBytes(48)],
     );
     await client.query(
+      `INSERT INTO note_drafts
+       (note_id,user_id,topic_id,title_enc,subject_enc,content_enc,tags_enc,base_note_updated_at)
+       VALUES ($1,$2,$3,$4,$4,$4,$4,NOW())`,
+      [noteA, userA, topicA, randomBytes(48)],
+    );
+    await client.query(
       "INSERT INTO assets (id,owner_type,owner_id,original_name_enc,mime_type,byte_size) VALUES ($1,'topic',$2,$3,'image/png',1)",
       [assetA, topicA, randomBytes(48)],
     );
@@ -178,8 +184,24 @@ async function main() {
 
     assert.equal((await client.query("SELECT id FROM topics WHERE id=$1", [topicA])).rowCount, 0, "account B must not see account A topics");
     assert.equal((await client.query("SELECT id FROM notes WHERE id=$1", [noteA])).rowCount, 0, "account B must not see account A notes");
+    assert.equal((await client.query("SELECT note_id FROM note_drafts WHERE note_id=$1", [noteA])).rowCount, 0, "account B must not see account A recovery drafts");
     assert.equal((await client.query("SELECT id FROM assets WHERE id=$1", [assetA])).rowCount, 0, "account B must not see account A image metadata");
     assert.equal((await client.query("SELECT asset_id FROM asset_blobs WHERE asset_id=$1", [assetA])).rowCount, 0, "account B must not see account A image blobs");
+
+    await client.query("SAVEPOINT cross_account_draft");
+    let draftOwnershipCode: string | undefined;
+    try {
+      await client.query(
+        `INSERT INTO note_drafts
+         (note_id,user_id,topic_id,title_enc,subject_enc,content_enc,tags_enc,base_note_updated_at)
+         VALUES ($1,$2,$3,$4,$4,$4,$4,NOW())`,
+        [noteA, userB, topicB, randomBytes(48)],
+      );
+    } catch (error) {
+      draftOwnershipCode = sqlState(error);
+      await client.query("ROLLBACK TO SAVEPOINT cross_account_draft");
+    }
+    assert.ok(draftOwnershipCode === "42501" || draftOwnershipCode === "23503", "a recovery draft must not reference another account's note");
 
     await client.query("SAVEPOINT cross_account_note");
     let noteRelationCode: string | undefined;
