@@ -543,8 +543,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 @media (max-width: 760px) {
   .icon-rail, .topbar { display: none; }
-  .workspace-sidebar { left: 0; top: 0; bottom: 0; width: min(310px,86vw); z-index: 90; transform: translateX(-110%); transition: transform .22s ease; box-shadow: var(--shadow); }
-  .workspace-sidebar.mobile-open { transform: translateX(0); }
+  .workspace-sidebar { left: 0; top: 0; bottom: 0; width: min(310px,86vw); z-index: 90; transform: translateX(-110%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; box-shadow: var(--shadow); }
+  .workspace-sidebar.mobile-open { transform: translateX(0); visibility: visible; transition-delay: 0s; }
   .sidebar-close { display: grid; place-items: center; width: 29px; height: 29px; }
   .sidebar-scrim { display: block; position: fixed; z-index: 80; inset: 0; border: 0; background: rgba(2,4,10,.6); }
   .app-main { margin-left: 0; padding-top: 58px; }
