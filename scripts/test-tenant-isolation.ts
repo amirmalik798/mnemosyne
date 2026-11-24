@@ -28,6 +28,7 @@ async function main() {
     const topicA = randomUUID();
     const topicB = randomUUID();
     const noteA = randomUUID();
+    const noteForDraft = randomUUID();
     const lifecycleNote = randomUUID();
     const assetA = randomUUID();
     const assetAWithoutBlob = randomUUID();
@@ -53,6 +54,10 @@ async function main() {
        (note_id,user_id,topic_id,title_enc,subject_enc,content_enc,tags_enc,base_note_updated_at)
        VALUES ($1,$2,$3,$4,$4,$4,$4,NOW())`,
       [noteA, userA, topicA, randomBytes(48)],
+    );
+    await client.query(
+      "INSERT INTO notes (id,topic_id,title_enc,subject_enc,content_enc,tags_enc) VALUES ($1,$2,$3,$3,$3,$3)",
+      [noteForDraft, topicA, randomBytes(48)],
     );
     await client.query(
       "INSERT INTO assets (id,owner_type,owner_id,original_name_enc,mime_type,byte_size) VALUES ($1,'topic',$2,$3,'image/png',1)",
@@ -195,7 +200,7 @@ async function main() {
         `INSERT INTO note_drafts
          (note_id,user_id,topic_id,title_enc,subject_enc,content_enc,tags_enc,base_note_updated_at)
          VALUES ($1,$2,$3,$4,$4,$4,$4,NOW())`,
-        [noteA, userB, topicB, randomBytes(48)],
+        [noteForDraft, userB, topicB, randomBytes(48)],
       );
     } catch (error) {
       draftOwnershipCode = sqlState(error);
