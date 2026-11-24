@@ -489,7 +489,7 @@ function TopicsPage(props: { topics: Topic[]; onOpen: (id: string) => void; onCr
   );
 }
 
-function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => void; onComplete: () => void; notify: (message: string) => void }) {
+function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => void; onComplete: (action: "move" | "copy", topicId: string) => void; notify: (message: string) => void }) {
   const [action, setAction] = useState<"move" | "copy">("move");
   const [topicId, setTopicId] = useState(props.topics.find(t => t.id !== props.note.topicId)?.id || "");
   const [busy, setBusy] = useState(false);
@@ -543,7 +543,7 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
         method: "POST", body: JSON.stringify({ action, topicId })
       });
       props.notify(action === "move" ? "Note moved to its new collection." : "An independent copy has been created.");
-      props.onComplete(); props.onClose();
+      props.onComplete(action, topicId); props.onClose();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to transfer this note."); }
     finally { setBusy(false); }
   };
@@ -1255,13 +1255,28 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
               <button type="button" className="button-secondary full-button" onClick={() => router.push("/notes/" + props.noteId + "/read")}><BookOpen size={16} /> Read this note</button>
               <button type="button" className="button-secondary full-button" onClick={() => saveMarkdown(title, editor?.getJSON())}><Download size={16} /> Export Markdown</button>
               <button type="button" className="button-secondary full-button" onClick={exportImages}><FileArchive size={16} /> Download images</button>
-              <button type="button" className="button-secondary full-button" onClick={() => setTransferOpen(true)}><ArrowDownUp size={16} /> Move or copy</button>
+              <button type="button" className="button-secondary full-button" disabled={busyUpload} onClick={() => {
+                if (dirty || saveState !== "saved") {
+                  setError("Save your changes before moving or copying this note.");
+                  return;
+                }
+                setTransferOpen(true);
+              }}><ArrowDownUp size={16} /> Move or copy</button>
               <button type="button" className="button-danger full-button" onClick={removeNote}><Trash2 size={16} /> Move to Trash</button>
             </>}
           </div>
         </aside>
       </div>
-      {transferOpen && props.noteId && <MoveCopyDialog note={noteForTransfer} topics={props.topics} onClose={() => setTransferOpen(false)} onComplete={() => { props.onTopicsChanged(); router.refresh(); }} notify={props.notify} />}
+      {transferOpen && props.noteId && <MoveCopyDialog note={noteForTransfer} topics={props.topics} onClose={() => setTransferOpen(false)} onComplete={(action, destinationTopicId) => {
+        if (action === "move") {
+          setTopicId(destinationTopicId);
+          setDirty(false);
+          setSaveState("saved");
+          setError("");
+        }
+        props.onTopicsChanged();
+        router.refresh();
+      }} notify={props.notify} />}
     </div>
   );
 }
