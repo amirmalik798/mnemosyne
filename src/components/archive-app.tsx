@@ -465,6 +465,19 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const destinations = props.topics.filter(t => t.id !== props.note.topicId);
+  const dialogRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) props.onClose();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      previous?.focus();
+    };
+  }, [busy, props.onClose]);
   const submit = async () => {
     if (!topicId) { setError("Choose a destination collection."); return; }
     setBusy(true); setError("");
@@ -479,7 +492,7 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
   };
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) props.onClose(); }}>
-      <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
+      <section ref={dialogRef} tabIndex={-1} className="modal-card" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
         <div className="modal-header"><div><div className="eyebrow">Organize note</div><h2 id="transfer-title">Move or make a copy</h2></div><ActionButton title="Close dialog" onClick={props.onClose}><X size={18} /></ActionButton></div>
         <p className="modal-note">“{props.note.title || "Untitled note"}”</p>
         <div className="choice-row">
@@ -1213,6 +1226,7 @@ function ReaderPage(props: { noteId: string; onFocusMode: (value: boolean) => vo
   }, [editor, toc]);
 
   const toggleFocus = () => { const next = !focus; setFocus(next); props.onFocusMode(next); };
+  useEffect(() => () => { props.onFocusMode(false); }, [props.onFocusMode]);
   useEffect(() => {
     if (!focus) return;
     const handleEscape = (event: KeyboardEvent) => {
@@ -1438,7 +1452,7 @@ export default function ArchiveApp() {
           <button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={17} /></button>
         </div>
         <form className="sidebar-search" onSubmit={e => { e.preventDefault(); const input = (e.currentTarget.elements.namedItem("q") as HTMLInputElement); router.push("/search?q=" + encodeURIComponent(input.value)); setSidebarOpen(false); }}>
-          <Search size={15} /><input name="q" placeholder="Search notes, tags…" /><kbd>⌘K</kbd>
+          <Search size={15} /><input name="q" placeholder="Search notes, tags…" /><kbd>Ctrl/⌘K</kbd>
         </form>
         <div className="sidebar-section">
           <div className="sidebar-section-label">Workspace</div>
