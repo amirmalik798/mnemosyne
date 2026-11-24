@@ -1148,7 +1148,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
     if (isNew || !dirty || loading) return;
     const timer = window.setTimeout(() => { void saveRef.current(true); }, 1400);
     return () => window.clearTimeout(timer);
-  }, [dirty, revision, isNew, loading]);
+  }, [dirty, revision, isNew, loading, busyUpload]);
 
   const touchForm = () => { revisionRef.current += 1; setRevision(revisionRef.current); setDirty(true); setSaveState("unsaved"); };
   const addTag = () => {
