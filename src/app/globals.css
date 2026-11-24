@@ -820,14 +820,14 @@ textarea:focus-visible, select:focus-visible, summary:focus-visible {
 .toolbar-group button { border: 1px solid transparent; }
 .toolbar-group button.tool-active { border-color: color-mix(in srgb, var(--lime) 32%, transparent); }
 .sidebar-section-heading button { width: 36px; height: 36px; }
-.mobile-bottom-nav { min-height: 72px; height: auto; padding-top: 7px; }
+.mobile-bottom-nav { min-height: 72px; height: auto; padding-top: 7px; padding-bottom: max(7px, env(safe-area-inset-bottom)); }
 .mobile-bottom-nav a { min-height: 48px; font-size: 11px; gap: 4px; }
 .mobile-bottom-nav .mobile-bottom-create { width: 46px; height: 46px; }
 .mobile-brand { font-size: 21px; }
 
 @media (max-width: 760px) {
   .mnemosyne-app { font-size: 15px; }
-  .app-content { padding-bottom: 88px; }
+  .app-content { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
   .page-stack { gap: 24px; }
   .page-heading p, .welcome-copy p { font-size: 14.5px; }
   .welcome-copy h1 { line-height: 1.08; }
