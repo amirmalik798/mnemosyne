@@ -11453,111 +11453,6 @@ html[data-preset] {
 }
 
 
-/* Phone and tablet stylus handwriting pad */
-.handwriting-backdrop {
-  position:fixed; inset:0; z-index:175; display:grid; place-items:center;
-  padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right))
-    max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
-  background:rgba(3,7,11,.78); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
-}
-.handwriting-dialog {
-  width:min(820px,100%); max-height:min(94dvh,900px); overflow:auto;
-  padding:clamp(16px,3vw,25px); border:1px solid var(--line-strong); border-radius:20px;
-  color:var(--text); background:var(--surface); box-shadow:0 30px 100px rgba(0,0,0,.48);
-}
-.handwriting-header {
-  display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px;
-}
-.handwriting-heading-copy { min-width:0; }
-.handwriting-header h2 {
-  margin:5px 0 5px; color:var(--text); font-family:var(--font-serif,Georgia,serif);
-  font-size:clamp(24px,4vw,31px); font-weight:500; line-height:1.2;
-}
-.handwriting-header p { margin:0; max-width:600px; color:var(--muted); font-size:13px; line-height:1.55; }
-.handwriting-close {
-  width:40px; height:40px; flex:none; display:grid; place-items:center;
-  border:1px solid var(--line-strong); border-radius:10px; background:var(--surface-2); color:var(--text);
-}
-.handwriting-close:hover:not(:disabled) { border-color:var(--gold); color:var(--gold-bright); }
-.handwriting-canvas-wrap {
-  position:relative; overflow:hidden; border:1px solid #D9D1C4; border-radius:13px;
-  background:#FFFCF5; box-shadow:inset 0 1px 3px rgba(39,31,19,.06);
-}
-.handwriting-canvas {
-  display:block; width:100%; height:clamp(270px,48vh,480px); background:#FFFCF5;
-  cursor:crosshair; touch-action:none; user-select:none; -webkit-user-select:none;
-  outline:none;
-}
-.handwriting-canvas:focus-visible { outline:2px solid var(--gold); outline-offset:-4px; }
-.handwriting-paper-label {
-  position:absolute; right:12px; bottom:9px; pointer-events:none;
-  color:rgba(70,76,77,.45); font:600 8px/1.2 ui-monospace,monospace; letter-spacing:.12em;
-}
-.handwriting-tools {
-  display:flex; align-items:center; flex-wrap:wrap; gap:9px; margin-top:13px;
-}
-.handwriting-ink-control,
-.handwriting-width-control {
-  min-height:40px; display:flex; align-items:center; gap:9px; padding:0 10px;
-  border:1px solid var(--line); border-radius:9px; background:var(--surface-2);
-  color:var(--muted); font-size:12px; font-weight:600;
-}
-.handwriting-ink-control input[type="color"] {
-  width:30px; height:27px; padding:2px; border:1px solid var(--line-strong);
-  border-radius:6px; background:var(--surface-3); cursor:pointer;
-}
-.handwriting-width-control input[type="range"] { width:100px; accent-color:var(--gold); }
-.handwriting-tool-button {
-  width:40px; height:40px; display:grid; place-items:center;
-  border:1px solid var(--line-strong); border-radius:9px; background:var(--surface-2); color:var(--text);
-}
-.handwriting-tool-button:hover:not(:disabled) { border-color:var(--gold); color:var(--gold-bright); background:var(--gold-soft); }
-.handwriting-tool-button:disabled { opacity:.38; cursor:not-allowed; }
-.handwriting-clear-button { margin-left:auto; color:var(--red); }
-.handwriting-notice { margin:10px 0 0; color:var(--red); font-size:12px; }
-.handwriting-actions {
-  display:flex; justify-content:flex-end; align-items:center; gap:9px;
-  margin-top:16px; padding-top:15px; border-top:1px solid var(--line);
-}
-.editor-handwriting-trigger { color:var(--gold-bright); }
-.editor-handwriting-trigger:hover:not(:disabled) { color:var(--gold-bright); background:var(--gold-soft); }
-@media (max-width:760px) {
-  .handwriting-backdrop { align-items:center; padding:0; }
-  .handwriting-dialog {
-    width:100%; max-height:100dvh; max-height:100svh; overflow-y:auto;
-    padding:calc(14px + env(safe-area-inset-top)) 14px calc(13px + env(safe-area-inset-bottom));
-    border-radius:0; border-left:0; border-right:0;
-  }
-  .handwriting-header { margin-bottom:12px; }
-  .handwriting-header h2 { font-size:25px; }
-  .handwriting-header p { font-size:12px; }
-  .handwriting-canvas { height:clamp(250px,43svh,430px); }
-  .handwriting-tools { gap:7px; }
-  .handwriting-ink-control,
-  .handwriting-width-control { min-height:39px; padding:0 8px; font-size:11px; }
-  .handwriting-width-control input[type="range"] { width:80px; }
-  .handwriting-tool-button { width:39px; height:39px; }
-  .handwriting-clear-button { margin-left:0; }
-  .handwriting-actions { position:sticky; bottom:0; padding:12px 0 calc(2px + env(safe-area-inset-bottom)); background:var(--surface); }
-}
-@media (max-width:380px) {
-  .handwriting-width-control { flex:1 1 140px; justify-content:space-between; }
-  .handwriting-width-control input[type="range"] { flex:1; min-width:55px; }
-}
-
-.handwriting-touch-control {
-  min-height:40px; display:inline-flex; align-items:center; gap:7px; padding:0 9px;
-  border:1px solid var(--line); border-radius:9px; background:var(--surface-2);
-  color:var(--muted); font-size:11px; font-weight:600; cursor:pointer;
-}
-.handwriting-touch-control input {
-  width:15px; height:15px; margin:0; accent-color:var(--gold);
-}
-@media (max-width:760px) {
-  .handwriting-touch-control { min-height:39px; padding:0 8px; }
-}
-
-
 /* ==========================================================================
    Mobile workspace refinement
    Phone-only layout: desktop breakpoints and desktop geometry stay unchanged.
@@ -12223,7 +12118,6 @@ html[data-preset] {
     overflow-y: auto;
   }
 
-  .handwriting-backdrop { z-index: 175; }
 }
 
 @media (max-width: 380px) {
@@ -13059,7 +12953,6 @@ html[data-preset] {
   .page-title { font-size: clamp(28px,5vw,36px); }
   .stats { padding: 9px 12px; }
   .topic-cover { height: 130px; }
-  .handwriting-dialog { max-height: 100svh; }
 }
 
 
@@ -17733,8 +17626,6 @@ body :where(.form-hint, .vault-caption, .topic-description, .note-row-sub, .page
 
 /* Final coverage for compact labels and summaries used by individual modules. */
 body :where(
-  .handwriting-width-control,
-  .handwriting-touch-control,
   .overview-stat-card > span:last-child,
   .settings-nav a,
   .note-editor-heading-context,
@@ -17809,8 +17700,6 @@ body p:not(.rich-editor p):not(.reader-content p) {
 
 @media (max-width: 760px) {
   body :where(
-    .handwriting-width-control,
-    .handwriting-touch-control,
     .reader-edit-button,
     .reader-action-button,
     .reader-action-disclosure > summary,

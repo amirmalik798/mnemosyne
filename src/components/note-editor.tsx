@@ -12,7 +12,6 @@ import { NoteTopicTransfer } from "@/components/note-topic-transfer";
 import { ActionOverflowMenu } from "@/components/action-overflow-menu";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { NoteImageNodeView } from "@/components/note-image-node-view";
-import { NoteHandwritingPad } from "@/components/note-handwriting-pad";
 import { OperationStatus, notifyOperation, type OperationStatusKind } from "@/components/operation-status";
 import { UploadProgress } from "@/components/upload-progress";
 import { uploadFormDataWithProgress } from "@/lib/upload-form-data";
@@ -43,7 +42,7 @@ import {
   loadLocalNoteRevisions,
   saveLocalNoteRevision,
 } from "@/lib/local-recovery";
-import { ArrowLeft, Bold, Eraser, Focus, ImagePlus, Italic, List, ListOrdered, LoaderCircle, Pin, PinOff, Quote, Redo2, Save, Strikethrough, Undo2, Heading1, Heading2, Minus, Trash2, PanelRightClose, PanelRightOpen, PenLine } from "lucide-react";
+import { ArrowLeft, Bold, Eraser, Focus, ImagePlus, Italic, List, ListOrdered, LoaderCircle, Pin, PinOff, Quote, Redo2, Save, Strikethrough, Undo2, Heading1, Heading2, Minus, Trash2, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 type Topic = { id: string; title: string };
 type Note = { id: string; topicId: string; title: string; subject: string; content: any; tags: string[]; pinned: boolean; updatedAt?: string | Date };
@@ -305,7 +304,6 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
   const [imageUploadProgress, setImageUploadProgress] = useState<{ percentage: number; label: string; detail?: string } | null>(null);
   const [isImageDragActive, setIsImageDragActive] = useState(false);
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
-  const [handwritingOpen, setHandwritingOpen] = useState(false);
   const closeImagePreview = useCallback(() => setImagePreview(null), []);
   const draftStorageKey = `user:${userId}:note:${noteId ?? "new"}`;
   const latestDraftFieldsRef = useRef({
@@ -1397,11 +1395,7 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
 
           <span className="tool-divider" aria-hidden="true" />
 
-          <div className="editor-tool-group editor-tool-group--utility" role="group" aria-label="Images, handwriting and history">
-            <button type="button" aria-label="Write with stylus" disabled={!editor || busy || imageUploading} className="tool-btn editor-tool-labelled editor-handwriting-trigger" onClick={() => setHandwritingOpen(true)} title="Write by hand with a stylus or finger">
-              <PenLine aria-hidden="true" />
-              <span className="tool-label">Handwrite</span>
-            </button>
+          <div className="editor-tool-group editor-tool-group--utility" role="group" aria-label="Image and editing tools">
             <input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled={!editor || busy || imageUploading} onChange={(e) => { const files = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ""; if (files.length) void uploadImages(files); }} />
             <button type="button" aria-label={imageUploading ? "Uploading images" : "Add images"} disabled={!editor || busy || imageUploading} className="tool-btn editor-tool-labelled" onClick={() => imageRef.current?.click()} title="Add images">
               {imageUploading ? <LoaderCircle className="operation-spinner" aria-hidden="true" /> : <ImagePlus aria-hidden="true" />}
@@ -1623,12 +1617,6 @@ export function NoteEditor({ topics, initialNote, defaultTopicId, userId }: { to
         alt={imagePreview?.alt ?? "Note image"}
         onClose={closeImagePreview}
       />
-      {handwritingOpen && (
-        <NoteHandwritingPad
-          onClose={() => setHandwritingOpen(false)}
-          onInsert={(file) => void uploadImages([file])}
-        />
-      )}
             <footer className="editor-footer note-editor-footer">
         <div className="editor-writing-metrics" role="group" aria-label="Writing statistics">
           <span className="editor-word-count">{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
