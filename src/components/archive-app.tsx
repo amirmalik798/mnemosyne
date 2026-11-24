@@ -567,7 +567,7 @@ function MoveCopyDialog(props: { note: Note; topics: Topic[]; onClose: () => voi
   );
 }
 
-function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; notify: (message: string) => void }) {
+function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; onTopicsChanged?: () => void; notify: (message: string) => void }) {
   const router = useRouter();
   const [transferOpen, setTransferOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -624,12 +624,12 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; no
           </div>
         </details>
       </div>
-      {transferOpen && <MoveCopyDialog note={props.note} topics={props.topics} onClose={() => setTransferOpen(false)} onComplete={props.onRefresh} notify={props.notify} />}
+      {transferOpen && <MoveCopyDialog note={props.note} topics={props.topics} onClose={() => setTransferOpen(false)} onComplete={() => { props.onRefresh(); props.onTopicsChanged?.(); }} notify={props.notify} />}
     </article>
   );
 }
 
-function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (message: string) => void }) {
+function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (message: string) => void; onTopicsChanged: () => void }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -670,7 +670,7 @@ function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (messa
       </div>
       {error && <div className="inline-alert error"><AlertCircle size={16} />{error}<button type="button" onClick={() => load(0, false)}>Retry</button></div>}
       {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading your notes…</div>
-        : visible.length ? <div className="note-list">{visible.map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={() => load(0, false)} notify={props.notify} />)}</div>
+        : visible.length ? <div className="note-list">{visible.map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={() => load(0, false)} onTopicsChanged={props.onTopicsChanged} notify={props.notify} />)}</div>
           : !error ? <EmptyState icon={props.pinnedOnly ? <Pin size={24} /> : <FileText size={24} />}
             title={query ? "No notes match that search" : props.pinnedOnly ? "Nothing pinned yet" : "A page waiting for a first thought"}
             description={query ? "Try another word or clear your search." : props.pinnedOnly ? "Pin useful notes and they will collect here." : "Create a note to capture an idea, question, or useful reference."}
@@ -766,7 +766,7 @@ function TopicPage(props: { topicId: string; topics: Topic[]; onRefreshTopics: (
         </div>
       </section>
       <div className="section-heading"><div><div className="eyebrow">In this collection</div><h2>Notes and fragments</h2></div><span className="result-count">{notes.length} items</span></div>
-      {notes.length ? <div className="note-list">{notes.map(note => <NoteRow key={note.id} note={{ ...note, topicTitle: topic.title }} topics={props.topics} onRefresh={load} notify={props.notify} />)}</div>
+      {notes.length ? <div className="note-list">{notes.map(note => <NoteRow key={note.id} note={{ ...note, topicTitle: topic.title }} topics={props.topics} onRefresh={load} onTopicsChanged={props.onRefreshTopics} notify={props.notify} />)}</div>
         : <EmptyState icon={<FileText size={24} />} title="This collection is ready for its first note" description="Start with an observation, a question, a source, or a small idea. You can connect it to other work later." action={<a className="button-primary" href={"/notes/new?topicId=" + topic.id}><Plus size={16} /> Write the first note</a>} />}
     </div>
   );
@@ -924,7 +924,7 @@ function SettingsPage(props: { session: UserSession; onLogout: () => void; notif
   );
 }
 
-function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (message: string) => void }) {
+function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (message: string) => void; onTopicsChanged: () => void }) {
   const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
   const [totalNotes, setTotalNotes] = useState(0);
@@ -989,7 +989,7 @@ function DashboardPage(props: { topics: Topic[]; session: UserSession; notify: (
         <div className="dashboard-column">
           <div className="section-heading"><div><div className="eyebrow">Your recent thinking</div><h2>Recently updated notes</h2></div><a className="subtle-link" href="/all-notes">View all <ArrowRight size={14} /></a></div>
           {loading ? <div className="loading-panel"><Loader2 className="spin" />Loading notes…</div>
-            : sorted.length ? <div className="note-list compact-list">{sorted.slice(0, 5).map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={load} notify={props.notify} />)}</div>
+            : sorted.length ? <div className="note-list compact-list">{sorted.slice(0, 5).map(note => <NoteRow key={note.id} note={note} topics={props.topics} onRefresh={load} onTopicsChanged={props.onTopicsChanged} notify={props.notify} />)}</div>
               : !error ? <EmptyState icon={<FileText size={22} />} title="No notes yet" description="Start with one thought. You can organize it into a collection." action={<a href="/notes/new" className="button-primary"><Plus size={16} /> New note</a>} /> : null}
         </div>
         <aside className="dashboard-column pinned-column">
@@ -1518,12 +1518,12 @@ export default function ArchiveApp() {
   else if (parts[0] === "notes" && parts[1] === "new") page = <NoteEditorPage key={pathname} noteId={null} topics={topics} notify={notify} onTopicsChanged={refreshTopics} />;
   else if (parts[0] === "notes" && parts[1] && parts[2] === "read") page = <ReaderPage key={pathname} noteId={parts[1]} onFocusMode={setFocusMode} notify={notify} />;
   else if (parts[0] === "notes" && parts[1]) page = <NoteEditorPage key={pathname} noteId={parts[1]} topics={topics} notify={notify} onTopicsChanged={refreshTopics} />;
-  else if (parts[0] === "all-notes") page = <NotesPage key="all" topics={topics} pinnedOnly={false} notify={notify} />;
-  else if (parts[0] === "pinned") page = <NotesPage key="pinned" topics={topics} pinnedOnly notify={notify} />;
+  else if (parts[0] === "all-notes") page = <NotesPage key="all" topics={topics} pinnedOnly={false} notify={notify} onTopicsChanged={refreshTopics} />;
+  else if (parts[0] === "pinned") page = <NotesPage key="pinned" topics={topics} pinnedOnly notify={notify} onTopicsChanged={refreshTopics} />;
   else if (parts[0] === "search") page = <SearchPage topics={topics} notify={notify} />;
   else if (parts[0] === "trash") page = <TrashPage notify={notify} />;
   else if (parts[0] === "settings") page = <SettingsPage session={session} onLogout={lockVault} notify={notify} />;
-  else if (parts.length === 0) page = <DashboardPage topics={topics} session={session} notify={notify} />;
+  else if (parts.length === 0) page = <DashboardPage topics={topics} session={session} notify={notify} onTopicsChanged={refreshTopics} />;
   else page = <div className="page-stack"><EmptyState icon={<Search size={24} />} title="We couldn't find that page" description="The address may have changed, or the page may no longer exist." action={<button type="button" className="button-secondary" onClick={() => router.push("/")}>Return to overview</button>} /></div>;
 
   return (
