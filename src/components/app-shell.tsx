@@ -34,10 +34,12 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   const [showTopic, setShowTopic] = useState(false);
   const [sidebarTopics, setSidebarTopics] = useState<Array<{ id: string; title: string; category: string; noteCount: number }>>([]);
   const [sidebarTopicsVersion, setSidebarTopicsVersion] = useState(0);
+  const [sidebarTopicsStatus, setSidebarTopicsStatus] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
+    setSidebarTopicsStatus("loading");
     void fetch("/api/topics?limit=8&offset=0", {
       credentials: "same-origin",
       cache: "no-store",
@@ -59,9 +61,10 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           category: typeof item.category === "string" ? item.category : "",
           noteCount: typeof item.noteCount === "number" ? item.noteCount : 0,
         })));
+        setSidebarTopicsStatus("ready");
       })
       .catch(() => {
-        // Keep the last successfully loaded sidebar list during transient errors.
+        if (active) setSidebarTopicsStatus("error");
       });
     return () => {
       active = false;
@@ -375,6 +378,16 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
         return;
       }
       if (isTyping) return;
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        router.push("/notes/new");
+        return;
+      }
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === "t") {
+        event.preventDefault();
+        setShowTopic(true);
+        return;
+      }
       if (event.key === "/") {
         event.preventDefault();
         router.push("/search");
@@ -658,9 +671,20 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               })}
             </nav>
           ) : (
-            <div className="studio-topic-empty">
-              <span>Your collections will appear here.</span>
-              <button type="button" onClick={() => setShowTopic(true)}>Create a topic</button>
+            <div className="studio-topic-empty" role={sidebarTopicsStatus === "error" ? "alert" : "status"} aria-live="polite">
+              {sidebarTopicsStatus === "loading" ? (
+                <span>Loading your collections…</span>
+              ) : sidebarTopicsStatus === "error" ? (
+                <>
+                  <span>Your collections could not be loaded.</span>
+                  <button type="button" onClick={() => setSidebarTopicsVersion((value) => value + 1)}>Try again</button>
+                </>
+              ) : (
+                <>
+                  <span>Your archive is ready for its first collection.</span>
+                  <button type="button" onClick={() => setShowTopic(true)}>Create a topic</button>
+                </>
+              )}
             </div>
           )}
           <Link href="/topics" className="studio-all-topics">Explore all topics <span aria-hidden="true">→</span></Link>
