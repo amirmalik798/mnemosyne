@@ -1039,6 +1039,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving">("saved");
   const [busyUpload, setBusyUpload] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [rtl, setRtl] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -1111,6 +1112,11 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
         }
         if (!automatic) props.notify("Your note is saved.");
       } else {
+        // Lock the first draft while the server creates its permanent note ID.
+        // Otherwise edits made during this request would be overwritten when the
+        // editor remounts on the newly-created note route.
+        setCreating(true);
+        editor?.setEditable(false);
         const result = await apiJson<{ note: Note }>("/api/notes", { method: "POST", body: JSON.stringify(payload) });
         persistedTopicId.current = topicId;
         props.onTopicsChanged();
@@ -1118,6 +1124,10 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
         router.replace("/notes/" + result.note.id);
       }
     } catch (cause) {
+      if (isNew) {
+        setCreating(false);
+        editor?.setEditable(true);
+      }
       setError(cause instanceof Error ? cause.message : "Unable to save this note.");
       setSaveState("unsaved");
     } finally {
@@ -1243,44 +1253,44 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
       <div className="editor-layout">
         <main className="editor-main">
           <div className="editor-context-row"><span className="eyebrow">{isNew ? "New manuscript" : "Editing note"}</span>{pinned && <span className="pin-chip"><Pin size={12} /> Pinned</span>}</div>
-          <input className="editor-title-input" value={title} onChange={e => { setTitle(e.target.value); touchForm(); }} placeholder="Untitled note…" maxLength={180} aria-label="Note title" />
-          <input className="editor-subtitle-input" value={subject} onChange={e => { setSubject(e.target.value); touchForm(); }} placeholder="Add a short abstract or conceptual thesis…" maxLength={180} aria-label="Note subject" />
+          <input className="editor-title-input" disabled={creating} value={title} onChange={e => { setTitle(e.target.value); touchForm(); }} placeholder="Untitled note…" maxLength={180} aria-label="Note title" />
+          <input className="editor-subtitle-input" disabled={creating} value={subject} onChange={e => { setSubject(e.target.value); touchForm(); }} placeholder="Add a short abstract or conceptual thesis…" maxLength={180} aria-label="Note subject" />
           <div className="editor-metadata-row">
-            <label className="editor-topic-select"><Folder size={15} /><select value={topicId} onChange={e => { setTopicId(e.target.value); touchForm(); }} aria-label="Collection">
+            <label className="editor-topic-select"><Folder size={15} /><select disabled={creating} value={topicId} onChange={e => { setTopicId(e.target.value); touchForm(); }} aria-label="Collection">
               <option value="">Choose collection…</option>{props.topics.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
             </select><ChevronDown size={14} /></label>
-            <button type="button" className={pinned ? "pin-toggle active" : "pin-toggle"} onClick={() => { setPinned(v => !v); touchForm(); }}><Pin size={14} /> {pinned ? "Pinned" : "Pin note"}</button>
-            <div className="editor-tags">{tags.map(tag => <button type="button" key={tag} onClick={() => { setTags(current => current.filter(t => t !== tag)); touchForm(); }} title={"Remove tag " + tag}>#{tag}<X size={11} /></button>)}
-              <form className="tag-entry" onSubmit={e => { e.preventDefault(); addTag(); }}><input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="+ Add tag" aria-label="Add a tag" /><button type="submit" aria-label="Add tag"><Plus size={14} /></button></form>
+            <button type="button" disabled={creating} className={pinned ? "pin-toggle active" : "pin-toggle"} onClick={() => { setPinned(v => !v); touchForm(); }}><Pin size={14} /> {pinned ? "Pinned" : "Pin note"}</button>
+            <div className="editor-tags">{tags.map(tag => <button type="button" key={tag} disabled={creating} onClick={() => { setTags(current => current.filter(t => t !== tag)); touchForm(); }} title={"Remove tag " + tag}>#{tag}<X size={11} /></button>)}
+              <form className="tag-entry" onSubmit={e => { e.preventDefault(); addTag(); }}><input disabled={creating} value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="+ Add tag" aria-label="Add a tag" /><button type="submit" disabled={creating} aria-label="Add tag"><Plus size={14} /></button></form>
             </div>
           </div>
           <div className="editor-toolbar" role="toolbar" aria-label="Text formatting">
             <div className="toolbar-group">
-              <button type="button" title="Paragraph" aria-label="Paragraph" className={editor?.isActive("paragraph") ? "tool-active" : ""} onClick={() => editor?.chain().focus().setParagraph().run()}><Type size={16} /></button>
-              <button type="button" title="Heading 1" aria-label="Heading 1" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
-              <button type="button" title="Heading 2" aria-label="Heading 2" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-              <button type="button" title="Heading 3" aria-label="Heading 3" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
+              <button type="button" title="Paragraph" aria-label="Paragraph" className={editor?.isActive("paragraph") ? "tool-active" : ""} onClick={() = disabled={creating}> editor?.chain().focus().setParagraph().run()}><Type size={16} /></button>
+              <button type="button" title="Heading 1" aria-label="Heading 1" onClick={() = disabled={creating}> editor?.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
+              <button type="button" title="Heading 2" aria-label="Heading 2" onClick={() = disabled={creating}> editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
+              <button type="button" title="Heading 3" aria-label="Heading 3" onClick={() = disabled={creating}> editor?.chain().focus().toggleHeading({ level: 3 }).run()}>H3</button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">
-              <button type="button" title="Bold" aria-label="Bold" className={editor?.isActive("bold") ? "tool-active" : ""} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold size={16} /></button>
-              <button type="button" title="Italic" aria-label="Italic" className={editor?.isActive("italic") ? "tool-active" : ""} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic size={16} /></button>
-              <button type="button" title="Strikethrough" aria-label="Strikethrough" onClick={() => editor?.chain().focus().toggleStrike().run()}><Strikethrough size={16} /></button>
-              <button type="button" title="Inline code" aria-label="Inline code" onClick={() => editor?.chain().focus().toggleCode().run()}><Code size={16} /></button>
+              <button type="button" title="Bold" aria-label="Bold" className={editor?.isActive("bold") ? "tool-active" : ""} onClick={() = disabled={creating}> editor?.chain().focus().toggleBold().run()}><Bold size={16} /></button>
+              <button type="button" title="Italic" aria-label="Italic" className={editor?.isActive("italic") ? "tool-active" : ""} onClick={() = disabled={creating}> editor?.chain().focus().toggleItalic().run()}><Italic size={16} /></button>
+              <button type="button" title="Strikethrough" aria-label="Strikethrough" onClick={() = disabled={creating}> editor?.chain().focus().toggleStrike().run()}><Strikethrough size={16} /></button>
+              <button type="button" title="Inline code" aria-label="Inline code" onClick={() = disabled={creating}> editor?.chain().focus().toggleCode().run()}><Code size={16} /></button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">
-              <button type="button" title="Bulleted list" aria-label="Bulleted list" onClick={() => editor?.chain().focus().toggleBulletList().run()}><List size={16} /></button>
-              <button type="button" title="Numbered list" aria-label="Numbered list" onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered size={16} /></button>
-              <button type="button" title="Quote" aria-label="Quote" onClick={() => editor?.chain().focus().toggleBlockquote().run()}><Quote size={16} /></button>
-              <button type="button" title="Code block" aria-label="Code block" onClick={() => editor?.chain().focus().toggleCodeBlock().run()}><Code size={16} /></button>
+              <button type="button" title="Bulleted list" aria-label="Bulleted list" onClick={() = disabled={creating}> editor?.chain().focus().toggleBulletList().run()}><List size={16} /></button>
+              <button type="button" title="Numbered list" aria-label="Numbered list" onClick={() = disabled={creating}> editor?.chain().focus().toggleOrderedList().run()}><ListOrdered size={16} /></button>
+              <button type="button" title="Quote" aria-label="Quote" onClick={() = disabled={creating}> editor?.chain().focus().toggleBlockquote().run()}><Quote size={16} /></button>
+              <button type="button" title="Code block" aria-label="Code block" onClick={() = disabled={creating}> editor?.chain().focus().toggleCodeBlock().run()}><Code size={16} /></button>
             </div>
             <span className="toolbar-divider" />
             <div className="toolbar-group">
-              <button type="button" title="Insert image" aria-label="Insert image" disabled={!props.noteId || busyUpload} onClick={() => uploadRef.current?.click()}>{busyUpload ? <Loader2 size={16} className="spin" /> : <ImagePlus size={16} />}</button>
-              <button type="button" title="Toggle right-to-left writing" aria-label="Toggle right-to-left writing" className={rtl ? "tool-active" : ""} onClick={() => updateDirection(!rtl)}>{rtl ? <AlignLeft size={16} /> : <AlignRight size={16} />}</button>
-              <button type="button" title="Undo" aria-label="Undo" disabled={!editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={16} /></button>
-              <button type="button" title="Redo" aria-label="Redo" disabled={!editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={16} /></button>
+              <button type="button" title="Insert image" aria-label="Insert image" disabled={creating || !props.noteId || busyUpload} onClick={() => uploadRef.current?.click()}>{busyUpload ? <Loader2 size={16} className="spin" /> : <ImagePlus size={16} />}</button>
+              <button type="button" title="Toggle right-to-left writing" aria-label="Toggle right-to-left writing" className={rtl ? "tool-active" : ""} onClick={() = disabled={creating}> updateDirection(!rtl)}>{rtl ? <AlignLeft size={16} /> : <AlignRight size={16} />}</button>
+              <button type="button" title="Undo" aria-label="Undo" disabled={creating || !editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={16} /></button>
+              <button type="button" title="Redo" aria-label="Redo" disabled={creating || !editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={16} /></button>
             </div>
             <input ref={uploadRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e => void uploadImage(e.target.files?.[0])} />
           </div>
@@ -1495,8 +1505,15 @@ export default function ArchiveApp() {
         .catch(() => undefined);
     };
     document.addEventListener("pointerdown", onActivity, { passive: true });
+    document.addEventListener("pointermove", onActivity, { passive: true });
+    document.addEventListener("scroll", onActivity, { passive: true, capture: true });
     document.addEventListener("keydown", onActivity);
-    return () => { document.removeEventListener("pointerdown", onActivity); document.removeEventListener("keydown", onActivity); };
+    return () => {
+      document.removeEventListener("pointerdown", onActivity);
+      document.removeEventListener("pointermove", onActivity);
+      document.removeEventListener("scroll", onActivity, true);
+      document.removeEventListener("keydown", onActivity);
+    };
   }, [session, publicRoute, router]);
 
   useEffect(() => {
