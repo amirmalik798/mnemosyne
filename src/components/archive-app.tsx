@@ -31,6 +31,10 @@ type Note = {
   id: string; topicId: string; topicTitle?: string; title: string; subject: string;
   content: any; tags: string[]; pinned: boolean; createdAt: string; updatedAt: string;
 };
+type RecoveryDraft = {
+  topicId: string; title: string; subject: string; content: any; tags: string[];
+  pinned: boolean; baseNoteUpdatedAt: string; updatedAt: string; noteUpdatedAt: string;
+};
 type Pagination = { total: number; pinnedCount?: number; offset: number; limit: number; hasMore: boolean };
 type SearchResult = {
   id: string; topicId?: string; title: string; subject?: string; topicTitle?: string;
@@ -1052,11 +1056,13 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   const [rtl, setRtl] = useState(false);
   const [revision, setRevision] = useState(0);
   const [retryAttempt, setRetryAttempt] = useState(0);
+  const [recovery, setRecovery] = useState<{ draft: RecoveryDraft; conflict: boolean } | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
   const hydrating = useRef(false);
   const saving = useRef(false);
   const revisionRef = useRef(0);
   const persistedTopicId = useRef("");
+  const baseNoteUpdatedAt = useRef("");
   const isNew = !props.noteId;
 
   const editor = useEditor({
@@ -1075,19 +1081,29 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
     if (props.noteId) {
       setLoading(true);
       setLoadError("");
-      apiJson<{ note: Note }>("/api/notes/" + props.noteId).then(result => {
-        if (!live) return;
-        setTitle(result.note.title || ""); setSubject(result.note.subject || "");
-        setTopicId(result.note.topicId); persistedTopicId.current = result.note.topicId; setTags(result.note.tags || []); setPinned(Boolean(result.note.pinned));
-        setRtl(getNoteTextDirection(result.note.content) === "rtl");
-        if (editor) {
-          hydrating.current = true;
-          editor.commands.setContent(result.note.content || EMPTY_DOC);
-          hydrating.current = false;
+      (async () => {
+        try {
+          const result = await apiJson<{ note: Note }>("/api/notes/" + props.noteId);
+          if (!live) return;
+          setTitle(result.note.title || ""); setSubject(result.note.subject || "");
+          setTopicId(result.note.topicId); persistedTopicId.current = result.note.topicId; setTags(result.note.tags || []); setPinned(Boolean(result.note.pinned));
+          baseNoteUpdatedAt.current = new Date(result.note.updatedAt).toISOString();
+          setRtl(getNoteTextDirection(result.note.content) === "rtl");
+          if (editor) {
+            hydrating.current = true;
+            editor.commands.setContent(result.note.content || EMPTY_DOC);
+            hydrating.current = false;
+          }
+          const savedDraft = await apiJson<{ draft: RecoveryDraft | null; conflict: boolean }>(
+            "/api/notes/" + props.noteId + "/draft",
+          ).catch(() => null);
+          if (live && savedDraft?.draft) setRecovery({ draft: savedDraft.draft, conflict: savedDraft.conflict });
+        } catch (cause) {
+          if (live) setLoadError(cause instanceof Error ? cause.message : "Unable to open this note.");
+        } finally {
+          if (live) setLoading(false);
         }
-      }).catch(cause => {
-        if (live) setLoadError(cause instanceof Error ? cause.message : "Unable to open this note.");
-      }).finally(() => { if (live) setLoading(false); });
+      })();
     } else {
       const requestedTopic = new URLSearchParams(window.location.search).get("topicId") || "";
       setTopicId(requestedTopic); setLoading(false);
@@ -1112,7 +1128,20 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
     };
     try {
       if (props.noteId) {
-        await apiJson("/api/notes/" + props.noteId, { method: "PATCH", body: JSON.stringify(payload) });
+        // Store an encrypted recovery snapshot before attempting the canonical
+        // save. If the tab closes or the canonical PATCH fails, this snapshot
+        // remains available for recovery on the next visit.
+        if (baseNoteUpdatedAt.current) {
+          await apiJson("/api/notes/" + props.noteId + "/draft", {
+            method: "PUT",
+            body: JSON.stringify({ ...payload, baseNoteUpdatedAt: baseNoteUpdatedAt.current }),
+          });
+        }
+        const saved = await apiJson<{ success: boolean; updatedAt: string }>(
+          "/api/notes/" + props.noteId, { method: "PATCH", body: JSON.stringify(payload) },
+        );
+        baseNoteUpdatedAt.current = new Date(saved.updatedAt).toISOString();
+        await apiJson("/api/notes/" + props.noteId + "/draft", { method: "DELETE" }).catch(() => undefined);
         if (revisionRef.current === snapshotRevision) {
           setDirty(false); setSaveState("saved"); setRetryAttempt(0);
         } else { setSaveState("unsaved"); }
@@ -1179,6 +1208,39 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
       document.removeEventListener("visibilitychange", retryWhenVisible);
     };
   }, [isNew]);
+
+  const restoreRecoveryDraft = () => {
+    if (!recovery) return;
+    const draft = recovery.draft;
+    setTitle(draft.title);
+    setSubject(draft.subject);
+    setTopicId(draft.topicId);
+    setTags(draft.tags || []);
+    setPinned(draft.pinned);
+    setRtl(getNoteTextDirection(draft.content) === "rtl");
+    if (editor) {
+      hydrating.current = true;
+      editor.commands.setContent(draft.content || EMPTY_DOC);
+      hydrating.current = false;
+    }
+    revisionRef.current += 1;
+    setRevision(revisionRef.current);
+    setDirty(true);
+    setSaveState("unsaved");
+    setRetryAttempt(0);
+    setRecovery(null);
+    setError("");
+  };
+
+  const discardRecoveryDraft = async () => {
+    if (!props.noteId) return;
+    try {
+      await apiJson("/api/notes/" + props.noteId + "/draft", { method: "DELETE" });
+      setRecovery(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to discard the recovery draft.");
+    }
+  };
 
   const touchForm = () => { revisionRef.current += 1; setRevision(revisionRef.current); setDirty(true); setSaveState("unsaved"); setRetryAttempt(0); };
   const addTag = () => {
@@ -1280,6 +1342,20 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
       <div className="editor-topline"><button type="button" className="back-link" onClick={() => router.push(topicId ? "/topics/" + topicId : "/all-notes")}><ArrowLeft size={15} /> Back</button>
         <div className={"save-indicator " + saveState}>{saveState === "saved" ? <CheckCircle2 size={14} /> : saveState === "saving" ? <Loader2 className="spin" size={14} /> : <Clock3 size={14} />}{saveState === "saved" ? "All changes saved" : saveState === "saving" ? "Saving…" : isNew ? "Not saved yet" : "Unsaved changes"}</div>
       </div>
+      {recovery && (
+        <section className="inline-alert" role="status" aria-live="polite">
+          <div>
+            <strong>{recovery.conflict ? "A recovery draft and a newer saved version were found." : "An unsaved recovery draft was found."}</strong>
+            <p>{recovery.conflict
+              ? "This note changed after the recovery draft was created. Restoring it will replace the current editor contents; review carefully before saving."
+              : "You can restore your recent edits or discard this recovery copy."}</p>
+          </div>
+          <div className="form-footer">
+            <button type="button" className="button-primary" onClick={restoreRecoveryDraft}>Restore draft</button>
+            <button type="button" className="button-secondary" onClick={() => void discardRecoveryDraft()}>Discard draft</button>
+          </div>
+        </section>
+      )}
       <div className="editor-layout">
         <main className="editor-main">
           <div className="editor-context-row"><span className="eyebrow">{isNew ? "New manuscript" : "Editing note"}</span>{pinned && <span className="pin-chip"><Pin size={12} /> Pinned</span>}</div>
