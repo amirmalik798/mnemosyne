@@ -339,6 +339,10 @@ export async function updateNoteAndCleanupAssets(input: {
       ],
     );
 
+    // The canonical note and its recovery snapshot must transition
+    // together. A committed note save therefore cannot leave a stale draft.
+    await client.query("DELETE FROM note_drafts WHERE note_id = $1", [input.noteId]);
+
     await client.query(
       "UPDATE topics SET updated_at = NOW() WHERE id = ANY($1::uuid[])",
       [[note.rows[0].topic_id, input.topicId]],
