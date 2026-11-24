@@ -1147,15 +1147,37 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
 
   const uploadImage = async (file?: File) => {
     if (!file || !props.noteId) return;
-    if (file.size > 20 * 1024 * 1024) { setError("Images must be 20 MB or smaller."); return; }
-    setBusyUpload(true); setError("");
-    const form = new FormData(); form.set("file", file);
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Images must be 20 MB or smaller.");
+      if (uploadRef.current) uploadRef.current.value = "";
+      return;
+    }
+    setBusyUpload(true);
+    setError("");
+    const form = new FormData();
+    form.set("file", file);
+    let uploadedAssetUrl: string | null = null;
     try {
       const result = await apiJson<{ asset: { url: string } }>("/api/notes/" + props.noteId + "/assets", { method: "POST", body: form });
-      editor?.chain().focus().setImage({ src: result.asset.url, alt: file.name }).run();
+      uploadedAssetUrl = result.asset.url;
+      if (!editor || editor.isDestroyed) throw new Error("The editor is no longer available. Reopen the note and try again.");
+      editor.chain().focus().setImage({ src: result.asset.url, alt: file.name }).run();
       props.notify("Image uploaded and inserted into the note.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to upload this image."); }
-    finally { setBusyUpload(false); if (uploadRef.current) uploadRef.current.value = ""; }
+    } catch (cause) {
+      // The server persists uploads before the editor embeds the reference.
+      // Roll back an orphaned upload when insertion fails.
+      if (uploadedAssetUrl) {
+        try {
+          await apiJson(uploadedAssetUrl, { method: "DELETE" });
+        } catch {
+          // Keep the original insertion error; orphan cleanup can be retried later.
+        }
+      }
+      setError(cause instanceof Error ? cause.message : "Unable to upload this image.");
+    } finally {
+      setBusyUpload(false);
+      if (uploadRef.current) uploadRef.current.value = "";
+    }
   };
 
   const removeNote = async () => {
