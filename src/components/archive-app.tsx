@@ -580,6 +580,7 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; on
       });
       props.notify(props.note.pinned ? "Removed from pinned notes." : "Pinned for quick access.");
       props.onRefresh();
+      props.onTopicsChanged?.();
     } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to update pin."); }
     finally { setBusy(false); }
   };
@@ -590,6 +591,7 @@ function NoteRow(props: { note: Note; topics: Topic[]; onRefresh: () => void; on
       await apiJson("/api/notes/" + props.note.id, { method: "DELETE" });
       props.notify("Note moved to Trash.");
       props.onRefresh();
+      props.onTopicsChanged?.();
     } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to move note to Trash."); }
     finally { setBusy(false); }
   };
@@ -832,7 +834,7 @@ function SearchPage(props: { notify: (message: string) => void; topics: Topic[] 
   );
 }
 
-function TrashPage(props: { notify: (message: string) => void }) {
+function TrashPage(props: { notify: (message: string) => void; onTopicsChanged: () => void }) {
   const [notes, setNotes] = useState<any[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -857,6 +859,7 @@ function TrashPage(props: { notify: (message: string) => void }) {
     try {
       await apiJson("/api/trash", { method: "POST", body: JSON.stringify({ id: note.id, action }) });
       props.notify(action === "restore" ? "Note restored to its collection." : "Note permanently deleted.");
+      if (action === "restore") props.onTopicsChanged();
       await load();
     } catch (cause) { props.notify(cause instanceof Error ? cause.message : "Unable to update Trash."); }
     finally { setBusyId(""); }
@@ -1031,6 +1034,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   const hydrating = useRef(false);
   const saving = useRef(false);
   const revisionRef = useRef(0);
+  const persistedTopicId = useRef("");
   const isNew = !props.noteId;
 
   const editor = useEditor({
@@ -1052,7 +1056,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
       apiJson<{ note: Note }>("/api/notes/" + props.noteId).then(result => {
         if (!live) return;
         setTitle(result.note.title || ""); setSubject(result.note.subject || "");
-        setTopicId(result.note.topicId); setTags(result.note.tags || []); setPinned(Boolean(result.note.pinned));
+        setTopicId(result.note.topicId); persistedTopicId.current = result.note.topicId; setTags(result.note.tags || []); setPinned(Boolean(result.note.pinned));
         if (editor) {
           hydrating.current = true;
           editor.commands.setContent(result.note.content || EMPTY_DOC);
@@ -1086,9 +1090,15 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
         if (revisionRef.current === snapshotRevision) {
           setDirty(false); setSaveState("saved");
         } else { setSaveState("unsaved"); }
+        if (persistedTopicId.current !== topicId) {
+          persistedTopicId.current = topicId;
+          props.onTopicsChanged();
+        }
         if (!automatic) props.notify("Your note is saved.");
       } else {
         const result = await apiJson<{ note: Note }>("/api/notes", { method: "POST", body: JSON.stringify(payload) });
+        persistedTopicId.current = topicId;
+        props.onTopicsChanged();
         props.notify("Your note has been created.");
         router.replace("/notes/" + result.note.id);
       }
@@ -1152,7 +1162,9 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
     if (!props.noteId || !window.confirm("Move this note to Trash? You can restore it later.")) return;
     try {
       await apiJson("/api/notes/" + props.noteId, { method: "DELETE" });
-      props.notify("Note moved to Trash."); router.push("/all-notes");
+      props.notify("Note moved to Trash.");
+      props.onTopicsChanged();
+      router.push("/all-notes");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to delete this note."); }
   };
 
@@ -1271,6 +1283,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
       {transferOpen && props.noteId && <MoveCopyDialog note={noteForTransfer} topics={props.topics} onClose={() => setTransferOpen(false)} onComplete={(action, destinationTopicId) => {
         if (action === "move") {
           setTopicId(destinationTopicId);
+          persistedTopicId.current = destinationTopicId;
           setDirty(false);
           setSaveState("saved");
           setError("");
@@ -1522,7 +1535,7 @@ export default function ArchiveApp() {
   else if (parts[0] === "all-notes") page = <NotesPage key="all" topics={topics} pinnedOnly={false} notify={notify} onTopicsChanged={refreshTopics} />;
   else if (parts[0] === "pinned") page = <NotesPage key="pinned" topics={topics} pinnedOnly notify={notify} onTopicsChanged={refreshTopics} />;
   else if (parts[0] === "search") page = <SearchPage topics={topics} notify={notify} />;
-  else if (parts[0] === "trash") page = <TrashPage notify={notify} />;
+  else if (parts[0] === "trash") page = <TrashPage notify={notify} onTopicsChanged={refreshTopics} />;
   else if (parts[0] === "settings") page = <SettingsPage session={session} onLogout={lockVault} notify={notify} />;
   else if (parts.length === 0) page = <DashboardPage topics={topics} session={session} notify={notify} onTopicsChanged={refreshTopics} />;
   else page = <div className="page-stack"><EmptyState icon={<Search size={24} />} title="We couldn't find that page" description="The address may have changed, or the page may no longer exist." action={<button type="button" className="button-secondary" onClick={() => router.push("/")}>Return to overview</button>} /></div>;
