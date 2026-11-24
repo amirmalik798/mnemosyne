@@ -19,6 +19,7 @@ import {
   Type, Undo2, Upload, X
 } from "lucide-react";
 import { noteToMarkdown } from "@/lib/markdown-export";
+import { readVerificationToken } from "@/lib/verification-token";
 
 type UserSession = { userId?: string; id?: string; email: string; displayName: string; expiresAt?: string };
 type Topic = {
@@ -292,7 +293,7 @@ function VerificationPage() {
   const [message, setMessage] = useState("Checking your verification link…");
 
   useEffect(() => {
-    const token = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+    const token = readVerificationToken(window.location.hash);
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
     if (!token) { setStatus("error"); setMessage("This link does not contain a verification token. Sign in to request a new one."); return; }
     apiJson<{ success: boolean }>("/api/auth/verify-email", {
@@ -645,7 +646,7 @@ function NotesPage(props: { topics: Topic[]; pinnedOnly: boolean; notify: (messa
     setError("");
     try {
       const limit = props.pinnedOnly ? 100 : 50;
-      const result = await apiJson<{ notes: Note[]; pagination?: Pagination }>("/api/notes?limit=" + limit + "&offset=" + offset);
+      const result = await apiJson<{ notes: Note[]; pagination?: Pagination }>("/api/notes?limit=" + limit + "&offset=" + offset + (props.pinnedOnly ? "&pinned=true" : ""));
       setNotes(current => append ? current.concat(result.notes) : result.notes);
       setPagination(result.pagination || null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load notes."); }

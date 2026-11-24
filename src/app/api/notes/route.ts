@@ -45,6 +45,8 @@ export async function GET(request: Request) {
 
     const limit = parseBoundedInteger(params.get("limit"), 50, 1, 100);
     const offset = parseBoundedInteger(params.get("offset"), 0, 0, 1_000_000);
+    const pinnedOnly = params.get("pinned") === "true";
+    const noteFilter = pinnedOnly ? "WHERE deleted_at IS NULL AND pinned = TRUE" : "WHERE deleted_at IS NULL";
     const includeDashboardSummary = params.get("summary") === "dashboard";
     const recentPromise = includeDashboardSummary
       ? queryAsUser(session.userId,
@@ -58,13 +60,13 @@ export async function GET(request: Request) {
       : Promise.resolve({ rows: [] as Record<string, unknown>[] });
     const [countResult, pageResult, recentResult] = await Promise.all([
       queryAsUser(session.userId,
-        "SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE pinned)::int AS pinned_count FROM notes WHERE deleted_at IS NULL",
+        `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE pinned)::int AS pinned_count FROM notes ${noteFilter}`,
       ),
       queryAsUser(session.userId,
         `SELECT n.id, n.topic_id, n.title_enc, n.subject_enc, n.content_enc, n.tags_enc,
                 n.pinned, n.created_at, n.updated_at, t.title_enc AS topic_title_enc
          FROM notes n JOIN topics t ON t.id = n.topic_id
-         WHERE n.deleted_at IS NULL
+         WHERE n.deleted_at IS NULL ${pinnedOnly ? "AND n.pinned = TRUE" : ""}
          ORDER BY n.pinned DESC, n.updated_at DESC, n.id DESC
          LIMIT $1 OFFSET $2`,
         [limit, offset],

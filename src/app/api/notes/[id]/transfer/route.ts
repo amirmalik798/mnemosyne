@@ -5,6 +5,7 @@ import { assertSameOrigin, requireVaultSession } from "@/lib/auth";
 import { db, setUserContext } from "@/lib/db";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { cloneEncryptedNoteAsset } from "@/lib/storage";
+import { collectNoteAssetIds, parseNoteAssetId } from "@/lib/asset-references";
 import { apiError, readJsonObject, stringField } from "@/lib/http";
 
 type Context = { params: Promise<{ id: string }> };
@@ -17,24 +18,9 @@ type AssetRow = {
   byte_size: string | number;
 };
 
-function collectImageAssetIds(value: unknown, ids = new Set<string>()): Set<string> {
-  if (!value || typeof value !== "object") return ids;
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectImageAssetIds(item, ids));
-    return ids;
-  }
-  const record = value as Record<string, unknown>;
-  if (record.type === "image" && record.attrs && typeof record.attrs === "object") {
-    const src = (record.attrs as Record<string, unknown>).src;
-    if (typeof src === "string") {
-      const match = src.match(/^\/api\/assets\/([a-f0-9-]+)$/i);
-      if (match) ids.add(match[1]);
-    }
-  }
-  Object.values(record).forEach((child) => collectImageAssetIds(child, ids));
-  return ids;
+function collectImageAssetIds(value: unknown): Set<string> {
+  return collectNoteAssetIds(value);
 }
-
 function replaceImageAssetIds(value: unknown, replacements: Map<string, string>): unknown {
   if (Array.isArray(value)) return value.map((item) => replaceImageAssetIds(item, replacements));
   if (!value || typeof value !== "object") return value;
@@ -45,8 +31,8 @@ function replaceImageAssetIds(value: unknown, replacements: Map<string, string>)
       const attrs = { ...(child as Record<string, unknown>) };
       const src = attrs.src;
       if (typeof src === "string") {
-        const match = src.match(/^\/api\/assets\/([a-f0-9-]+)$/i);
-        if (match && replacements.has(match[1])) attrs.src = `/api/assets/${replacements.get(match[1])}`;
+        const assetId = parseNoteAssetId(src);
+        if (assetId && replacements.has(assetId)) attrs.src = `/api/assets/${replacements.get(assetId)}`;
       }
       next[key] = attrs;
     } else {
@@ -124,7 +110,7 @@ export async function POST(request: Request, context: Context) {
           key: session.key,
           query: (text, values) => client!.query(text, values),
         });
-        assetMap.set(asset.id, cloned.id);
+        assetMap.set(asset.id.toLowerCase(), cloned.id);
       }
     }
 

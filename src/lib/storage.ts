@@ -6,6 +6,7 @@ import type { PoolClient } from "pg";
 import { decryptBytes, decryptText, encryptBytes, encryptText } from "@/lib/crypto";
 import { db, setUserContext } from "@/lib/db";
 import { resolveStorageFilePath } from "@/lib/storage-path";
+import { collectNoteAssetIds } from "@/lib/asset-references";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const ENCRYPTION_OVERHEAD_BYTES = 12 + 16;
@@ -174,25 +175,7 @@ export async function readVerifiedImageAsset(input: {
 }
 
 function noteContentReferencesAsset(content: unknown, assetId: string): boolean {
-  const target = `/api/assets/${assetId}`;
-  const pending: unknown[] = [content];
-
-  while (pending.length > 0) {
-    const value = pending.pop();
-    if (!value || typeof value !== "object") continue;
-    if (Array.isArray(value)) {
-      pending.push(...value);
-      continue;
-    }
-
-    const record = value as Record<string, unknown>;
-    if (record.type === "image" && record.attrs && typeof record.attrs === "object") {
-      const src = (record.attrs as Record<string, unknown>).src;
-      if (src === target) return true;
-    }
-    pending.push(...Object.values(record));
-  }
-  return false;
+  return collectNoteAssetIds(content).has(assetId.toLowerCase());
 }
 
 export async function deleteAssetById(id: string, key: Buffer, userId: string): Promise<void> {
@@ -294,30 +277,8 @@ export async function deleteEmptyTopicWithAssets(topicId: string, userId: string
 }
 
 function collectReferencedNoteAssetIds(content: unknown): Set<string> {
-  const referenced = new Set<string>();
-  const pending: unknown[] = [content];
-
-  while (pending.length > 0) {
-    const value = pending.pop();
-    if (!value || typeof value !== "object") continue;
-    if (Array.isArray(value)) {
-      pending.push(...value);
-      continue;
-    }
-
-    const record = value as Record<string, unknown>;
-    if (record.type === "image" && record.attrs && typeof record.attrs === "object") {
-      const src = (record.attrs as Record<string, unknown>).src;
-      if (typeof src === "string") {
-        const match = src.match(/^\/api\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
-        if (match) referenced.add(match[1]);
-      }
-    }
-    pending.push(...Object.values(record));
-  }
-  return referenced;
+  return collectNoteAssetIds(content);
 }
-
 /**
  * Update a note and remove no-longer-referenced images under the same row lock
  * and transaction. This serializes edits with uploads, moves, and asset deletes,
