@@ -1985,6 +1985,33 @@ export default function ArchiveApp() {
   }, [notify]);
 
   useEffect(() => {
+    // Older builds were shipped with a Vite/Workbox shell. This application is
+    // Next.js and has no service-worker entry point, so an old worker can only
+    // serve stale Vite assets (for example /src/main.tsx) and break navigation.
+    let cancelled = false;
+    const cleanupLegacyWorker = async () => {
+      if (!("serviceWorker" in navigator)) return;
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        if (cancelled || !registrations.length) return;
+        await Promise.all(registrations.map(registration => registration.unregister()));
+        if (cancelled || !("caches" in window)) return;
+        const keys = await caches.keys();
+        const legacyKeys = keys.filter(key => /workbox|vite|google-fonts-cache|precache/i.test(key));
+        await Promise.all(legacyKeys.map(key => caches.delete(key)));
+        if (!cancelled && registrations.some(registration => registration.active)) {
+          window.location.reload();
+        }
+      } catch (error) {
+        // Do not block the archive if browser storage/service-worker cleanup is unavailable.
+        console.warn("[Mnemosyne] Could not clear a legacy application cache.", error);
+      }
+    };
+    void cleanupLegacyWorker();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     try {
       const saved = window.localStorage.getItem("mnemosyne-theme");
       if (saved === "light" || saved === "dark") setTheme(saved);
