@@ -205,8 +205,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .section-heading > span { color: var(--quiet); font-size: 11px; }
 .subtle-link { display: inline-flex; align-items: center; gap: 6px; color: var(--lime); font-size: 10px; font-weight: 700; }
 .search-stage { padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(140deg,var(--panel),var(--panel-2)); box-shadow: 0 15px 38px rgba(0,0,0,.1); }
-.search-stage-input { height: 54px; display: flex; align-items: center; gap: 13px; padding: 0 12px; color: var(--lime); background: var(--panel-deep); border: 1px solid var(--line); border-radius: 9px; }
-.search-stage-input input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: 400 19px/1.2 var(--serif); }
+.search-stage-input { height: 54px; display: flex; align-items: center; gap: 13px; padding: 0 12px; color: var(--muted); background: var(--panel-deep); border: 1px solid var(--line); border-radius: 9px; box-shadow: none; }
+.search-stage-input:focus-within { border-color: var(--line); box-shadow: none; }
+.search-stage-input input { flex: 1; min-width: 0; border: 0; outline: 0; box-shadow: none; background: transparent; color: var(--ink); font: 400 19px/1.2 var(--serif); }
+.search-stage-input input:focus, .search-stage-input input:focus-visible { outline: 0; box-shadow: none; }
 .search-stage-input input::placeholder { color: var(--quiet); }
 .search-stage-input kbd { font-size: 9px; color: var(--quiet); padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; }
 .search-scopes { display: flex; gap: 6px; margin-top: 12px; }

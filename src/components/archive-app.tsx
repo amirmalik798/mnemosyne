@@ -1709,6 +1709,35 @@ export default function ArchiveApp() {
     }
   };
 
+  useEffect(() => {
+    if (!session) return;
+
+    // pagehide runs when this document is being closed or unloaded. Unlike
+    // visibilitychange, it does not run just because the user switches tabs.
+    const lockWhenDocumentCloses = () => {
+      const queued = navigator.sendBeacon(
+        "/api/vault/lock",
+        new Blob([], { type: "text/plain" }),
+      );
+
+      // Keep a fallback for browsers that reject the beacon payload.
+      if (!queued) {
+        void fetch("/api/vault/lock", {
+          method: "POST",
+          credentials: "same-origin",
+          keepalive: true,
+          headers: { "Content-Type": "text/plain" },
+          body: "",
+        }).catch(() => {
+          // The server-side idle session timeout remains the fallback.
+        });
+      }
+    };
+
+    window.addEventListener("pagehide", lockWhenDocumentCloses);
+    return () => window.removeEventListener("pagehide", lockWhenDocumentCloses);
+  }, [session?.userId]);
+
   const exportArchive = async () => {
     try {
       const collected: Note[] = [];
