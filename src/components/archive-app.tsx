@@ -1156,13 +1156,29 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   const saveRef = useRef(saveNote);
   useEffect(() => { saveRef.current = saveNote; }, [saveNote]);
   useEffect(() => {
-    if (isNew || !dirty || loading || busyUpload || retryAttempt >= 5) return;
-    // Retry failed saves with bounded exponential backoff. A fresh edit resets
-    // the retry counter and returns to the normal short debounce.
+    if (isNew || !dirty || loading || busyUpload) return;
+    // Retry indefinitely with bounded exponential backoff. A failed save must
+    // never silently stop retrying while this editor remains open.
     const delay = retryAttempt === 0 ? 1400 : Math.min(30_000, 2_000 * 2 ** (retryAttempt - 1));
     const timer = window.setTimeout(() => { void saveRef.current(true); }, delay);
     return () => window.clearTimeout(timer);
   }, [dirty, revision, isNew, loading, busyUpload, retryAttempt]);
+
+  useEffect(() => {
+    if (isNew) return;
+    const retryWhenConnected = () => {
+      if (navigator.onLine) setRetryAttempt(0);
+    };
+    const retryWhenVisible = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) setRetryAttempt(0);
+    };
+    window.addEventListener("online", retryWhenConnected);
+    document.addEventListener("visibilitychange", retryWhenVisible);
+    return () => {
+      window.removeEventListener("online", retryWhenConnected);
+      document.removeEventListener("visibilitychange", retryWhenVisible);
+    };
+  }, [isNew]);
 
   const touchForm = () => { revisionRef.current += 1; setRevision(revisionRef.current); setDirty(true); setSaveState("unsaved"); setRetryAttempt(0); };
   const addTag = () => {
