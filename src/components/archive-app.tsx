@@ -1066,7 +1066,15 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
   // Reuse one ID when a create request is retried after an ambiguous network
   // failure, so a committed request cannot create a duplicate note.
   const createRequestId = useRef<string | null>(null);
+  const previousNoteId = useRef(props.noteId);
   const isNew = !props.noteId;
+
+  useEffect(() => {
+    if (previousNoteId.current !== props.noteId) {
+      createRequestId.current = null;
+      previousNoteId.current = props.noteId;
+    }
+  }, [props.noteId]);
 
   const editor = useEditor({
     extensions: editorExtensions(),
