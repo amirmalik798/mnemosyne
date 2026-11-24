@@ -111,6 +111,21 @@ The verification token is placed in a URL fragment, not a query string. The brow
 
 7. Start Next.js with `npm run dev`, open `http://localhost:3000/register`, create an account, confirm the email and sign in.
 
+## Use on your computer and phone without cloud storage
+
+Mnemosyne can run entirely on your computer while your phone uses it as a browser client on the same private Wi-Fi network.
+
+1. Start the local PostgreSQL service with `docker compose up -d`.
+2. Start Mnemosyne on your computer with `npm run dev` (or build and use `npm run build && npm run start` for normal use).
+3. Find your computer's local network IP address and open `http://COMPUTER-LAN-IP:3000` on your phone while both devices are connected to the same Wi-Fi network.
+4. Use the same Mnemosyne account on both devices. Both browsers connect to the same application and local PostgreSQL database.
+
+**Where your data lives:** Topics, notes, recovery drafts and encrypted image blobs are stored in the PostgreSQL database on your computer. The Docker volume `mnemosyne_pgdata` persists across container restarts. New image uploads are stored in PostgreSQL; `STORAGE_DIR` is only a compatibility path for legacy encrypted image files. The phone is a client, not a separate offline copy. Your computer must be running for the phone to access the archive. There is no automatic cloud backup or independent device synchronization.
+
+**Network safety:** The PostgreSQL port is bound to `127.0.0.1` and should not be exposed to your LAN. Do not port-forward the application or database ports to the public internet. The local development server uses HTTP, so only use it on a trusted private network; do not sign in over public or untrusted Wi-Fi. For access away from home, configure a private VPN and HTTPS later rather than exposing the app directly.
+
+If you still need to register or verify an account, `APP_BASE_URL` must use an address your phone can reach (for example, the computer's LAN URL). The configured Google Apps Script gateway is used only for verification email delivery; it is not used to store notes or images.
+
 ## Migration from the former single-user vault
 
 **Back up first.** Stop the app and create a full PostgreSQL backup. Preserve `.env.local` (especially the existing `SESSION_ENCRYPTION_SECRET`) and the old `STORAGE_DIR` until image integrity is verified.
