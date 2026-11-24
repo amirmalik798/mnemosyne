@@ -1115,7 +1115,7 @@ function NoteEditorPage(props: { noteId: string | null; topics: Topic[]; notify:
         setRevision(revisionRef.current);
       }
     }
-  }, [loading, topicId, title, subject, tags, pinned, editor, props.noteId, props.notify, router, isNew]);
+  }, [loading, topicId, title, subject, tags, pinned, editor, props.noteId, props.notify, props.onTopicsChanged, router, isNew]);
 
   const saveRef = useRef(saveNote);
   useEffect(() => { saveRef.current = saveNote; }, [saveNote]);
