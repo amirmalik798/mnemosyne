@@ -378,11 +378,11 @@ CREATE TABLE IF NOT EXISTS note_drafts (
 CREATE INDEX IF NOT EXISTS note_drafts_user_updated_idx
   ON note_drafts(user_id, updated_at DESC);
 
-DO $ BEGIN
+DO $$ BEGIN
   ALTER TABLE note_drafts ADD CONSTRAINT note_drafts_user_note_fk
     FOREIGN KEY (user_id, note_id) REFERENCES notes(user_id, id) ON DELETE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
-END $;
+END $$;
 
 ALTER TABLE note_drafts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE note_drafts FORCE ROW LEVEL SECURITY;
