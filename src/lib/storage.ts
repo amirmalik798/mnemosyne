@@ -309,7 +309,7 @@ function collectReferencedNoteAssetIds(content: unknown): Set<string> {
     if (record.type === "image" && record.attrs && typeof record.attrs === "object") {
       const src = (record.attrs as Record<string, unknown>).src;
       if (typeof src === "string") {
-        const match = src.match(/^\/api\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+        const match = src.match(/^\\/api\\/assets\\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
         if (match) referenced.add(match[1]);
       }
     }
@@ -349,6 +349,18 @@ export async function updateNoteAndCleanupAssets(input: {
       [input.topicId],
     );
     if (!topic.rows[0]) throw new Error("VALIDATION:Choose a valid topic.");
+
+    if (referenced.length > 0) {
+      const ownedAssets = await client.query(
+        `SELECT id FROM assets
+         WHERE owner_type = 'note' AND owner_id = $1 AND id = ANY($2::uuid[])
+         FOR UPDATE`,
+        [input.noteId, referenced],
+      );
+      if (ownedAssets.rows.length !== referenced.length) {
+        throw new Error("VALIDATION:An image is missing or is not attached to this note.");
+      }
+    }
 
     if (referenced.length > 0) {
       const ownedAssets = await client.query(
