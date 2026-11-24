@@ -130,6 +130,12 @@ async function main() {
     assert.equal(pinnedLifecycleNote.rowCount, 1, "pinning should update the note and its topic");
     await assertTopicTimestampTouched("pinning");
 
+    await client.query(
+      `INSERT INTO note_drafts
+       (note_id,user_id,topic_id,title_enc,subject_enc,content_enc,tags_enc,base_note_updated_at)
+       VALUES ($1,$2,$3,$4,$4,$4,$4,NOW())`,
+      [lifecycleNote, userA, topicA, randomBytes(48)],
+    );
     await resetTopicTimestamp();
     const trashedLifecycleNote = await client.query(
       `WITH deleted_note AS (
@@ -141,11 +147,21 @@ async function main() {
          UPDATE topics t SET updated_at=NOW()
          FROM deleted_note n WHERE t.id=n.topic_id
          RETURNING t.id
+       ),
+       removed_recovery_draft AS (
+         DELETE FROM note_drafts
+         WHERE note_id=$1 AND EXISTS (SELECT 1 FROM deleted_note)
+         RETURNING note_id
        )
        SELECT n.id FROM deleted_note n JOIN touched_topic t ON t.id=n.topic_id`,
       [lifecycleNote],
     );
     assert.equal(trashedLifecycleNote.rowCount, 1, "moving a note to trash should touch its topic");
+    assert.equal(
+      (await client.query("SELECT note_id FROM note_drafts WHERE note_id=$1", [lifecycleNote])).rowCount,
+      0,
+      "moving a note to Trash should discard its stale recovery draft",
+    );
     await assertTopicTimestampTouched("trash");
 
     await resetTopicTimestamp();
